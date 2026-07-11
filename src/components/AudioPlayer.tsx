@@ -10,8 +10,45 @@ type WaveformData = {
   waveformChannels: number;
   bitsPerSample: number;
   peaksPerSecond: number;
+
+  analysis: {
+    fftSize: number;
+    window: string;
+
+    bandsHz: {
+      low: [number, number];
+      mid: [number, number];
+      high: [number, number];
+    };
+
+    peakFields: string[];
+
+    normalization: {
+      method: string;
+      percentile: number;
+      compression: string;
+
+      references: {
+        low: number;
+        mid: number;
+        high: number;
+      };
+    };
+  };
+
   peakCount: number;
-  peaks: [number, number][];
+
+  /*
+   * Peak format:
+   * [minimum, maximum, low, mid, high]
+   */
+  peaks: [
+    number,
+    number,
+    number,
+    number,
+    number,
+  ][];
 };
 
 export default function AudioPlayer() {

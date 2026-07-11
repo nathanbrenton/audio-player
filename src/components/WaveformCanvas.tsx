@@ -5,8 +5,24 @@ import {
   type RefObject,
 } from "react";
 
+//type WaveformCanvasProps = {
+//  peaks: [number, number][];
+//  audioRef: RefObject<HTMLAudioElement | null>;
+//  isPlaying: boolean;
+//};
 type WaveformCanvasProps = {
-  peaks: [number, number][];
+  /*
+   * Peak format:
+   * [minimum, maximum, low, mid, high]
+   */
+  peaks: [
+    number,
+    number,
+    number,
+    number,
+    number,
+  ][];
+
   audioRef: RefObject<HTMLAudioElement | null>;
   isPlaying: boolean;
 };
@@ -66,7 +82,7 @@ export default function WaveformCanvas({
       context.clearRect(0, 0, width, height);
 
       // Draw each visible waveform column.
-      context.strokeStyle = "#8fd3ff";
+//      context.strokeStyle = "#8fd3ff";
       context.lineWidth = 1;
 
       for (let x = 0; x < width; x += 1) {
@@ -82,7 +98,20 @@ export default function WaveformCanvas({
           continue;
         }
 
-        const [minimum, maximum] = peaks[peakIndex];
+        const [
+          minimum,
+          maximum,
+          low,
+          mid,
+          high,
+        ] = peaks[peakIndex];
+        // Map low, mid, and high energy to red, green, and blue.
+        const red = Math.round(low * 255);
+        const green = Math.round(mid * 255);
+        const blue = Math.round(high * 255);
+
+        context.strokeStyle =
+          `rgb(${red}, ${green}, ${blue})`;
 
         // Convert normalized amplitudes into canvas coordinates.
         const y1 = centerY + minimum * centerY;

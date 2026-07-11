@@ -4,6 +4,14 @@ import fs from "node:fs";
 import path from "node:path";
 
 const PEAKS_PER_SECOND = 100;
+const FFT_SIZE = 1024;
+const NORMALIZATION_PERCENTILE = 95;
+
+const FREQUENCY_BANDS = {
+  low: [20, 250],
+  mid: [250, 4000],
+  high: [4000, 20000],
+};
 
 function fail(message) {
   console.error(`Error: ${message}`);
@@ -41,6 +49,7 @@ function parseWav(buffer) {
   let dataSize = null;
   let offset = 12;
 
+  // Walk through each RIFF chunk until fmt and data are found.
   while (offset + 8 <= buffer.length) {
     const chunkId = buffer.toString("ascii", offset, offset + 4);
     const chunkSize = buffer.readUInt32LE(offset + 4);
@@ -63,10 +72,7 @@ function parseWav(buffer) {
       const blockAlign = buffer.readUInt16LE(chunkDataOffset + 12);
       const bitsPerSample = buffer.readUInt16LE(chunkDataOffset + 14);
 
-      /*
-       * WAVE_FORMAT_EXTENSIBLE stores the actual encoding identifier
-       * inside the subformat GUID.
-       */
+      // WAVE_FORMAT_EXTENSIBLE stores its actual format in the subformat GUID.
       if (audioFormat === 0xfffe) {
         if (chunkSize < 40) {
           fail("invalid WAVE_FORMAT_EXTENSIBLE fmt chunk");
@@ -89,9 +95,7 @@ function parseWav(buffer) {
       dataSize = chunkSize;
     }
 
-    /*
-     * RIFF chunks are padded to an even byte boundary.
-     */
+    // RIFF chunks are padded to an even-byte boundary.
     offset = chunkEnd + (chunkSize % 2);
   }
 
@@ -101,14 +105,6 @@ function parseWav(buffer) {
 
   if (dataOffset === null || dataSize === null) {
     fail("WAV file does not contain a data chunk");
-  }
-
-  if (format.channels < 1) {
-    fail("WAV file contains no audio channels");
-  }
-
-  if (format.sampleRate < 1) {
-    fail("WAV file has an invalid sample rate");
   }
 
   const supportedPcm =
@@ -150,7 +146,10 @@ function parseWav(buffer) {
 function readSample(buffer, offset, audioFormat, bitsPerSample) {
   if (audioFormat === 3 && bitsPerSample === 32) {
     const value = buffer.readFloatLE(offset);
-    return Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0;
+
+    return Number.isFinite(value)
+      ? Math.max(-1, Math.min(1, value))
+      : 0;
   }
 
   switch (bitsPerSample) {
@@ -168,65 +167,311 @@ function readSample(buffer, offset, audioFormat, bitsPerSample) {
   }
 }
 
-function generatePeaks(buffer, wav) {
-  const framesPerPeak = Math.max(
+function buildMonoSamples(buffer, wav) {
+  const samples = new Float64Array(wav.frameCount);
+
+  // Average all source channels into one analysis channel.
+  for (let frameIndex = 0; frameIndex < wav.frameCount; frameIndex += 1) {
+    const frameOffset =
+      wav.dataOffset + frameIndex * wav.blockAlign;
+
+    let monoSample = 0;
+
+    for (let channel = 0; channel < wav.channels; channel += 1) {
+      const sampleOffset =
+        frameOffset + channel * wav.bytesPerSample;
+
+      monoSample += readSample(
+        buffer,
+        sampleOffset,
+        wav.audioFormat,
+        wav.bitsPerSample,
+      );
+    }
+
+    samples[frameIndex] = monoSample / wav.channels;
+  }
+
+  return samples;
+}
+
+function createHannWindow(size) {
+  const window = new Float64Array(size);
+
+  for (let index = 0; index < size; index += 1) {
+    window[index] =
+      0.5 -
+      0.5 * Math.cos((2 * Math.PI * index) / (size - 1));
+  }
+
+  return window;
+}
+
+function reverseBits(value, bitCount) {
+  let reversed = 0;
+
+  for (let bit = 0; bit < bitCount; bit += 1) {
+    reversed = (reversed << 1) | (value & 1);
+    value >>>= 1;
+  }
+
+  return reversed;
+}
+
+function fftRealMagnitude(samples) {
+  const size = samples.length;
+  const levels = Math.log2(size);
+
+  if (!Number.isInteger(levels)) {
+    fail("FFT size must be a power of two");
+  }
+
+  const real = new Float64Array(size);
+  const imaginary = new Float64Array(size);
+
+  // Place samples into bit-reversed order for the iterative FFT.
+  for (let index = 0; index < size; index += 1) {
+    real[reverseBits(index, levels)] = samples[index];
+  }
+
+  // Iterative radix-2 Cooley-Tukey FFT.
+  for (let blockSize = 2; blockSize <= size; blockSize *= 2) {
+    const halfSize = blockSize / 2;
+    const angleStep = (-2 * Math.PI) / blockSize;
+
+    for (let blockStart = 0; blockStart < size; blockStart += blockSize) {
+      for (let offset = 0; offset < halfSize; offset += 1) {
+        const angle = angleStep * offset;
+        const cosine = Math.cos(angle);
+        const sine = Math.sin(angle);
+
+        const evenIndex = blockStart + offset;
+        const oddIndex = evenIndex + halfSize;
+
+        const oddReal =
+          real[oddIndex] * cosine -
+          imaginary[oddIndex] * sine;
+
+        const oddImaginary =
+          real[oddIndex] * sine +
+          imaginary[oddIndex] * cosine;
+
+        real[oddIndex] = real[evenIndex] - oddReal;
+        imaginary[oddIndex] =
+          imaginary[evenIndex] - oddImaginary;
+
+        real[evenIndex] += oddReal;
+        imaginary[evenIndex] += oddImaginary;
+      }
+    }
+  }
+
+  const binCount = size / 2 + 1;
+  const magnitudes = new Float64Array(binCount);
+
+  for (let bin = 0; bin < binCount; bin += 1) {
+    magnitudes[bin] = Math.hypot(real[bin], imaginary[bin]);
+  }
+
+  return magnitudes;
+}
+
+function calculateBandEnergy(
+  magnitudes,
+  sampleRate,
+  minimumFrequency,
+  maximumFrequency,
+) {
+  const nyquist = sampleRate / 2;
+  const cappedMaximum = Math.min(maximumFrequency, nyquist);
+  const binWidth = sampleRate / FFT_SIZE;
+
+  const firstBin = Math.max(
     1,
-    Math.floor(wav.sampleRate / PEAKS_PER_SECOND),
+    Math.ceil(minimumFrequency / binWidth),
   );
 
-  const peakCount = Math.ceil(wav.frameCount / framesPerPeak);
-  const peaks = new Array(peakCount);
+  const finalBin = Math.min(
+    magnitudes.length - 1,
+    Math.floor(cappedMaximum / binWidth),
+  );
 
-  for (let peakIndex = 0; peakIndex < peakCount; peakIndex += 1) {
-    const firstFrame = peakIndex * framesPerPeak;
+  if (finalBin < firstBin) {
+    return 0;
+  }
+
+  let energy = 0;
+  let binCount = 0;
+
+  for (let bin = firstBin; bin <= finalBin; bin += 1) {
+    const magnitude = magnitudes[bin];
+
+    // Mean squared magnitude prevents wider bands winning by bin count alone.
+    energy += magnitude * magnitude;
+    binCount += 1;
+  }
+
+  return binCount > 0 ? Math.sqrt(energy / binCount) : 0;
+}
+
+function percentile(values, requestedPercentile) {
+  if (values.length === 0) {
+    return 1;
+  }
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const normalized = Math.max(
+    0,
+    Math.min(100, requestedPercentile),
+  );
+
+  const index = Math.min(
+    sorted.length - 1,
+    Math.floor((normalized / 100) * (sorted.length - 1)),
+  );
+
+  return sorted[index] > 0 ? sorted[index] : 1;
+}
+
+function compressEnergy(value, reference) {
+  const normalized = Math.min(1, value / reference);
+
+  // Square-root compression keeps quieter band activity visible.
+  return Math.sqrt(normalized);
+}
+
+function generateAnalysis(samples, wav) {
+  const hopSize = Math.max(
+    1,
+    Math.round(wav.sampleRate / PEAKS_PER_SECOND),
+  );
+
+  const bucketCount = Math.ceil(wav.frameCount / hopSize);
+  const window = createHannWindow(FFT_SIZE);
+  const rawBuckets = new Array(bucketCount);
+
+  const lowValues = new Array(bucketCount);
+  const midValues = new Array(bucketCount);
+  const highValues = new Array(bucketCount);
+
+  for (let bucketIndex = 0; bucketIndex < bucketCount; bucketIndex += 1) {
+    const firstFrame = bucketIndex * hopSize;
     const finalFrame = Math.min(
-      firstFrame + framesPerPeak,
+      firstFrame + hopSize,
       wav.frameCount,
     );
 
     let minimum = 1;
     let maximum = -1;
 
-    for (let frameIndex = firstFrame; frameIndex < finalFrame; frameIndex += 1) {
-      const frameOffset =
-        wav.dataOffset + frameIndex * wav.blockAlign;
+    // Calculate the waveform envelope for this 10 ms bucket.
+    for (
+      let frameIndex = firstFrame;
+      frameIndex < finalFrame;
+      frameIndex += 1
+    ) {
+      const sample = samples[frameIndex];
 
-      let monoSample = 0;
-
-      for (let channel = 0; channel < wav.channels; channel += 1) {
-        const sampleOffset =
-          frameOffset + channel * wav.bytesPerSample;
-
-        monoSample += readSample(
-          buffer,
-          sampleOffset,
-          wav.audioFormat,
-          wav.bitsPerSample,
-        );
+      if (sample < minimum) {
+        minimum = sample;
       }
 
-      monoSample /= wav.channels;
-
-      if (monoSample < minimum) {
-        minimum = monoSample;
-      }
-
-      if (monoSample > maximum) {
-        maximum = monoSample;
+      if (sample > maximum) {
+        maximum = sample;
       }
     }
 
-    peaks[peakIndex] = [
-      Number(minimum.toFixed(6)),
-      Number(maximum.toFixed(6)),
-    ];
+    // Center a larger overlapping FFT window on the current bucket.
+    const fftStart =
+      firstFrame + Math.floor(hopSize / 2) - Math.floor(FFT_SIZE / 2);
+
+    const fftInput = new Float64Array(FFT_SIZE);
+
+    for (let index = 0; index < FFT_SIZE; index += 1) {
+      const sourceIndex = fftStart + index;
+      const sample =
+        sourceIndex >= 0 && sourceIndex < samples.length
+          ? samples[sourceIndex]
+          : 0;
+
+      fftInput[index] = sample * window[index];
+    }
+
+    const magnitudes = fftRealMagnitude(fftInput);
+
+    const low = calculateBandEnergy(
+      magnitudes,
+      wav.sampleRate,
+      FREQUENCY_BANDS.low[0],
+      FREQUENCY_BANDS.low[1],
+    );
+
+    const mid = calculateBandEnergy(
+      magnitudes,
+      wav.sampleRate,
+      FREQUENCY_BANDS.mid[0],
+      FREQUENCY_BANDS.mid[1],
+    );
+
+    const high = calculateBandEnergy(
+      magnitudes,
+      wav.sampleRate,
+      FREQUENCY_BANDS.high[0],
+      FREQUENCY_BANDS.high[1],
+    );
+
+    rawBuckets[bucketIndex] = {
+      min: minimum,
+      max: maximum,
+      low,
+      mid,
+      high,
+    };
+
+    lowValues[bucketIndex] = low;
+    midValues[bucketIndex] = mid;
+    highValues[bucketIndex] = high;
   }
 
-  return peaks;
+  // Normalize each band against its own 95th-percentile reference.
+  const lowReference = percentile(
+    lowValues,
+    NORMALIZATION_PERCENTILE,
+  );
+
+  const midReference = percentile(
+    midValues,
+    NORMALIZATION_PERCENTILE,
+  );
+
+  const highReference = percentile(
+    highValues,
+    NORMALIZATION_PERCENTILE,
+  );
+
+  const peaks = rawBuckets.map((bucket) => [
+    Number(bucket.min.toFixed(6)),
+    Number(bucket.max.toFixed(6)),
+    Number(compressEnergy(bucket.low, lowReference).toFixed(6)),
+    Number(compressEnergy(bucket.mid, midReference).toFixed(6)),
+    Number(compressEnergy(bucket.high, highReference).toFixed(6)),
+  ]);
+
+  return {
+    peaks,
+    normalizationReferences: {
+      low: Number(lowReference.toFixed(6)),
+      mid: Number(midReference.toFixed(6)),
+      high: Number(highReference.toFixed(6)),
+    },
+  };
 }
 
 if (process.argv.length !== 3) {
-  fail("usage: node scripts/generate-waveform-peaks.mjs path/to/track-directory");
+  fail(
+    "usage: node scripts/generate-waveform-peaks.mjs " +
+      "path/to/track-directory",
+  );
 }
 
 const trackDirectory = path.resolve(process.argv[2]);
@@ -247,13 +492,26 @@ if (!fs.existsSync(inputPath)) {
 
 console.log(`Input:  ${inputPath}`);
 console.log(`Output: ${outputPath}`);
+console.log("Analysis:");
+console.log(`  Peaks per second: ${PEAKS_PER_SECOND}`);
+console.log(`  FFT size:         ${FFT_SIZE}`);
+console.log(
+  `  Low band:         ${FREQUENCY_BANDS.low[0]}-${FREQUENCY_BANDS.low[1]} Hz`,
+);
+console.log(
+  `  Mid band:         ${FREQUENCY_BANDS.mid[0]}-${FREQUENCY_BANDS.mid[1]} Hz`,
+);
+console.log(
+  `  High band:        ${FREQUENCY_BANDS.high[0]}-${FREQUENCY_BANDS.high[1]} Hz`,
+);
 
 const wavBuffer = fs.readFileSync(inputPath);
 const wav = parseWav(wavBuffer);
-const peaks = generatePeaks(wavBuffer, wav);
+const monoSamples = buildMonoSamples(wavBuffer, wav);
+const generated = generateAnalysis(monoSamples, wav);
 
 const output = {
-  version: 1,
+  version: 2,
   durationSeconds: Number(
     (wav.frameCount / wav.sampleRate).toFixed(6),
   ),
@@ -262,8 +520,20 @@ const output = {
   waveformChannels: 1,
   bitsPerSample: wav.bitsPerSample,
   peaksPerSecond: PEAKS_PER_SECOND,
-  peakCount: peaks.length,
-  peaks,
+  analysis: {
+    fftSize: FFT_SIZE,
+    window: "hann",
+    bandsHz: FREQUENCY_BANDS,
+    peakFields: ["min", "max", "low", "mid", "high"],
+    normalization: {
+      method: "per-band-percentile",
+      percentile: NORMALIZATION_PERCENTILE,
+      compression: "square-root",
+      references: generated.normalizationReferences,
+    },
+  },
+  peakCount: generated.peaks.length,
+  peaks: generated.peaks,
 };
 
 fs.writeFileSync(
