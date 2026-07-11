@@ -39,3 +39,6 @@ assets/releases/
 # Temporary files
 *.tmp
 *.temp
+
+# Local media copied for development
+public/media/
