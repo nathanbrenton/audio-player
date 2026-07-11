@@ -1,6 +1,9 @@
-// React import
+// React imports
 import { useEffect, useRef, useState } from "react";
-import WaveformCanvas from "./WaveformCanvas";
+
+import WaveformCanvas, {
+  type WaveformColorMode,
+} from "./WaveformCanvas";
 
 type WaveformData = {
   version: number;
@@ -53,9 +56,20 @@ type WaveformData = {
 
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Player state.
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [waveform, setWaveform] = useState<WaveformData | null>(null);
+
+  // Waveform data and visual settings.
+  const [waveform, setWaveform] =
+    useState<WaveformData | null>(null);
+  const [colorMode, setColorMode] =
+    useState<WaveformColorMode>("rgb");
+
+  // Horizontal waveform scale in canvas pixels per second.
+  const [pixelsPerSecond, setPixelsPerSecond] =
+    useState(100);
 
   useEffect(() => {
     async function loadWaveform() {
@@ -109,27 +123,67 @@ export default function AudioPlayer() {
         {isPlaying ? "Pause" : "Play"}
       </button>
 
+      <label>
+        Waveform color
+        <select
+          value={colorMode}
+          onChange={(event) => {
+            setColorMode(
+              event.currentTarget.value as WaveformColorMode,
+            );
+          }}
+        >
+          <option value="rgb">RGB</option>
+          <option value="3band">3Band</option>
+          <option value="blue">Blue</option>
+          <option value="monochrome">Monochrome</option>
+        </select>
+      </label>
+
+      <label>
+        Waveform zoom
+        <select
+          value={pixelsPerSecond}
+          onChange={(event) => {
+            setPixelsPerSecond(
+              Number(event.currentTarget.value),
+            );
+          }}
+        >
+          <option value={50}>50 px/s</option>
+          <option value={100}>100 px/s</option>
+          <option value={200}>200 px/s</option>
+          <option value={400}>400 px/s</option>
+        </select>
+      </label>
+
       {waveform ? (
         <>
           <WaveformCanvas
             peaks={waveform.peaks}
             audioRef={audioRef}
             isPlaying={isPlaying}
-           />
+            colorMode={colorMode}
+            pixelsPerSecond={pixelsPerSecond}
+            peaksPerSecond={waveform.peaksPerSecond}
+          />
 
-        <dl>
-          <dt>Duration</dt>
-          <dd>{waveform.durationSeconds} seconds</dd>
+          <dl>
+            <dt>Current time</dt>
+            <dd>{currentTime.toFixed(2)} seconds</dd>
 
-          <dt>Sample rate</dt>
-          <dd>{waveform.sampleRate} Hz</dd>
+            <dt>Duration</dt>
+            <dd>{waveform.durationSeconds} seconds</dd>
 
-          <dt>Peak count</dt>
-          <dd>{waveform.peakCount}</dd>
+            <dt>Sample rate</dt>
+            <dd>{waveform.sampleRate} Hz</dd>
 
-          <dt>Peaks per second</dt>
-          <dd>{waveform.peaksPerSecond}</dd>
-        </dl>
+            <dt>Peak count</dt>
+            <dd>{waveform.peakCount}</dd>
+
+            <dt>Peaks per second</dt>
+            <dd>{waveform.peaksPerSecond}</dd>
+          </dl>
         </>
       ) : (
         <p>Loading waveform data…</p>

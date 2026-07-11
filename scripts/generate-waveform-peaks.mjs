@@ -3,7 +3,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const PEAKS_PER_SECOND = 100;
+const DEFAULT_PEAKS_PER_SECOND = 100;
+const MAXIMUM_PEAKS_PER_SECOND = 1000;
 const FFT_SIZE = 1024;
 const NORMALIZATION_PERCENTILE = 95;
 
@@ -16,6 +17,31 @@ const FREQUENCY_BANDS = {
 function fail(message) {
   console.error(`Error: ${message}`);
   process.exit(1);
+}
+
+/*
+ * Parse the optional waveform resolution argument.
+ * Keeping a default preserves the generator's original behavior.
+ */
+function parsePeaksPerSecond(value) {
+  if (value === undefined) {
+    return DEFAULT_PEAKS_PER_SECOND;
+  }
+
+  const peaksPerSecond = Number(value);
+
+  if (
+    !Number.isInteger(peaksPerSecond) ||
+    peaksPerSecond < 1 ||
+    peaksPerSecond > MAXIMUM_PEAKS_PER_SECOND
+  ) {
+    fail(
+      "peaks per second must be an integer between " +
+        `1 and ${MAXIMUM_PEAKS_PER_SECOND}`,
+    );
+  }
+
+  return peaksPerSecond;
 }
 
 function readPcm24LE(buffer, offset) {
@@ -340,10 +366,14 @@ function compressEnergy(value, reference) {
   return Math.sqrt(normalized);
 }
 
-function generateAnalysis(samples, wav) {
+function generateAnalysis(
+  samples,
+  wav,
+  peaksPerSecond,
+) {
   const hopSize = Math.max(
     1,
-    Math.round(wav.sampleRate / PEAKS_PER_SECOND),
+    Math.round(wav.sampleRate / peaksPerSecond),
   );
 
   const bucketCount = Math.ceil(wav.frameCount / hopSize);
@@ -467,14 +497,20 @@ function generateAnalysis(samples, wav) {
   };
 }
 
-if (process.argv.length !== 3) {
+if (
+  process.argv.length < 3 ||
+  process.argv.length > 4
+) {
   fail(
     "usage: node scripts/generate-waveform-peaks.mjs " +
-      "path/to/track-directory",
+      "path/to/track-directory [peaks-per-second]",
   );
 }
 
 const trackDirectory = path.resolve(process.argv[2]);
+const peaksPerSecond = parsePeaksPerSecond(
+  process.argv[3],
+);
 const inputPath = path.join(trackDirectory, "audio-master.wav");
 const outputPath = path.join(trackDirectory, "waveform-peaks.json");
 
@@ -493,7 +529,7 @@ if (!fs.existsSync(inputPath)) {
 console.log(`Input:  ${inputPath}`);
 console.log(`Output: ${outputPath}`);
 console.log("Analysis:");
-console.log(`  Peaks per second: ${PEAKS_PER_SECOND}`);
+console.log(`  Peaks per second: ${peaksPerSecond}`);
 console.log(`  FFT size:         ${FFT_SIZE}`);
 console.log(
   `  Low band:         ${FREQUENCY_BANDS.low[0]}-${FREQUENCY_BANDS.low[1]} Hz`,
@@ -508,7 +544,11 @@ console.log(
 const wavBuffer = fs.readFileSync(inputPath);
 const wav = parseWav(wavBuffer);
 const monoSamples = buildMonoSamples(wavBuffer, wav);
-const generated = generateAnalysis(monoSamples, wav);
+const generated = generateAnalysis(
+  monoSamples,
+  wav,
+  peaksPerSecond,
+);
 
 const output = {
   version: 2,
@@ -519,7 +559,7 @@ const output = {
   sourceChannels: wav.channels,
   waveformChannels: 1,
   bitsPerSample: wav.bitsPerSample,
-  peaksPerSecond: PEAKS_PER_SECOND,
+  peaksPerSecond,
   analysis: {
     fftSize: FFT_SIZE,
     window: "hann",

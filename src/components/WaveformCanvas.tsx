@@ -5,36 +5,247 @@ import {
   type RefObject,
 } from "react";
 
-//type WaveformCanvasProps = {
-//  peaks: [number, number][];
-//  audioRef: RefObject<HTMLAudioElement | null>;
-//  isPlaying: boolean;
-//};
+/*
+ * Supported waveform color modes.
+ *
+ * Additional modes will be added incrementally:
+ * - 3Band
+ * - Monochrome
+ */
+export type WaveformColorMode =
+  | "rgb"
+  | "3band"
+  | "blue"
+  | "monochrome";
+
+/*
+ * Version 2 waveform peak:
+ * [minimum, maximum, low, mid, high]
+ */
+type WaveformPeak = [
+  number,
+  number,
+  number,
+  number,
+  number,
+];
+
 type WaveformCanvasProps = {
-  /*
-   * Peak format:
-   * [minimum, maximum, low, mid, high]
-   */
-  peaks: [
-    number,
-    number,
-    number,
-    number,
-    number,
-  ][];
+  peaks: WaveformPeak[];
 
   audioRef: RefObject<HTMLAudioElement | null>;
   isPlaying: boolean;
+
+  /*
+   * RGB remains the default so existing callers continue working
+   * without needing to pass a new prop.
+   */
+  colorMode?: WaveformColorMode;
+
+  /*
+   * Controls horizontal waveform scale.
+   * Higher values show fewer seconds and more waveform detail.
+   */
+  pixelsPerSecond?: number;
+
+  /*
+   * Resolution of the generated waveform data.
+   * This is independent from the visual zoom level.
+   */
+  peaksPerSecond?: number;
 };
 
-// The waveform data contains 100 peak buckets per second.
-// At one peak per canvas pixel, this also becomes 100 pixels per second.
-const PIXELS_PER_SECOND = 100;
+/*
+ * Default display scale and waveform-data resolution.
+ * These values happen to match at the default zoom level,
+ * but they represent different concepts.
+ */
+const DEFAULT_PIXELS_PER_SECOND = 100;
+const DEFAULT_PEAKS_PER_SECOND = 100;
+
+/*
+ * Convert a peak's frequency-band values into its display color.
+ *
+ * RGB:
+ * - Low frequencies become red.
+ * - Mid frequencies become green.
+ * - High frequencies become blue.
+ *
+ * Blue:
+ * - Uses one consistent waveform color.
+ */
+/*
+ * Return the waveform values represented by one canvas column.
+ *
+ * Zoomed in:
+ * Interpolate between adjacent stored peaks for smooth movement.
+ *
+ * Zoomed out:
+ * Aggregate every stored peak covered by the canvas pixel so
+ * transients are preserved instead of skipped.
+ */
+function sampleWaveformPeak(
+  peaks: WaveformPeak[],
+  peakPosition: number,
+  peaksPerPixel: number,
+): WaveformPeak | null {
+  if (
+    peakPosition < 0 ||
+    peakPosition >= peaks.length
+  ) {
+    return null;
+  }
+
+  if (peaksPerPixel <= 1) {
+    const firstIndex = Math.floor(peakPosition);
+    const secondIndex = Math.min(
+      firstIndex + 1,
+      peaks.length - 1,
+    );
+    const fraction = peakPosition - firstIndex;
+
+    const first = peaks[firstIndex];
+    const second = peaks[secondIndex];
+
+    return first.map((value, index) => {
+      return (
+        value +
+        (second[index] - value) * fraction
+      );
+    }) as WaveformPeak;
+  }
+
+  const halfRange = peaksPerPixel / 2;
+  const firstIndex = Math.max(
+    0,
+    Math.floor(peakPosition - halfRange),
+  );
+  const lastIndex = Math.min(
+    peaks.length - 1,
+    Math.ceil(peakPosition + halfRange),
+  );
+
+  let minimum = 1;
+  let maximum = -1;
+  let lowTotal = 0;
+  let midTotal = 0;
+  let highTotal = 0;
+  let count = 0;
+
+  for (
+    let index = firstIndex;
+    index <= lastIndex;
+    index += 1
+  ) {
+    const [peakMinimum, peakMaximum, low, mid, high] =
+      peaks[index];
+
+    minimum = Math.min(minimum, peakMinimum);
+    maximum = Math.max(maximum, peakMaximum);
+    lowTotal += low;
+    midTotal += mid;
+    highTotal += high;
+    count += 1;
+  }
+
+  if (count === 0) {
+    return null;
+  }
+
+  return [
+    minimum,
+    maximum,
+    lowTotal / count,
+    midTotal / count,
+    highTotal / count,
+  ];
+}
+
+/*
+ * Draw low, mid, and high energy in three separate horizontal lanes.
+ * Each band is centered within its lane and expands symmetrically.
+ */
+function drawThreeBandColumn(
+  context: CanvasRenderingContext2D,
+  x: number,
+  height: number,
+  low: number,
+  mid: number,
+  high: number,
+) {
+  const laneHeight = height / 3;
+  const maximumHalfHeight = laneHeight * 0.42;
+
+  const bands = [
+    {
+      energy: low,
+      centerY: laneHeight * 0.5,
+      color: "#ff5a5a",
+    },
+    {
+      energy: mid,
+      centerY: laneHeight * 1.5,
+      color: "#62d26f",
+    },
+    {
+      energy: high,
+      centerY: laneHeight * 2.5,
+      color: "#5ab7ff",
+    },
+  ];
+
+  for (const band of bands) {
+    // Protect the canvas renderer from malformed out-of-range values.
+    const normalizedEnergy = Math.max(
+      0,
+      Math.min(1, band.energy),
+    );
+
+    const halfHeight =
+      normalizedEnergy * maximumHalfHeight;
+
+    context.strokeStyle = band.color;
+    context.beginPath();
+    context.moveTo(
+      x + 0.5,
+      band.centerY - halfHeight,
+    );
+    context.lineTo(
+      x + 0.5,
+      band.centerY + halfHeight,
+    );
+    context.stroke();
+  }
+}
+
+function getWaveformStrokeStyle(
+  colorMode: WaveformColorMode,
+  low: number,
+  mid: number,
+  high: number,
+): string {
+  if (colorMode === "blue") {
+    return "#5ab7ff";
+  }
+
+  if (colorMode === "monochrome") {
+    return "#c8c8c8";
+  }
+
+  const red = Math.round(low * 255);
+  const green = Math.round(mid * 255);
+  const blue = Math.round(high * 255);
+
+  return `rgb(${red}, ${green}, ${blue})`;
+}
 
 export default function WaveformCanvas({
   peaks,
   audioRef,
   isPlaying,
+  colorMode = "rgb",
+  pixelsPerSecond = DEFAULT_PIXELS_PER_SECOND,
+  peaksPerSecond = DEFAULT_PEAKS_PER_SECOND,
 }: WaveformCanvasProps) {
   // References used for drawing and animation.
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -61,6 +272,9 @@ export default function WaveformCanvas({
       return;
     }
 
+    // Preserve the non-null canvas context inside nested render functions.
+    const drawingContext = context;
+
     // Canvas dimensions use the intrinsic drawing resolution.
     const width = canvas.width;
     const height = canvas.height;
@@ -73,28 +287,37 @@ export default function WaveformCanvas({
       const audio = audioRef.current;
       const currentTime = audio?.currentTime ?? 0;
 
-      // Convert playback time into the corresponding waveform peak.
-      const currentPeakIndex = Math.floor(
-        currentTime * PIXELS_PER_SECOND,
-      );
-
       // Clear the previous frame.
-      context.clearRect(0, 0, width, height);
+      drawingContext.clearRect(0, 0, width, height);
 
       // Draw each visible waveform column.
-//      context.strokeStyle = "#8fd3ff";
-      context.lineWidth = 1;
+      drawingContext.lineWidth = 1;
 
       for (let x = 0; x < width; x += 1) {
         // Offset waveform data so the current time stays centered.
-        const peakIndex =
-          currentPeakIndex + Math.floor(x - playheadX);
+        /*
+         * Convert this canvas column directly into absolute audio time.
+         * The resulting peak position remains fractional so movement
+         * can be interpolated instead of snapping between buckets.
+         */
+        const timeAtX =
+          currentTime +
+          (x - playheadX) / pixelsPerSecond;
+
+        const peakPosition =
+          timeAtX * peaksPerSecond;
+
+        const peaksPerPixel =
+          peaksPerSecond / pixelsPerSecond;
+
+        const sampledPeak = sampleWaveformPeak(
+          peaks,
+          peakPosition,
+          peaksPerPixel,
+        );
 
         // Skip portions before the beginning or after the end.
-        if (
-          peakIndex < 0 ||
-          peakIndex >= peaks.length
-        ) {
+        if (!sampledPeak) {
           continue;
         }
 
@@ -104,33 +327,51 @@ export default function WaveformCanvas({
           low,
           mid,
           high,
-        ] = peaks[peakIndex];
-        // Map low, mid, and high energy to red, green, and blue.
-        const red = Math.round(low * 255);
-        const green = Math.round(mid * 255);
-        const blue = Math.round(high * 255);
+        ] = sampledPeak;
 
-        context.strokeStyle =
-          `rgb(${red}, ${green}, ${blue})`;
+        /*
+         * 3Band uses three independent frequency-energy lanes instead
+         * of the standard full-height amplitude envelope.
+         */
+        if (colorMode === "3band") {
+          drawThreeBandColumn(
+            drawingContext,
+            x,
+            height,
+            low,
+            mid,
+            high,
+          );
+
+          continue;
+        }
+
+        // Choose the column color using the active waveform mode.
+        drawingContext.strokeStyle = getWaveformStrokeStyle(
+          colorMode,
+          low,
+          mid,
+          high,
+        );
 
         // Convert normalized amplitudes into canvas coordinates.
         const y1 = centerY + minimum * centerY;
         const y2 = centerY + maximum * centerY;
 
-        context.beginPath();
-        context.moveTo(x + 0.5, y1);
-        context.lineTo(x + 0.5, y2);
-        context.stroke();
+        drawingContext.beginPath();
+        drawingContext.moveTo(x + 0.5, y1);
+        drawingContext.lineTo(x + 0.5, y2);
+        drawingContext.stroke();
       }
 
       // Draw the fixed center playhead above the waveform.
-      context.strokeStyle = "#ffffff";
-      context.lineWidth = 2;
+      drawingContext.strokeStyle = "#ffffff";
+      drawingContext.lineWidth = 2;
 
-      context.beginPath();
-      context.moveTo(playheadX + 0.5, 0);
-      context.lineTo(playheadX + 0.5, height);
-      context.stroke();
+      drawingContext.beginPath();
+      drawingContext.moveTo(playheadX + 0.5, 0);
+      drawingContext.lineTo(playheadX + 0.5, height);
+      drawingContext.stroke();
     }
 
     function animate() {
@@ -161,7 +402,14 @@ export default function WaveformCanvas({
 
       renderFrameRef.current = null;
     };
-  }, [audioRef, isPlaying, peaks]);
+  }, [
+    audioRef,
+    colorMode,
+    isPlaying,
+    peaks,
+    peaksPerSecond,
+    pixelsPerSecond,
+  ]);
 
   function handlePointerDown(
     event: ReactPointerEvent<HTMLCanvasElement>,
@@ -216,7 +464,7 @@ export default function WaveformCanvas({
      */
     const requestedTime =
       drag.startTime -
-      dragDistance / PIXELS_PER_SECOND;
+      dragDistance / pixelsPerSecond;
 
     const maximumTime = Number.isFinite(audio.duration)
       ? audio.duration
