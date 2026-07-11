@@ -1,0 +1,22 @@
+Required Tools
+--------------
+
+ffmpeg
+  - provides: ffmpeg, ffprobe
+
+webp
+  - provides: cwebp
+
+Node.js LTS
+npm
+git
+
+
+# macOS
+brew install node;
+node --version;
+npm --version;
+
+
+
+npm install react react-dom;
