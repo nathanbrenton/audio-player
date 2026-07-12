@@ -20,16 +20,16 @@ Goals:
 Format:
 
 ```text
-assets/releases/YYYY-MM-DD_artist_release-name/
+media-library/releases/YYYY-MM-DD_artist_release-name/
 ```
 
 Examples:
 
 ```text
-assets/releases/2025-01-01_artist_midi-mockups/
-assets/releases/2009-10-06_tiesto_kaleidoscope/
-assets/releases/2010-08-31_tiesto_kaleidoscope-remixed/
-assets/releases/2026-07-10_artist_first-single/
+media-library/releases/2025-01-01_artist_midi-mockups/
+media-library/releases/2009-10-06_tiesto_kaleidoscope/
+media-library/releases/2010-08-31_tiesto_kaleidoscope-remixed/
+media-library/releases/2026-07-10_artist_first-single/
 ```
 
 Rules:
@@ -68,7 +68,7 @@ Complicated relationships should be stored in metadata rather than folder names.
 Example:
 
 ```text
-assets/releases/
+media-library/releases/
 └── 2025-01-01_artist_midi-mockups/
     ├── artwork-master.jpg
     ├── artwork.webp
@@ -224,7 +224,7 @@ release.json
 # Complete Example
 
 ```text
-assets/
+media-library/
 └── releases/
     └── 2025-01-01_artist_midi-mockups/
         ├── artwork-master.jpg

@@ -34,7 +34,6 @@ coverage/
 .LSOverride
 
 # Media assets
-assets/releases/
 
 # Temporary files
 *.tmp
@@ -42,3 +41,6 @@ assets/releases/
 
 # Local media copied for development
 public/media/
+
+# Local media library: audio, artwork, and generated media data
+media-library/

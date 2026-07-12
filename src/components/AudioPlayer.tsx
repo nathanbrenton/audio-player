@@ -91,7 +91,7 @@ export default function AudioPlayer() {
   useEffect(() => {
     async function loadWaveform() {
       const response = await fetch(
-        "/releases/2025-01-01_midi-mockups/tracks/artist_03_sd-midi-mockup/waveform-peaks.json",
+        "/media/releases/2025-01-01_midi-mockups/tracks/artist_03_sd-midi-mockup/waveform-peaks.json",
       );
 
       if (!response.ok) {
@@ -132,7 +132,7 @@ export default function AudioPlayer() {
 
       <audio
         ref={audioRef}
-        src="/releases/2025-01-01_midi-mockups/tracks/artist_03_sd-midi-mockup/audio-playback.mp3"
+        src="/media/releases/2025-01-01_midi-mockups/tracks/artist_03_sd-midi-mockup/audio-playback.mp3"
         preload="metadata"
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
