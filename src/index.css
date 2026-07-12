@@ -2322,3 +2322,453 @@ canvas {
     width: 76%;
   }
 }
+
+/* ---------------------------------------------------------
+   Mobile portrait and landscape refinement
+   --------------------------------------------------------- */
+
+/* Mobile-first spacing: compact, but still comfortable to touch. */
+@media (max-width: 639px) {
+  #root {
+    padding:
+      max(12px, env(safe-area-inset-top))
+      max(10px, env(safe-area-inset-right))
+      max(16px, env(safe-area-inset-bottom))
+      max(10px, env(safe-area-inset-left));
+  }
+
+  .audio-player__header {
+    gap: 3px;
+    margin-bottom: 8px;
+  }
+
+  .audio-player__brand-row {
+    min-height: 36px;
+  }
+
+  .audio-player__brand {
+    font-size: 0.7rem;
+  }
+
+  .app-menu > summary {
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .audio-player__track-line {
+    gap: 6px;
+  }
+
+  .audio-player__track-line strong {
+    font-size: 1.05rem;
+  }
+
+  .audio-player__duration {
+    font-size: 0.82rem;
+  }
+
+  .audio-player__release {
+    margin-top: 1px;
+    font-size: 0.78rem;
+  }
+
+  .player-layout {
+    gap: 10px;
+  }
+
+  /*
+   * Keep the artwork large enough to feel central, while leaving
+   * room for transport controls and the waveform.
+   */
+  .artwork-panel {
+    width: min(64vw, 270px);
+  }
+
+  .player-controls {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .player-controls__transport {
+    order: 1;
+    grid-template-columns:
+      minmax(72px, auto)
+      minmax(96px, 1fr)
+      minmax(72px, auto);
+    gap: 6px;
+  }
+
+  .player-controls__track-button,
+  .player-controls__play-button {
+    min-width: 0;
+    min-height: 42px;
+    padding-inline: 10px;
+  }
+
+  /*
+   * Track selector stays full-width. Zoom remains compact beneath it.
+   */
+  .player-controls__field {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .player-controls__field:nth-of-type(1) {
+    order: 2;
+  }
+
+  .player-controls__field:nth-of-type(2) {
+    order: 3;
+  }
+
+  .player-controls__field span {
+    font-size: 0.78rem;
+  }
+
+  .player-controls select {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  .waveform-panel {
+    margin-bottom: 10px;
+    border-radius: 7px;
+  }
+
+  .waveform-panel__current-time {
+    bottom: 6px;
+    left: 6px;
+  }
+
+  .app-menu__panel {
+    position: fixed;
+    top: 58px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-height: calc(100dvh - 74px);
+  }
+}
+
+/* ---------------------------------------------------------
+   Mobile landscape
+   --------------------------------------------------------- */
+
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  #root {
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(10px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(10px, env(safe-area-inset-left));
+  }
+
+  .audio-player {
+    width: 100%;
+  }
+
+  /*
+   * Header stays compact across the top instead of consuming a full
+   * mobile portrait-style block.
+   */
+  .audio-player__header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .audio-player__track-summary {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .audio-player__brand-row {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 0;
+  }
+
+  .audio-player__brand {
+    display: none;
+  }
+
+  .audio-player__track-line strong {
+    font-size: 0.98rem;
+  }
+
+  .audio-player__release {
+    font-size: 0.72rem;
+  }
+
+  .app-menu > summary {
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+  }
+
+  /*
+   * Artwork occupies a compact left rail. Controls and waveform use
+   * the remaining width.
+   */
+  .player-layout {
+    grid-template-columns:
+      minmax(155px, 30vw)
+      minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+
+  .artwork-panel {
+    position: sticky;
+    top: 6px;
+    width: 100%;
+    margin: 0;
+  }
+
+  .player-layout__main {
+    display: grid;
+    align-content: start;
+    gap: 8px;
+  }
+
+  .player-controls {
+    display: grid;
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(120px, 0.55fr);
+    gap: 7px;
+    margin-bottom: 0;
+  }
+
+  .player-controls__transport {
+    grid-column: 1 / -1;
+    width: 100%;
+    gap: 6px;
+  }
+
+  .player-controls__field {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .player-controls__field span {
+    font-size: 0.7rem;
+  }
+
+  .player-controls select {
+    width: 100%;
+    min-height: 38px;
+    padding-block: 5px;
+  }
+
+  .player-controls__track-button,
+  .player-controls__play-button {
+    min-height: 38px;
+    padding-block: 6px;
+  }
+
+  .waveform-panel {
+    margin-bottom: 0;
+  }
+
+  .waveform-panel__current-time {
+    bottom: 5px;
+    left: 5px;
+    padding: 3px 6px;
+    font-size: 0.72rem;
+  }
+
+  .app-menu__panel {
+    position: fixed;
+    top: 48px;
+    right: 10px;
+    left: auto;
+    width: min(72vw, 430px);
+    max-height: calc(100dvh - 58px);
+  }
+}
+
+/*
+ * Very short landscape screens need an even narrower artwork rail.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 950px) {
+  .player-layout {
+    grid-template-columns:
+      minmax(135px, 26vw)
+      minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .artwork-stack__item--current,
+  .artwork-stack__commit-overlay {
+    width: 70%;
+  }
+
+  .artwork-stack__item--previous,
+  .artwork-stack__item--next {
+    width: 64%;
+  }
+
+  .player-controls {
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(105px, 0.45fr);
+  }
+}
+
+/* ---------------------------------------------------------
+   Waveform overlay zoom controls
+   --------------------------------------------------------- */
+
+.waveform-panel__zoom-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.waveform-panel__zoom-button {
+  position: absolute;
+  right: 8px;
+  display: grid;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 7px;
+  background: rgb(0 0 0 / 72%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 30%);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(5px);
+}
+
+.waveform-panel__zoom-button--increase {
+  top: 8px;
+}
+
+.waveform-panel__zoom-button--decrease {
+  bottom: 8px;
+}
+
+.waveform-panel__zoom-button:hover:not(:disabled) {
+  background: rgb(35 35 35 / 88%);
+}
+
+.waveform-panel__zoom-button:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+.waveform-panel__zoom-button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+/*
+ * The application title already appears outside this component.
+ * Hide the secondary portrait label to avoid duplicate branding.
+ */
+@media (max-width: 639px) {
+  .audio-player__brand {
+    display: none;
+  }
+
+  .audio-player__brand-row {
+    justify-content: flex-end;
+  }
+
+  .waveform-panel__zoom-button {
+    right: 6px;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+  }
+
+  .waveform-panel__zoom-button--increase {
+    top: 6px;
+  }
+
+  .waveform-panel__zoom-button--decrease {
+    bottom: 6px;
+  }
+}
+
+/* Keep the controls compact on short landscape screens. */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .waveform-panel__zoom-button {
+    right: 5px;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+    font-size: 1.2rem;
+  }
+
+  .waveform-panel__zoom-button--increase {
+    top: 5px;
+  }
+
+  .waveform-panel__zoom-button--decrease {
+    bottom: 5px;
+  }
+}
+
+/* ---------------------------------------------------------
+   Short-screen landscape waveform sizing
+   --------------------------------------------------------- */
+
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .waveform-panel {
+    --waveform-canvas-height: 170px;
+  }
+
+  .player-layout {
+    gap: 8px;
+  }
+
+  .player-layout__main {
+    gap: 6px;
+  }
+
+  .player-controls {
+    gap: 5px;
+  }
+}
+
+/* Extra-short phones need a shallower waveform viewport. */
+@media (
+  orientation: landscape
+) and (max-height: 410px) and (max-width: 950px) {
+  .waveform-panel {
+    --waveform-canvas-height: 145px;
+  }
+
+  .audio-player__header {
+    margin-bottom: 3px;
+  }
+
+  .player-controls__track-button,
+  .player-controls__play-button,
+  .player-controls select {
+    min-height: 34px;
+  }
+}

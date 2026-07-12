@@ -782,6 +782,36 @@ export default function AudioPlayer() {
     nextArtworkProgress,
   );
 
+  // Keep dropdown and button zoom controls on the same fixed steps.
+  const waveformZoomSteps = [3, 6, 12, 25, 50, 100, 200, 400, 800, 1600];
+  const waveformZoomIndex =
+    waveformZoomSteps.indexOf(pixelsPerSecond);
+
+  function decreaseWaveformZoom() {
+    const currentIndex =
+      waveformZoomIndex >= 0 ? waveformZoomIndex : 1;
+
+    setPixelsPerSecond(
+      waveformZoomSteps[
+        Math.max(0, currentIndex - 1)
+      ],
+    );
+  }
+
+  function increaseWaveformZoom() {
+    const currentIndex =
+      waveformZoomIndex >= 0 ? waveformZoomIndex : 1;
+
+    setPixelsPerSecond(
+      waveformZoomSteps[
+        Math.min(
+          waveformZoomSteps.length - 1,
+          currentIndex + 1,
+        )
+      ],
+    );
+  }
+
   return (
     <section
       className="audio-player"
@@ -827,6 +857,32 @@ export default function AudioPlayer() {
                       <option value="monochrome">
                         Monochrome
                       </option>
+                    </select>
+                  </label>
+
+                  <label className="settings-control">
+                    <span>Waveform zoom</span>
+
+                    <select
+                      value={pixelsPerSecond}
+                      onChange={(event) => {
+                        setPixelsPerSecond(
+                          Number(
+                            event.currentTarget.value,
+                          ),
+                        );
+                      }}
+                    >
+                      <option value={3}>3 px/s</option>
+                      <option value={6}>6 px/s</option>
+                      <option value={12}>12 px/s</option>
+                      <option value={25}>25 px/s</option>
+                      <option value={50}>50 px/s</option>
+                      <option value={100}>100 px/s</option>
+                      <option value={200}>200 px/s</option>
+                      <option value={400}>400 px/s</option>
+                      <option value={800}>800 px/s</option>
+                      <option value={1600}>1600 px/s</option>
                     </select>
                   </label>
 
@@ -1293,23 +1349,6 @@ export default function AudioPlayer() {
           </select>
         </label>
 
-        <label className="player-controls__field">
-          <span>Waveform zoom</span>
-
-          <select
-            value={pixelsPerSecond}
-            onChange={(event) => {
-              setPixelsPerSecond(
-                Number(event.currentTarget.value),
-              );
-            }}
-          >
-            <option value={50}>50 px/s</option>
-            <option value={100}>100 px/s</option>
-            <option value={200}>200 px/s</option>
-            <option value={400}>400 px/s</option>
-          </select>
-        </label>
       </div>
 
       {loadError ? (
@@ -1334,6 +1373,47 @@ export default function AudioPlayer() {
             >
               {formatTime(currentTime)}
             </output>
+
+            <div
+              className="waveform-panel__zoom-controls"
+              aria-label="Waveform zoom controls"
+            >
+              <button
+                type="button"
+                className="
+                  waveform-panel__zoom-button
+                  waveform-panel__zoom-button--increase
+                "
+                onClick={increaseWaveformZoom}
+                disabled={
+                  pixelsPerSecond >=
+                  waveformZoomSteps[
+                    waveformZoomSteps.length - 1
+                  ]
+                }
+                aria-label="Zoom waveform in"
+                title="Zoom waveform in"
+              >
+                +
+              </button>
+
+              <button
+                type="button"
+                className="
+                  waveform-panel__zoom-button
+                  waveform-panel__zoom-button--decrease
+                "
+                onClick={decreaseWaveformZoom}
+                disabled={
+                  pixelsPerSecond <=
+                  waveformZoomSteps[0]
+                }
+                aria-label="Zoom waveform out"
+                title="Zoom waveform out"
+              >
+                −
+              </button>
+            </div>
           </div>
 
         </>

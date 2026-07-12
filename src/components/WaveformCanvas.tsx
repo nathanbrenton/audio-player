@@ -167,6 +167,7 @@ function drawRgbColumn(
   low: number,
   mid: number,
   high: number,
+  physicalPixel: number,
 ) {
   const centerY = height / 2;
   const maximumHalfHeight = height * 0.46;
@@ -198,14 +199,16 @@ function drawRgbColumn(
 
     context.strokeStyle = band.color;
     context.beginPath();
-    context.moveTo(
-      x + 0.5,
-      centerY - halfHeight,
-    );
-    context.lineTo(
-      x + 0.5,
-      centerY + halfHeight,
-    );
+    const topY =
+      Math.round(centerY - halfHeight) + 0.5;
+    const bottomY =
+      Math.round(centerY + halfHeight) + 0.5;
+
+    const strokeX =
+      x + physicalPixel / 2;
+
+    context.moveTo(strokeX, topY);
+    context.lineTo(strokeX, bottomY);
     context.stroke();
   }
 }
@@ -248,12 +251,90 @@ export default function WaveformCanvas({
   const animationFrameRef = useRef<number | null>(null);
   const renderFrameRef = useRef<(() => void) | null>(null);
 
+  /*
+   * Store CSS dimensions separately from the intrinsic drawing
+   * buffer so rendering can remain device-pixel accurate.
+   */
+  const canvasSizeRef = useRef({
+    cssWidth: 1000,
+    cssHeight: 240,
+    devicePixelRatio: 1,
+  });
+
   // Stores the starting position and playback time for the active drag.
   const dragRef = useRef<{
     pointerId: number;
     startClientX: number;
     startTime: number;
   } | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+
+    if (!canvas) {
+      return;
+    }
+
+    // Preserve the non-null canvas reference inside nested callbacks.
+    const measuredCanvas = canvas;
+
+    function resizeCanvas() {
+      const bounds =
+        measuredCanvas.getBoundingClientRect();
+      const cssWidth = Math.max(
+        1,
+        Math.round(bounds.width),
+      );
+      const cssHeight = Math.max(
+        1,
+        Math.round(bounds.height),
+      );
+
+      /*
+       * Cap DPR to 2. Higher values increase drawing cost heavily
+       * without providing a meaningful waveform improvement.
+       */
+      const devicePixelRatio = Math.min(
+        window.devicePixelRatio || 1,
+        2,
+      );
+
+      const intrinsicWidth = Math.round(
+        cssWidth * devicePixelRatio,
+      );
+      const intrinsicHeight = Math.round(
+        cssHeight * devicePixelRatio,
+      );
+
+      canvasSizeRef.current = {
+        cssWidth,
+        cssHeight,
+        devicePixelRatio,
+      };
+
+      if (
+        measuredCanvas.width !== intrinsicWidth ||
+        measuredCanvas.height !== intrinsicHeight
+      ) {
+        measuredCanvas.width = intrinsicWidth;
+        measuredCanvas.height = intrinsicHeight;
+      }
+
+      renderFrameRef.current?.();
+    }
+
+    resizeCanvas();
+
+    const resizeObserver = new ResizeObserver(
+      resizeCanvas,
+    );
+
+    resizeObserver.observe(measuredCanvas);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -271,25 +352,66 @@ export default function WaveformCanvas({
     // Preserve the non-null canvas context inside nested render functions.
     const drawingContext = context;
 
-    // Canvas dimensions use the intrinsic drawing resolution.
-    const width = canvas.width;
-    const height = canvas.height;
-    const centerY = height / 2;
-
-    // Keep the playback position fixed at the horizontal center.
-    const playheadX = width / 2;
-
     function renderFrame() {
       const audio = audioRef.current;
+
+      /*
+       * Read the latest measured dimensions on every redraw.
+       * Orientation changes can resize the canvas without recreating
+       * this effect, so captured width and height values become stale.
+       */
+      const {
+        cssWidth: width,
+        cssHeight: height,
+        devicePixelRatio,
+      } = canvasSizeRef.current;
+
+      const centerY = height / 2;
+
+      // Keep the playback position fixed at the horizontal center.
+      const playheadX = width / 2;
+
+      drawingContext.setTransform(
+        devicePixelRatio,
+        0,
+        0,
+        devicePixelRatio,
+        0,
+        0,
+      );
       const currentTime = audio?.currentTime ?? 0;
 
-      // Clear the previous frame.
+      /*
+       * Lock waveform movement to intrinsic canvas pixels.
+       *
+       * Without this, fractional playback positions cause every
+       * waveform column to be re-interpolated on every frame. At high
+       * zoom levels, that makes the entire waveform appear to shimmer.
+       *
+       * Audio playback remains continuous; only the visual viewport
+       * origin is quantized to the nearest canvas pixel.
+       */
+      const pixelLockedTime =
+        Math.round(currentTime * pixelsPerSecond) /
+        pixelsPerSecond;
+
+      // Clear using CSS-pixel coordinates after applying DPR.
       drawingContext.clearRect(0, 0, width, height);
 
-      // Draw each visible waveform column.
-      drawingContext.lineWidth = 1;
+      /*
+       * Draw one column per physical display pixel. The canvas uses
+       * CSS coordinates under a DPR transform, so the step and stroke
+       * width must be divided by DPR to preserve fine detail.
+       */
+      const physicalPixel = 1 / devicePixelRatio;
 
-      for (let x = 0; x < width; x += 1) {
+      drawingContext.lineWidth = physicalPixel;
+
+      for (
+        let x = 0;
+        x < width;
+        x += physicalPixel
+      ) {
         // Offset waveform data so the current time stays centered.
         /*
          * Convert this canvas column directly into absolute audio time.
@@ -297,7 +419,7 @@ export default function WaveformCanvas({
          * can be interpolated instead of snapping between buckets.
          */
         const timeAtX =
-          currentTime +
+          pixelLockedTime +
           (x - playheadX) / pixelsPerSecond;
 
         const peakPosition =
@@ -337,6 +459,7 @@ export default function WaveformCanvas({
             low,
             mid,
             high,
+            physicalPixel,
           );
 
           continue;
@@ -351,12 +474,32 @@ export default function WaveformCanvas({
         );
 
         // Convert normalized amplitudes into canvas coordinates.
-        const y1 = centerY + minimum * centerY;
-        const y2 = centerY + maximum * centerY;
+        /*
+         * Align endpoints to half-pixels so one-pixel strokes remain
+         * crisp instead of changing antialiasing coverage per frame.
+         */
+        const y1 =
+          Math.round(
+            (centerY + minimum * centerY) /
+              physicalPixel,
+          ) *
+            physicalPixel +
+          physicalPixel / 2;
+
+        const y2 =
+          Math.round(
+            (centerY + maximum * centerY) /
+              physicalPixel,
+          ) *
+            physicalPixel +
+          physicalPixel / 2;
+
+        const strokeX =
+          x + physicalPixel / 2;
 
         drawingContext.beginPath();
-        drawingContext.moveTo(x + 0.5, y1);
-        drawingContext.lineTo(x + 0.5, y2);
+        drawingContext.moveTo(strokeX, y1);
+        drawingContext.lineTo(strokeX, y2);
         drawingContext.stroke();
       }
 
@@ -500,8 +643,6 @@ export default function WaveformCanvas({
   return (
     <canvas
       ref={canvasRef}
-      width={1000}
-      height={240}
       aria-label="Track waveform"
       role="img"
       onPointerDown={handlePointerDown}
@@ -511,8 +652,8 @@ export default function WaveformCanvas({
       style={{
         display: "block",
         width: "100%",
-        maxWidth: "1000px",
-        height: "240px",
+        height:
+          "var(--waveform-canvas-height, 240px)",
         background: "#181818",
         cursor: "grab",
 
