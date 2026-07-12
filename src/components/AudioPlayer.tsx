@@ -54,6 +54,23 @@ type WaveformData = {
   ][];
 };
 
+/*
+ * Format seconds as minutes and seconds for player-facing timestamps.
+ */
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return "0:00";
+  }
+
+  const wholeSeconds = Math.floor(seconds);
+  const minutes = Math.floor(wholeSeconds / 60);
+  const remainingSeconds = wholeSeconds % 60;
+
+  return `${minutes}:${remainingSeconds
+    .toString()
+    .padStart(2, "0")}`;
+}
+
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -65,7 +82,7 @@ export default function AudioPlayer() {
   const [waveform, setWaveform] =
     useState<WaveformData | null>(null);
   const [colorMode, setColorMode] =
-    useState<WaveformColorMode>("rgb");
+    useState<WaveformColorMode>("3band");
 
   // Horizontal waveform scale in canvas pixels per second.
   const [pixelsPerSecond, setPixelsPerSecond] =
@@ -74,7 +91,7 @@ export default function AudioPlayer() {
   useEffect(() => {
     async function loadWaveform() {
       const response = await fetch(
-        "/media/demo-track/waveform-peaks.json",
+        "/releases/2025-01-01_midi-mockups/tracks/artist_03_sd-midi-mockup/waveform-peaks.json",
       );
 
       if (!response.ok) {
@@ -105,12 +122,17 @@ export default function AudioPlayer() {
   }
 
   return (
-    <section aria-label="Audio player">
-      <h2>Track Player</h2>
+    <section
+      className="audio-player"
+      aria-label="Audio player"
+    >
+      <header className="audio-player__header">
+        <h2>Track Player</h2>
+      </header>
 
       <audio
         ref={audioRef}
-        src="/media/demo-track/audio-playback.mp3"
+        src="/releases/2025-01-01_midi-mockups/tracks/artist_03_sd-midi-mockup/audio-playback.mp3"
         preload="metadata"
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
@@ -119,12 +141,17 @@ export default function AudioPlayer() {
         }}
       />
 
-      <button type="button" onClick={togglePlayback}>
-        {isPlaying ? "Pause" : "Play"}
-      </button>
+      <div className="player-controls">
+        <button
+          className="player-controls__play-button"
+          type="button"
+          onClick={togglePlayback}
+        >
+          {isPlaying ? "Pause" : "Play"}
+        </button>
 
-      <label>
-        Waveform color
+        <label className="player-controls__field">
+          <span>Waveform color</span>
         <select
           value={colorMode}
           onChange={(event) => {
@@ -133,15 +160,15 @@ export default function AudioPlayer() {
             );
           }}
         >
-          <option value="rgb">RGB</option>
           <option value="3band">3Band</option>
+          <option value="rgb">RGB</option>
           <option value="blue">Blue</option>
           <option value="monochrome">Monochrome</option>
         </select>
-      </label>
+        </label>
 
-      <label>
-        Waveform zoom
+        <label className="player-controls__field">
+          <span>Waveform zoom</span>
         <select
           value={pixelsPerSecond}
           onChange={(event) => {
@@ -155,35 +182,125 @@ export default function AudioPlayer() {
           <option value={200}>200 px/s</option>
           <option value={400}>400 px/s</option>
         </select>
-      </label>
+        </label>
+      </div>
 
       {waveform ? (
         <>
-          <WaveformCanvas
-            peaks={waveform.peaks}
-            audioRef={audioRef}
-            isPlaying={isPlaying}
-            colorMode={colorMode}
-            pixelsPerSecond={pixelsPerSecond}
-            peaksPerSecond={waveform.peaksPerSecond}
-          />
+          <div className="waveform-panel">
+            <WaveformCanvas
+              peaks={waveform.peaks}
+              audioRef={audioRef}
+              isPlaying={isPlaying}
+              colorMode={colorMode}
+              pixelsPerSecond={pixelsPerSecond}
+              peaksPerSecond={waveform.peaksPerSecond}
+            />
+          </div>
 
-          <dl>
-            <dt>Current time</dt>
-            <dd>{currentTime.toFixed(2)} seconds</dd>
+          <div className="metadata-grid">
+            <section
+              className="metadata-card"
+              aria-labelledby="playback-details-heading"
+            >
+            <h3 id="playback-details-heading">
+              Playback
+            </h3>
 
-            <dt>Duration</dt>
-            <dd>{waveform.durationSeconds} seconds</dd>
+            <dl>
+              <dt>Current time</dt>
+              <dd>{formatTime(currentTime)}</dd>
 
-            <dt>Sample rate</dt>
-            <dd>{waveform.sampleRate} Hz</dd>
+              <dt>Duration</dt>
+              <dd>{formatTime(waveform.durationSeconds)}</dd>
+            </dl>
+          </section>
 
-            <dt>Peak count</dt>
-            <dd>{waveform.peakCount}</dd>
+            <section
+              className="metadata-card"
+              aria-labelledby="waveform-analysis-heading"
+            >
+            <h3 id="waveform-analysis-heading">
+              Waveform analysis
+            </h3>
 
-            <dt>Peaks per second</dt>
-            <dd>{waveform.peaksPerSecond}</dd>
-          </dl>
+            <dl>
+              <dt>Sample rate</dt>
+              <dd>
+                {waveform.sampleRate.toLocaleString()} Hz
+              </dd>
+
+              <dt>FFT size</dt>
+              <dd>{waveform.analysis.fftSize}</dd>
+
+              <dt>Window</dt>
+              <dd>{waveform.analysis.window}</dd>
+
+              <dt>Peaks per second</dt>
+              <dd>{waveform.peaksPerSecond}</dd>
+
+              <dt>Peak count</dt>
+              <dd>
+                {waveform.peakCount.toLocaleString()}
+              </dd>
+            </dl>
+          </section>
+
+            <section
+              className="metadata-card"
+              aria-labelledby="frequency-bands-heading"
+            >
+            <h3 id="frequency-bands-heading">
+              Frequency bands
+            </h3>
+
+            <dl>
+              <dt>Low</dt>
+              <dd>
+                {waveform.analysis.bandsHz.low[0]}–
+                {waveform.analysis.bandsHz.low[1]} Hz
+              </dd>
+
+              <dt>Mid</dt>
+              <dd>
+                {waveform.analysis.bandsHz.mid[0]}–
+                {waveform.analysis.bandsHz.mid[1]} Hz
+              </dd>
+
+              <dt>High</dt>
+              <dd>
+                {waveform.analysis.bandsHz.high[0]}–
+                {waveform.analysis.bandsHz.high[1]} Hz
+              </dd>
+            </dl>
+          </section>
+
+            <section
+              className="metadata-card"
+              aria-labelledby="normalization-heading"
+            >
+            <h3 id="normalization-heading">
+              Normalization
+            </h3>
+
+            <dl>
+              <dt>Method</dt>
+              <dd>
+                {waveform.analysis.normalization.method}
+              </dd>
+
+              <dt>Percentile</dt>
+              <dd>
+                {waveform.analysis.normalization.percentile}
+              </dd>
+
+              <dt>Compression</dt>
+              <dd>
+                {waveform.analysis.normalization.compression}
+              </dd>
+            </dl>
+            </section>
+          </div>
         </>
       ) : (
         <p>Loading waveform data…</p>

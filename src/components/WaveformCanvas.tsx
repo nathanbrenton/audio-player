@@ -64,15 +64,10 @@ const DEFAULT_PIXELS_PER_SECOND = 100;
 const DEFAULT_PEAKS_PER_SECOND = 100;
 
 /*
- * Convert a peak's frequency-band values into its display color.
+ * Convert frequency-band values into a single waveform color.
  *
- * RGB:
- * - Low frequencies become red.
- * - Mid frequencies become green.
- * - High frequencies become blue.
- *
- * Blue:
- * - Uses one consistent waveform color.
+ * 3Band blends low, mid, and high energy into one RGB color.
+ * Blue and Monochrome use fixed colors.
  */
 /*
  * Return the waveform values represented by one canvas column.
@@ -162,10 +157,10 @@ function sampleWaveformPeak(
 }
 
 /*
- * Draw low, mid, and high energy in three separate horizontal lanes.
- * Each band is centered within its lane and expands symmetrically.
+ * Draw low, mid, and high frequency energy as overlapping
+ * red, green, and blue traces around one shared centerline.
  */
-function drawThreeBandColumn(
+function drawRgbColumn(
   context: CanvasRenderingContext2D,
   x: number,
   height: number,
@@ -173,29 +168,26 @@ function drawThreeBandColumn(
   mid: number,
   high: number,
 ) {
-  const laneHeight = height / 3;
-  const maximumHalfHeight = laneHeight * 0.42;
+  const centerY = height / 2;
+  const maximumHalfHeight = height * 0.46;
 
   const bands = [
     {
       energy: low,
-      centerY: laneHeight * 0.5,
-      color: "#ff5a5a",
+      color: "rgba(255, 90, 90, 0.55)",
     },
     {
       energy: mid,
-      centerY: laneHeight * 1.5,
-      color: "#62d26f",
+      color: "rgba(98, 210, 111, 0.55)",
     },
     {
       energy: high,
-      centerY: laneHeight * 2.5,
-      color: "#5ab7ff",
+      color: "rgba(90, 183, 255, 0.55)",
     },
   ];
 
   for (const band of bands) {
-    // Protect the canvas renderer from malformed out-of-range values.
+    // Protect the renderer from malformed out-of-range values.
     const normalizedEnergy = Math.max(
       0,
       Math.min(1, band.energy),
@@ -208,11 +200,11 @@ function drawThreeBandColumn(
     context.beginPath();
     context.moveTo(
       x + 0.5,
-      band.centerY - halfHeight,
+      centerY - halfHeight,
     );
     context.lineTo(
       x + 0.5,
-      band.centerY + halfHeight,
+      centerY + halfHeight,
     );
     context.stroke();
   }
@@ -232,6 +224,10 @@ function getWaveformStrokeStyle(
     return "#c8c8c8";
   }
 
+  /*
+   * 3Band combines all three normalized frequency bands into
+   * one blended color for the full amplitude envelope.
+   */
   const red = Math.round(low * 255);
   const green = Math.round(mid * 255);
   const blue = Math.round(high * 255);
@@ -243,7 +239,7 @@ export default function WaveformCanvas({
   peaks,
   audioRef,
   isPlaying,
-  colorMode = "rgb",
+  colorMode = "3band",
   pixelsPerSecond = DEFAULT_PIXELS_PER_SECOND,
   peaksPerSecond = DEFAULT_PEAKS_PER_SECOND,
 }: WaveformCanvasProps) {
@@ -330,11 +326,11 @@ export default function WaveformCanvas({
         ] = sampledPeak;
 
         /*
-         * 3Band uses three independent frequency-energy lanes instead
-         * of the standard full-height amplitude envelope.
+         * RGB draws three frequency-band traces overlaid around
+         * one shared waveform centerline.
          */
-        if (colorMode === "3band") {
-          drawThreeBandColumn(
+        if (colorMode === "rgb") {
+          drawRgbColumn(
             drawingContext,
             x,
             height,

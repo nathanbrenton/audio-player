@@ -21,6 +21,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background: #111111;
 }
 
 button,
@@ -28,4 +29,172 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+/* Keep the application centered while allowing narrow-screen padding. */
+#root {
+  width: 100%;
+  padding: 32px 20px;
+}
+
+.audio-player {
+  width: min(100%, 1000px);
+  margin: 0 auto;
+}
+
+.audio-player__header h2 {
+  margin: 0 0 20px;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+}
+
+/* Group playback and visual controls into a flexible toolbar. */
+.player-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.player-controls__play-button {
+  min-width: 96px;
+  min-height: 42px;
+  padding: 8px 18px;
+  border: 1px solid #6abfff;
+  border-radius: 6px;
+  color: #ffffff;
+  background: #165f91;
+  cursor: pointer;
+}
+
+.player-controls__play-button:hover {
+  background: #1d73ad;
+}
+
+.player-controls__play-button:focus-visible,
+.player-controls select:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+.player-controls__field {
+  display: grid;
+  gap: 6px;
+  min-width: 170px;
+  font-size: 0.875rem;
+  color: #cfcfcf;
+}
+
+.player-controls select {
+  min-height: 42px;
+  padding: 7px 34px 7px 10px;
+  border: 1px solid #444444;
+  border-radius: 6px;
+  color: #f5f5f5;
+  background: #202020;
+}
+
+/* Frame the canvas separately from the information cards. */
+.waveform-panel {
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 1px solid #343434;
+  border-radius: 8px;
+  background: #181818;
+}
+
+/* Metadata cards automatically wrap as the viewport narrows. */
+.metadata-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 14px;
+}
+
+.metadata-card {
+  padding: 16px;
+  border: 1px solid #333333;
+  border-radius: 8px;
+  background: #191919;
+}
+
+.metadata-card h3 {
+  margin: 0 0 14px;
+  font-size: 1rem;
+  color: #ffffff;
+}
+
+.metadata-card dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 14px;
+  margin: 0;
+}
+
+.metadata-card dt {
+  color: #aaaaaa;
+}
+
+.metadata-card dd {
+  margin: 0;
+  text-align: right;
+  color: #f1f1f1;
+}
+
+@media (max-width: 560px) {
+  #root {
+    padding: 20px 12px;
+  }
+
+  .player-controls {
+    align-items: stretch;
+  }
+
+  .player-controls__play-button,
+  .player-controls__field {
+    width: 100%;
+  }
+
+  .metadata-card dl {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .metadata-card dd {
+    margin-bottom: 8px;
+    text-align: left;
+  }
+}
+
+/*
+ * Keep metadata cards visually balanced:
+ * - one column on narrow screens
+ * - two columns at medium widths
+ * - four columns only when enough space is available
+ */
+.metadata-grid {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 560px) {
+  .metadata-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1040px) {
+  .metadata-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/*
+ * Allow long metadata labels and values to wrap instead of
+ * overlapping adjacent grid cells.
+ */
+.metadata-card dt,
+.metadata-card dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
