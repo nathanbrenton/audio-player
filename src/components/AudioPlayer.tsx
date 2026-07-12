@@ -128,6 +128,7 @@ export default function AudioPlayer() {
   const artworkStartYRef = useRef(0);
   const artworkGestureAxisRef =
     useRef<"horizontal" | "vertical" | null>(null);
+  const artworkCommitPendingRef = useRef(false);
 
   const [artworkDragOffset, setArtworkDragOffset] =
     useState(0);
@@ -141,6 +142,10 @@ export default function AudioPlayer() {
     artworkCommitDirection,
     setArtworkCommitDirection,
   ] = useState<"previous" | "next" | null>(null);
+  const [
+    committedArtworkSource,
+    setCommittedArtworkSource,
+  ] = useState<string | null>(null);
 
   // Media catalog and selected-track state.
   const [catalog, setCatalog] =
@@ -459,27 +464,37 @@ export default function AudioPlayer() {
   }
 
   /*
-   * After a successful swipe, let the newly selected artwork render
-   * in the center before clearing the old pointer displacement.
+   * Keep the committed artwork centered long enough for the newly
+   * selected track to render and paint in the current slot.
    */
   useEffect(() => {
     if (!artworkCommitDirection) {
       return;
     }
 
-    const frameId = window.requestAnimationFrame(() => {
-      artworkPointerIdRef.current = null;
-      artworkGestureAxisRef.current = null;
+    let secondFrameId = 0;
 
-      setArtworkDragOffset(0);
-      setArtworkDragProgress(0);
-      setArtworkSwipeDirection("none");
-      setIsDraggingArtwork(false);
-      setArtworkCommitDirection(null);
+    const firstFrameId = window.requestAnimationFrame(() => {
+      secondFrameId = window.requestAnimationFrame(() => {
+        artworkPointerIdRef.current = null;
+        artworkGestureAxisRef.current = null;
+        artworkCommitPendingRef.current = false;
+
+        setArtworkDragOffset(0);
+        setArtworkDragProgress(0);
+        setArtworkSwipeDirection("none");
+        setIsDraggingArtwork(false);
+        setArtworkCommitDirection(null);
+        setCommittedArtworkSource(null);
+      });
     });
 
     return () => {
-      window.cancelAnimationFrame(frameId);
+      window.cancelAnimationFrame(firstFrameId);
+
+      if (secondFrameId) {
+        window.cancelAnimationFrame(secondFrameId);
+      }
     };
   }, [selectedTrackKey, artworkCommitDirection]);
 
@@ -490,6 +505,7 @@ export default function AudioPlayer() {
     setArtworkDragProgress(0);
     setArtworkSwipeDirection("none");
     setIsDraggingArtwork(false);
+    setCommittedArtworkSource(null);
   }
 
   function handleArtworkPointerDown(
@@ -558,10 +574,57 @@ export default function AudioPlayer() {
     const maximumOffset =
       event.currentTarget.clientWidth * 0.48;
 
-    const constrainedOffset = Math.max(
-      -maximumOffset,
-      Math.min(maximumOffset, deltaX),
-    );
+    /*
+     * Allow a gesture to reverse direction, but require the pointer
+     * to cross a small center dead zone before activating the
+     * opposite artwork stack.
+     */
+    const reversalThreshold = 12;
+    let effectiveDirection = artworkSwipeDirection;
+
+    if (
+      effectiveDirection === "next" &&
+      deltaX > reversalThreshold
+    ) {
+      effectiveDirection = "previous";
+      setArtworkSwipeDirection("previous");
+    } else if (
+      effectiveDirection === "previous" &&
+      deltaX < -reversalThreshold
+    ) {
+      effectiveDirection = "next";
+      setArtworkSwipeDirection("next");
+    } else if (effectiveDirection === "none") {
+      effectiveDirection =
+        deltaX < 0 ? "next" : "previous";
+
+      setArtworkSwipeDirection(effectiveDirection);
+    }
+
+    /*
+     * Hold the visual position at center while the pointer remains
+     * inside the reversal dead zone.
+     */
+    const constrainedOffset =
+      effectiveDirection === "next"
+        ? Math.max(
+            -maximumOffset,
+            Math.min(
+              0,
+              deltaX > -reversalThreshold
+                ? 0
+                : deltaX,
+            ),
+          )
+        : Math.min(
+            maximumOffset,
+            Math.max(
+              0,
+              deltaX < reversalThreshold
+                ? 0
+                : deltaX,
+            ),
+          );
 
     const selectionThreshold =
       event.currentTarget.clientWidth * 0.22;
@@ -584,26 +647,21 @@ export default function AudioPlayer() {
       return;
     }
 
-    const swipeThreshold =
-      event.currentTarget.clientWidth * 0.22;
-
-    const committedDirection =
+    /*
+     * Use normalized progress rather than a second raw-pixel
+     * calculation. This behaves consistently in narrow landscape
+     * artwork columns.
+     */
+    const shouldCommit =
       artworkGestureAxisRef.current === "horizontal" &&
-      Math.abs(artworkDragOffset) >= swipeThreshold
-        ? artworkDragOffset < 0
-          ? "next"
-          : "previous"
-        : null;
+      artworkDragProgress >= 0.9;
 
-    if (
-      event.currentTarget.hasPointerCapture(
-        event.pointerId,
-      )
-    ) {
-      event.currentTarget.releasePointerCapture(
-        event.pointerId,
-      );
-    }
+    const committedDirection = shouldCommit
+      ? artworkSwipeDirection === "next" ||
+        artworkSwipeDirection === "previous"
+        ? artworkSwipeDirection
+        : null
+      : null;
 
     artworkPointerIdRef.current = null;
     artworkGestureAxisRef.current = null;
@@ -611,9 +669,19 @@ export default function AudioPlayer() {
 
     if (committedDirection) {
       /*
-       * Hold the promoted cover at center while the selected-track
-       * state changes. The effect above clears the drag next frame.
+       * Set commit state before changing tracks. Do not manually
+       * release pointer capture; pointerup releases it automatically.
        */
+      artworkCommitPendingRef.current = true;
+
+      const destinationArtworkSource =
+        committedDirection === "next"
+          ? nextArtworkSource
+          : previousArtworkSource;
+
+      setCommittedArtworkSource(
+        destinationArtworkSource,
+      );
       setArtworkCommitDirection(committedDirection);
 
       if (committedDirection === "next") {
@@ -643,13 +711,18 @@ export default function AudioPlayer() {
   function handleArtworkLostPointerCapture(
     event: ReactPointerEvent<HTMLDivElement>,
   ) {
+    if (artworkCommitPendingRef.current) {
+      return;
+    }
+
     if (
+      artworkPointerIdRef.current !== null &&
       artworkPointerIdRef.current !== event.pointerId
     ) {
       return;
     }
 
-    // Prevent interrupted mobile gestures from leaving artwork displaced.
+    // Reset interrupted gestures that were not committed.
     resetArtworkGesture();
   }
 
@@ -690,20 +763,240 @@ export default function AudioPlayer() {
   const artworkIsPromoted =
     artworkVisualProgress >= 0.62;
 
+  /*
+   * Track each carousel side independently. When a gesture reverses,
+   * one side returns fully to rest before the other side advances.
+   */
+  const previousArtworkProgress =
+    artworkDragOffset > 0
+      ? artworkVisualProgress
+      : 0;
+
+  const nextArtworkProgress =
+    artworkDragOffset < 0
+      ? artworkVisualProgress
+      : 0;
+
+  const activeArtworkProgress = Math.max(
+    previousArtworkProgress,
+    nextArtworkProgress,
+  );
+
   return (
     <section
       className="audio-player"
       aria-label="Audio player"
     >
       <header className="audio-player__header">
-        <h2>Track Player</h2>
+        <div className="audio-player__brand-row">
+          <span className="audio-player__brand">
+            Audio Player
+          </span>
+
+          <details className="app-menu">
+            <summary aria-label="Open player menu">
+              <span aria-hidden="true">☰</span>
+            </summary>
+
+            <div className="app-menu__panel">
+              <details className="settings-menu">
+                <summary>Settings</summary>
+
+                <div className="settings-menu__content">
+                  <label className="settings-control">
+                    <span>Waveform color</span>
+
+                    <select
+                      value={colorMode}
+                      onChange={(event) => {
+                        setColorMode(
+                          event.currentTarget
+                            .value as WaveformColorMode,
+                        );
+                      }}
+                    >
+                      <option value="3band">
+                        3Band
+                      </option>
+                      <option value="rgb">
+                        RGB
+                      </option>
+                      <option value="blue">
+                        Blue
+                      </option>
+                      <option value="monochrome">
+                        Monochrome
+                      </option>
+                    </select>
+                  </label>
+
+                  <details className="settings-diagnostics">
+                    <summary>Diagnostics</summary>
+
+                    {waveform ? (
+                      <div
+                        className="
+                          settings-diagnostics__content
+                        "
+                      >
+                        <section
+                          className="metadata-card"
+                          aria-labelledby="
+                            waveform-analysis-heading
+                          "
+                        >
+                          <h3 id="waveform-analysis-heading">
+                            Waveform analysis
+                          </h3>
+
+                          <dl>
+                            <dt>Sample rate</dt>
+                            <dd>
+                              {waveform.sampleRate
+                                .toLocaleString()} Hz
+                            </dd>
+
+                            <dt>FFT size</dt>
+                            <dd>
+                              {waveform.analysis.fftSize}
+                            </dd>
+
+                            <dt>Window</dt>
+                            <dd>
+                              {waveform.analysis.window}
+                            </dd>
+
+                            <dt>Peaks per second</dt>
+                            <dd>
+                              {waveform.peaksPerSecond}
+                            </dd>
+
+                            <dt>Peak count</dt>
+                            <dd>
+                              {waveform.peakCount
+                                .toLocaleString()}
+                            </dd>
+                          </dl>
+                        </section>
+
+                        <section
+                          className="metadata-card"
+                          aria-labelledby="
+                            frequency-bands-heading
+                          "
+                        >
+                          <h3 id="frequency-bands-heading">
+                            Frequency bands
+                          </h3>
+
+                          <dl>
+                            <dt>Low</dt>
+                            <dd>
+                              {
+                                waveform.analysis
+                                  .bandsHz.low[0]
+                              }–
+                              {
+                                waveform.analysis
+                                  .bandsHz.low[1]
+                              } Hz
+                            </dd>
+
+                            <dt>Mid</dt>
+                            <dd>
+                              {
+                                waveform.analysis
+                                  .bandsHz.mid[0]
+                              }–
+                              {
+                                waveform.analysis
+                                  .bandsHz.mid[1]
+                              } Hz
+                            </dd>
+
+                            <dt>High</dt>
+                            <dd>
+                              {
+                                waveform.analysis
+                                  .bandsHz.high[0]
+                              }–
+                              {
+                                waveform.analysis
+                                  .bandsHz.high[1]
+                              } Hz
+                            </dd>
+                          </dl>
+                        </section>
+
+                        <section
+                          className="metadata-card"
+                          aria-labelledby="
+                            normalization-heading
+                          "
+                        >
+                          <h3 id="normalization-heading">
+                            Normalization
+                          </h3>
+
+                          <dl>
+                            <dt>Method</dt>
+                            <dd>
+                              {
+                                waveform.analysis
+                                  .normalization.method
+                              }
+                            </dd>
+
+                            <dt>Percentile</dt>
+                            <dd>
+                              {
+                                waveform.analysis
+                                  .normalization
+                                  .percentile
+                              }
+                            </dd>
+
+                            <dt>Compression</dt>
+                            <dd>
+                              {
+                                waveform.analysis
+                                  .normalization
+                                  .compression
+                              }
+                            </dd>
+                          </dl>
+                        </section>
+                      </div>
+                    ) : (
+                      <p className="settings-menu__status">
+                        Track analysis is loading.
+                      </p>
+                    )}
+                  </details>
+                </div>
+              </details>
+            </div>
+          </details>
+        </div>
 
         {selectedTrack ? (
-          <p>
-            {selectedTrack.release.title}
-            {" — "}
-            {selectedTrack.track.title}
-          </p>
+          <div className="audio-player__track-summary">
+            <div className="audio-player__track-line">
+              <strong>
+                {selectedTrack.track.title}
+              </strong>
+
+              {waveform ? (
+                <span className="audio-player__duration">
+                  {formatTime(waveform.durationSeconds)}
+                </span>
+              ) : null}
+            </div>
+
+            <span className="audio-player__release">
+              {selectedTrack.release.title}
+            </span>
+          </div>
         ) : null}
       </header>
 
@@ -723,6 +1016,9 @@ export default function AudioPlayer() {
             data-swipe-committing={
               artworkCommitDirection ? "true" : "false"
             }
+            data-commit-direction={
+              artworkCommitDirection ?? "none"
+            }
             style={
               {
                 "--artwork-drag-x":
@@ -733,6 +1029,12 @@ export default function AudioPlayer() {
                   artworkDragProgress,
                 "--artwork-visual-progress":
                   artworkVisualProgress,
+                "--artwork-previous-progress":
+                  previousArtworkProgress,
+                "--artwork-next-progress":
+                  nextArtworkProgress,
+                "--artwork-active-progress":
+                  activeArtworkProgress,
               } as CSSProperties
             }
           >
@@ -863,6 +1165,18 @@ export default function AudioPlayer() {
                   aria-hidden="true"
                 />
               </button>
+            ) : null}
+
+            {committedArtworkSource ? (
+              <div
+                className="artwork-stack__commit-overlay"
+                aria-hidden="true"
+              >
+                <img
+                  src={committedArtworkSource}
+                  alt=""
+                />
+              </div>
             ) : null}
           </div>
         </aside>
@@ -1013,160 +1327,15 @@ export default function AudioPlayer() {
               pixelsPerSecond={pixelsPerSecond}
               peaksPerSecond={waveform.peaksPerSecond}
             />
+
+            <output
+              className="waveform-panel__current-time"
+              aria-label="Current playback time"
+            >
+              {formatTime(currentTime)}
+            </output>
           </div>
 
-          <div className="metadata-grid">
-            <section
-              className="metadata-card"
-              aria-labelledby="playback-details-heading"
-            >
-              <h3 id="playback-details-heading">
-                Playback
-              </h3>
-
-              <dl>
-                <dt>Current time</dt>
-                <dd>{formatTime(currentTime)}</dd>
-
-                <dt>Duration</dt>
-                <dd>
-                  {formatTime(waveform.durationSeconds)}
-                </dd>
-              </dl>
-            </section>
-
-            <details className="diagnostics-panel">
-              <summary>
-                <span>Diagnostics</span>
-                <span className="diagnostics-panel__hint">
-                  Waveform and analysis details
-                </span>
-              </summary>
-
-              <div className="diagnostics-panel__content">
-              <div className="diagnostics-control">
-                <label htmlFor="waveform-color-mode">
-                  Waveform color
-                </label>
-
-                <select
-                  id="waveform-color-mode"
-                  value={colorMode}
-                  onChange={(event) => {
-                    setColorMode(
-                      event.currentTarget
-                        .value as WaveformColorMode,
-                    );
-                  }}
-                >
-                  <option value="3band">
-                    3Band
-                  </option>
-                  <option value="rgb">
-                    RGB
-                  </option>
-                  <option value="blue">
-                    Blue
-                  </option>
-                  <option value="monochrome">
-                    Monochrome
-                  </option>
-                </select>
-              </div>
-
-            <section
-              className="metadata-card"
-              aria-labelledby="waveform-analysis-heading"
-            >
-              <h3 id="waveform-analysis-heading">
-                Waveform analysis
-              </h3>
-
-              <dl>
-                <dt>Sample rate</dt>
-                <dd>
-                  {waveform.sampleRate.toLocaleString()} Hz
-                </dd>
-
-                <dt>FFT size</dt>
-                <dd>{waveform.analysis.fftSize}</dd>
-
-                <dt>Window</dt>
-                <dd>{waveform.analysis.window}</dd>
-
-                <dt>Peaks per second</dt>
-                <dd>{waveform.peaksPerSecond}</dd>
-
-                <dt>Peak count</dt>
-                <dd>
-                  {waveform.peakCount.toLocaleString()}
-                </dd>
-              </dl>
-            </section>
-
-            <section
-              className="metadata-card"
-              aria-labelledby="frequency-bands-heading"
-            >
-              <h3 id="frequency-bands-heading">
-                Frequency bands
-              </h3>
-
-              <dl>
-                <dt>Low</dt>
-                <dd>
-                  {waveform.analysis.bandsHz.low[0]}–
-                  {waveform.analysis.bandsHz.low[1]} Hz
-                </dd>
-
-                <dt>Mid</dt>
-                <dd>
-                  {waveform.analysis.bandsHz.mid[0]}–
-                  {waveform.analysis.bandsHz.mid[1]} Hz
-                </dd>
-
-                <dt>High</dt>
-                <dd>
-                  {waveform.analysis.bandsHz.high[0]}–
-                  {waveform.analysis.bandsHz.high[1]} Hz
-                </dd>
-              </dl>
-            </section>
-
-            <section
-              className="metadata-card"
-              aria-labelledby="normalization-heading"
-            >
-              <h3 id="normalization-heading">
-                Normalization
-              </h3>
-
-              <dl>
-                <dt>Method</dt>
-                <dd>
-                  {waveform.analysis.normalization.method}
-                </dd>
-
-                <dt>Percentile</dt>
-                <dd>
-                  {
-                    waveform.analysis.normalization
-                      .percentile
-                  }
-                </dd>
-
-                <dt>Compression</dt>
-                <dd>
-                  {
-                    waveform.analysis.normalization
-                      .compression
-                  }
-                </dd>
-              </dl>
-            </section>
-              </div>
-            </details>
-          </div>
         </>
       ) : !loadError ? (
         <p>Loading track data…</p>
