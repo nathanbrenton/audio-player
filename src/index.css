@@ -198,3 +198,1362 @@ textarea {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+
+/* Main artwork-and-player layout. */
+.player-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.player-layout__main {
+  min-width: 0;
+}
+
+/* Selected artwork card. */
+.artwork-panel {
+  position: sticky;
+  top: 20px;
+}
+
+.artwork-panel img,
+.artwork-placeholder {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid #343434;
+  border-radius: 10px;
+  background: #181818;
+}
+
+.artwork-panel img {
+  object-fit: cover;
+}
+
+.artwork-placeholder {
+  display: grid;
+  place-items: center;
+  color: #888888;
+}
+
+/* Stack artwork above the player on narrower screens. */
+@media (max-width: 820px) {
+  .player-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .artwork-panel {
+    position: static;
+    width: min(100%, 360px);
+    margin: 0 auto;
+  }
+}
+
+/* Collapsible technical information for waveform diagnostics. */
+.diagnostics-panel {
+  grid-column: 1 / -1;
+  border: 1px solid #333333;
+  border-radius: 8px;
+  background: #151515;
+}
+
+.diagnostics-panel summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  color: #f5f5f5;
+  cursor: pointer;
+  list-style: none;
+}
+
+.diagnostics-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.diagnostics-panel summary::after {
+  content: "+";
+  flex: 0 0 auto;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #9f9f9f;
+}
+
+.diagnostics-panel[open] summary::after {
+  content: "−";
+}
+
+.diagnostics-panel__hint {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: #929292;
+}
+
+.diagnostics-panel__content {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding: 0 14px 14px;
+}
+
+.diagnostics-panel__content .metadata-card {
+  min-width: 0;
+}
+
+@media (max-width: 820px) {
+  .diagnostics-panel__content {
+    grid-template-columns: 1fr;
+  }
+
+  .diagnostics-panel__hint {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------
+   Mobile-first responsive foundation
+   --------------------------------------------------------- */
+
+/* Prevent wide controls or waveform content from forcing overflow. */
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+button,
+select,
+input {
+  max-width: 100%;
+}
+
+/* Narrow portrait is the default layout. */
+.player-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  width: 100%;
+}
+
+.player-layout__main {
+  min-width: 0;
+  width: 100%;
+}
+
+/* Keep the artwork useful without letting it dominate the viewport. */
+.artwork-panel {
+  position: static;
+  width: min(72vw, 320px);
+  margin-inline: auto;
+}
+
+.artwork-panel img,
+.artwork-placeholder {
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+/* Let control groups wrap rather than overflow. */
+.player-controls,
+.playback-controls,
+.waveform-controls,
+.track-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.player-controls > *,
+.playback-controls > *,
+.waveform-controls > *,
+.track-controls > * {
+  min-width: 0;
+}
+
+/* Inputs and selectors should remain easy to use on touch screens. */
+button,
+select {
+  min-height: 44px;
+}
+
+select {
+  width: 100%;
+}
+
+/* Keep waveform canvases inside their available column. */
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+.waveform-container,
+.waveform-wrapper {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Playback remains visible but compact on mobile. */
+.metadata-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.metadata-card {
+  min-width: 0;
+  padding: 14px;
+}
+
+.metadata-card dl {
+  margin-bottom: 0;
+}
+
+/* Diagnostics stays compact while closed. */
+.diagnostics-panel {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.diagnostics-panel summary {
+  min-height: 44px;
+  padding: 12px 14px;
+}
+
+.diagnostics-panel__content {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  padding: 0 12px 12px;
+}
+
+/* Small mobile landscape: reduce vertical use without forcing columns. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .player-layout {
+    grid-template-columns: minmax(150px, 32vw) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .artwork-panel {
+    width: 100%;
+    margin: 0;
+  }
+
+  .metadata-card {
+    padding: 10px 12px;
+  }
+
+  .diagnostics-panel summary {
+    padding-block: 10px;
+  }
+}
+
+/* Larger phones and tablets can use more compact control widths. */
+@media (min-width: 640px) {
+  select {
+    width: auto;
+  }
+
+  .artwork-panel {
+    width: min(54vw, 360px);
+  }
+
+  .metadata-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .diagnostics-panel__content {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Tablet landscape and desktop: artwork beside the player. */
+@media (min-width: 900px) {
+  .player-layout {
+    grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .artwork-panel {
+    position: sticky;
+    top: 20px;
+    width: 100%;
+    margin: 0;
+  }
+
+  .metadata-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .diagnostics-panel__content {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Wide displays gain spacing, not a fundamentally different interface. */
+@media (min-width: 1200px) {
+  .player-layout {
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+    gap: 32px;
+  }
+}
+
+/* Diagnostic-only waveform visualization control. */
+.diagnostics-control {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #303030;
+  border-radius: 8px;
+  background: #181818;
+}
+
+.diagnostics-control label {
+  font-weight: 600;
+}
+
+.diagnostics-control select {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .diagnostics-control select {
+    width: auto;
+    min-width: 190px;
+    margin-left: auto;
+  }
+}
+
+/* Compact transport controls shared by mobile and desktop layouts. */
+.player-controls__transport {
+  display: grid;
+  grid-template-columns: auto minmax(88px, 1fr) auto;
+  gap: 8px;
+  width: 100%;
+}
+
+.player-controls__track-button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #444444;
+  border-radius: 6px;
+  color: #f5f5f5;
+  background: #202020;
+  cursor: pointer;
+}
+
+.player-controls__track-button:hover {
+  background: #292929;
+}
+
+.player-controls__track-button:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+.player-controls__track-button:disabled,
+.player-controls__play-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (min-width: 640px) {
+  .player-controls__transport {
+    width: auto;
+  }
+}
+
+/* Previous/current/next artwork navigation stack. */
+.artwork-stack {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  isolation: isolate;
+}
+
+.artwork-stack__item {
+  position: absolute;
+  top: 50%;
+  display: block;
+  width: 74%;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #3b3b3b;
+  border-radius: 10px;
+  background: #181818;
+  box-shadow:
+    0 12px 28px rgb(0 0 0 / 35%);
+}
+
+.artwork-stack__item img,
+.artwork-stack__item .artwork-placeholder {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.artwork-stack__item--current {
+  left: 50%;
+  z-index: 3;
+  width: 78%;
+  transform: translate(-50%, -50%);
+}
+
+.artwork-stack__item--previous,
+.artwork-stack__item--next {
+  z-index: 1;
+  cursor: pointer;
+  opacity: 0.72;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.artwork-stack__item--previous {
+  left: 0;
+  transform:
+    translate(-8%, -50%)
+    rotate(-5deg)
+    scale(0.82);
+  transform-origin: center right;
+}
+
+.artwork-stack__item--next {
+  right: 0;
+  transform:
+    translate(8%, -50%)
+    rotate(5deg)
+    scale(0.82);
+  transform-origin: center left;
+}
+
+.artwork-stack__item--previous:hover,
+.artwork-stack__item--next:hover {
+  z-index: 2;
+  opacity: 0.95;
+}
+
+.artwork-stack__item--previous:hover {
+  transform:
+    translate(-3%, -50%)
+    rotate(-3deg)
+    scale(0.86);
+}
+
+.artwork-stack__item--next:hover {
+  transform:
+    translate(3%, -50%)
+    rotate(3deg)
+    scale(0.86);
+}
+
+.artwork-stack__item--previous:focus-visible,
+.artwork-stack__item--next:focus-visible {
+  z-index: 4;
+  outline: 3px solid #8fd3ff;
+  outline-offset: 3px;
+  opacity: 1;
+}
+
+/* Keep the stack compact in narrow portrait layouts. */
+@media (max-width: 639px) {
+  .artwork-stack__item--current {
+    width: 72%;
+  }
+
+  .artwork-stack__item--previous,
+  .artwork-stack__item--next {
+    width: 68%;
+  }
+}
+
+/* Spread the side artwork farther apart when space permits. */
+@media (min-width: 900px) {
+  .artwork-stack__item--current {
+    width: 76%;
+  }
+
+  .artwork-stack__item--previous {
+    transform:
+      translate(-12%, -50%)
+      rotate(-6deg)
+      scale(0.8);
+  }
+
+  .artwork-stack__item--next {
+    transform:
+      translate(12%, -50%)
+      rotate(6deg)
+      scale(0.8);
+  }
+}
+
+/* Pointer-driven artwork swipe interaction. */
+.artwork-stack__item--current {
+  touch-action: pan-y;
+  user-select: none;
+  cursor: grab;
+  transform:
+    translate(
+      calc(-50% + var(--artwork-drag-x, 0px)),
+      -50%
+    )
+    rotate(var(--artwork-drag-rotation, 0deg));
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.artwork-stack__item--current img {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.artwork-stack__item--current.artwork-stack__item--dragging {
+  cursor: grabbing;
+  box-shadow:
+    0 18px 40px rgb(0 0 0 / 48%);
+  transition: none;
+}
+
+/* Reveal the destination artwork more clearly while dragging. */
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--next,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--previous {
+  z-index: 2;
+  opacity: 1;
+  filter: brightness(1.08);
+}
+
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--previous,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--next {
+  opacity: 0.42;
+}
+
+/* Avoid unnecessary movement for reduced-motion users. */
+@media (prefers-reduced-motion: reduce) {
+  .artwork-stack__item--current,
+  .artwork-stack__item--previous,
+  .artwork-stack__item--next {
+    transition: none;
+  }
+}
+
+/*
+ * Promote the destination artwork as a horizontal swipe approaches
+ * the track-selection threshold.
+ */
+.artwork-stack {
+  --artwork-drag-progress: 0;
+}
+
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--next {
+  opacity: calc(
+    0.72 + (var(--artwork-drag-progress) * 0.28)
+  );
+  transform:
+    translate(
+      calc(
+        8% -
+        (var(--artwork-drag-progress) * 58%)
+      ),
+      -50%
+    )
+    rotate(
+      calc(
+        5deg -
+        (var(--artwork-drag-progress) * 5deg)
+      )
+    )
+    scale(
+      calc(
+        0.82 +
+        (var(--artwork-drag-progress) * 0.18)
+      )
+    );
+}
+
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--previous {
+  opacity: calc(
+    0.72 + (var(--artwork-drag-progress) * 0.28)
+  );
+  transform:
+    translate(
+      calc(
+        -8% +
+        (var(--artwork-drag-progress) * 58%)
+      ),
+      -50%
+    )
+    rotate(
+      calc(
+        -5deg +
+        (var(--artwork-drag-progress) * 5deg)
+      )
+    )
+    scale(
+      calc(
+        0.82 +
+        (var(--artwork-drag-progress) * 0.18)
+      )
+    );
+}
+
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--previous,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--next {
+  opacity: calc(
+    0.42 -
+    (var(--artwork-drag-progress) * 0.18)
+  );
+}
+
+/* Keep the destination artwork synchronized with the pointer. */
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--next,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--previous {
+  transition: none;
+}
+
+/* ---------------------------------------------------------
+   Refined artwork handoff during swipe
+   --------------------------------------------------------- */
+
+/*
+ * The outgoing artwork shrinks and recedes while following the
+ * pointer. The destination artwork moves above it toward center.
+ */
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--current,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--current {
+  z-index: 3;
+  opacity: calc(
+    1 - (var(--artwork-drag-progress) * 0.28)
+  );
+  transform:
+    translate(
+      calc(-50% + var(--artwork-drag-x, 0px)),
+      -50%
+    )
+    rotate(var(--artwork-drag-rotation, 0deg))
+    scale(
+      calc(
+        1 - (var(--artwork-drag-progress) * 0.16)
+      )
+    );
+}
+
+/* The next artwork grows, straightens, and moves into center. */
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--next {
+  z-index: 4;
+  opacity: calc(
+    0.72 + (var(--artwork-drag-progress) * 0.28)
+  );
+  transform:
+    translate(
+      calc(
+        8% -
+        (var(--artwork-drag-progress) * 58%)
+      ),
+      -50%
+    )
+    rotate(
+      calc(
+        5deg -
+        (var(--artwork-drag-progress) * 5deg)
+      )
+    )
+    scale(
+      calc(
+        0.82 +
+        (var(--artwork-drag-progress) * 0.18)
+      )
+    );
+}
+
+/* The previous artwork grows, straightens, and moves into center. */
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--previous {
+  z-index: 4;
+  opacity: calc(
+    0.72 + (var(--artwork-drag-progress) * 0.28)
+  );
+  transform:
+    translate(
+      calc(
+        -8% +
+        (var(--artwork-drag-progress) * 58%)
+      ),
+      -50%
+    )
+    rotate(
+      calc(
+        -5deg +
+        (var(--artwork-drag-progress) * 5deg)
+      )
+    )
+    scale(
+      calc(
+        0.82 +
+        (var(--artwork-drag-progress) * 0.18)
+      )
+    );
+}
+
+/* Push the non-destination artwork farther into the background. */
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--previous,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--next {
+  z-index: 1;
+  opacity: calc(
+    0.42 -
+    (var(--artwork-drag-progress) * 0.22)
+  );
+  filter: brightness(
+    calc(
+      1 - (var(--artwork-drag-progress) * 0.2)
+    )
+  );
+}
+
+/* Pointer movement should remain immediate while actively dragging. */
+.artwork-stack__item--dragging,
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--next,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--previous {
+  transition: none;
+}
+
+/* Restore normal stacking and transitions after release or cancellation. */
+.artwork-stack[data-swipe-direction="none"]
+  .artwork-stack__item--current {
+  z-index: 3;
+  opacity: 1;
+  transform:
+    translate(-50%, -50%)
+    rotate(0deg)
+    scale(1);
+}
+
+.artwork-stack[data-swipe-direction="none"]
+  .artwork-stack__item--previous,
+.artwork-stack[data-swipe-direction="none"]
+  .artwork-stack__item--next {
+  transition:
+    opacity 180ms ease,
+    transform 220ms ease,
+    filter 180ms ease;
+}
+
+/* ---------------------------------------------------------
+   Clamped carousel handoff and second-neighbor artwork
+   --------------------------------------------------------- */
+
+/*
+ * Second-neighbor artwork sits behind the visible previous/next
+ * artwork until a swipe opens space for it.
+ */
+.artwork-stack__item--far-previous,
+.artwork-stack__item--far-next {
+  z-index: 0;
+  width: 66%;
+  opacity: 0.28;
+  filter: brightness(0.72);
+  pointer-events: none;
+}
+
+.artwork-stack__item--far-previous {
+  left: 0;
+  transform:
+    translate(-22%, -50%)
+    rotate(-8deg)
+    scale(0.68);
+}
+
+.artwork-stack__item--far-next {
+  right: 0;
+  transform:
+    translate(22%, -50%)
+    rotate(8deg)
+    scale(0.68);
+}
+
+/*
+ * Use left/right position interpolation instead of an unrestricted
+ * translation. At progress 1, the incoming artwork is centered and
+ * cannot move farther.
+ */
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--next {
+  left: auto;
+  right: calc(
+    var(--artwork-drag-progress) * 50%
+  );
+  z-index: 4;
+  opacity: calc(
+    0.72 + (var(--artwork-drag-progress) * 0.28)
+  );
+  transform:
+    translate(
+      calc(
+        8% -
+        (var(--artwork-drag-progress) * 58%)
+      ),
+      -50%
+    )
+    rotate(
+      calc(
+        5deg -
+        (var(--artwork-drag-progress) * 5deg)
+      )
+    )
+    scale(
+      calc(
+        0.82 +
+        (var(--artwork-drag-progress) * 0.18)
+      )
+    );
+}
+
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--previous {
+  right: auto;
+  left: calc(
+    var(--artwork-drag-progress) * 50%
+  );
+  z-index: 4;
+  opacity: calc(
+    0.72 + (var(--artwork-drag-progress) * 0.28)
+  );
+  transform:
+    translate(
+      calc(
+        -8% +
+        (var(--artwork-drag-progress) * 58%)
+      ),
+      -50%
+    )
+    rotate(
+      calc(
+        -5deg +
+        (var(--artwork-drag-progress) * 5deg)
+      )
+    )
+    scale(
+      calc(
+        0.82 +
+        (var(--artwork-drag-progress) * 0.18)
+      )
+    );
+}
+
+/*
+ * As the destination moves inward, the second-neighbor artwork
+ * advances into the newly vacated side position.
+ */
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--far-next {
+  z-index: 2;
+  opacity: calc(
+    0.28 + (var(--artwork-drag-progress) * 0.44)
+  );
+  filter: brightness(
+    calc(
+      0.72 +
+      (var(--artwork-drag-progress) * 0.28)
+    )
+  );
+  transform:
+    translate(
+      calc(
+        22% -
+        (var(--artwork-drag-progress) * 14%)
+      ),
+      -50%
+    )
+    rotate(
+      calc(
+        8deg -
+        (var(--artwork-drag-progress) * 3deg)
+      )
+    )
+    scale(
+      calc(
+        0.68 +
+        (var(--artwork-drag-progress) * 0.14)
+      )
+    );
+}
+
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--far-previous {
+  z-index: 2;
+  opacity: calc(
+    0.28 + (var(--artwork-drag-progress) * 0.44)
+  );
+  filter: brightness(
+    calc(
+      0.72 +
+      (var(--artwork-drag-progress) * 0.28)
+    )
+  );
+  transform:
+    translate(
+      calc(
+        -22% +
+        (var(--artwork-drag-progress) * 14%)
+      ),
+      -50%
+    )
+    rotate(
+      calc(
+        -8deg +
+        (var(--artwork-drag-progress) * 3deg)
+      )
+    )
+    scale(
+      calc(
+        0.68 +
+        (var(--artwork-drag-progress) * 0.14)
+      )
+    );
+}
+
+/* Hide the unused second neighbor slightly during the handoff. */
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--far-previous,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--far-next {
+  opacity: 0.12;
+}
+
+/* All moving artwork follows the pointer without animation lag. */
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--next,
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--far-next,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--previous,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--far-previous {
+  transition: none;
+}
+
+/* Far artwork is intentionally decorative until it advances. */
+.artwork-stack[data-swipe-direction="none"]
+  .artwork-stack__item--far-previous,
+.artwork-stack[data-swipe-direction="none"]
+  .artwork-stack__item--far-next {
+  transition:
+    opacity 180ms ease,
+    transform 220ms ease,
+    filter 180ms ease;
+}
+
+/* ---------------------------------------------------------
+   Cushioned and center-clamped artwork handoff
+   --------------------------------------------------------- */
+
+.artwork-stack {
+  --artwork-visual-progress: 0;
+}
+
+/*
+ * Keep the incoming cover behind the active cover during the
+ * forgiving first portion of the swipe.
+ */
+.artwork-stack[data-swipe-promoted="false"]
+  .artwork-stack__item--previous,
+.artwork-stack[data-swipe-promoted="false"]
+  .artwork-stack__item--next {
+  z-index: 2;
+}
+
+/* Raise it only when the gesture is clearly approaching selection. */
+.artwork-stack[data-swipe-promoted="true"]
+  .artwork-stack__item--previous,
+.artwork-stack[data-swipe-promoted="true"]
+  .artwork-stack__item--next {
+  z-index: 4;
+}
+
+/*
+ * Next artwork:
+ * - starts to the right of center
+ * - approaches center slowly
+ * - ends at translateX(-50%), exactly centered
+ */
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--next {
+  left: 50%;
+  right: auto;
+  opacity: calc(
+    0.72 +
+    (var(--artwork-visual-progress) * 0.28)
+  );
+  transform:
+    translate(
+      calc(
+        -50% +
+        (
+          (1 - var(--artwork-visual-progress)) *
+          48%
+        )
+      ),
+      -50%
+    )
+    rotate(
+      calc(
+        (1 - var(--artwork-visual-progress)) *
+        5deg
+      )
+    )
+    scale(
+      calc(
+        0.82 +
+        (var(--artwork-visual-progress) * 0.18)
+      )
+    );
+}
+
+/*
+ * Previous artwork:
+ * - starts to the left of center
+ * - approaches center slowly
+ * - ends at translateX(-50%), exactly centered
+ */
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--previous {
+  left: 50%;
+  right: auto;
+  opacity: calc(
+    0.72 +
+    (var(--artwork-visual-progress) * 0.28)
+  );
+  transform:
+    translate(
+      calc(
+        -50% -
+        (
+          (1 - var(--artwork-visual-progress)) *
+          48%
+        )
+      ),
+      -50%
+    )
+    rotate(
+      calc(
+        (var(--artwork-visual-progress) - 1) *
+        5deg
+      )
+    )
+    scale(
+      calc(
+        0.82 +
+        (var(--artwork-visual-progress) * 0.18)
+      )
+    );
+}
+
+/*
+ * The active artwork responds immediately, but recedes more gently
+ * than before so the handoff retains visual depth.
+ */
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--current,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--current {
+  z-index: 3;
+  opacity: calc(
+    1 -
+    (var(--artwork-visual-progress) * 0.24)
+  );
+  transform:
+    translate(
+      calc(-50% + var(--artwork-drag-x, 0px)),
+      -50%
+    )
+    rotate(var(--artwork-drag-rotation, 0deg))
+    scale(
+      calc(
+        1 -
+        (var(--artwork-visual-progress) * 0.14)
+      )
+    );
+}
+
+/*
+ * Second-neighbor artwork also waits through the dead zone before
+ * filling the newly opened side position.
+ */
+.artwork-stack[data-swipe-direction="next"]
+  .artwork-stack__item--far-next,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--far-previous {
+  opacity: calc(
+    0.28 +
+    (var(--artwork-visual-progress) * 0.44)
+  );
+}
+
+/* Restore the centered artwork after cancellation or snap-back. */
+.artwork-stack[data-swipe-direction="none"]
+  .artwork-stack__item--current {
+  z-index: 3;
+  opacity: 1;
+  transform:
+    translate(-50%, -50%)
+    rotate(0deg)
+    scale(1);
+}
+
+/* ---------------------------------------------------------
+   Seamless artwork selection commit
+   --------------------------------------------------------- */
+
+/*
+ * Once the swipe threshold has been crossed and released, the
+ * promoted artwork becomes the new current artwork immediately.
+ * Do not animate it back through the previous side position.
+ */
+.artwork-stack[data-swipe-committing="true"]
+  .artwork-stack__item--current {
+  left: 50%;
+  right: auto;
+  z-index: 5;
+  opacity: 1;
+  transform:
+    translate(-50%, -50%)
+    rotate(0deg)
+    scale(1);
+  transition: none !important;
+}
+
+/* Rebuild the surrounding stack without a visible rebound. */
+.artwork-stack[data-swipe-committing="true"]
+  .artwork-stack__item--previous,
+.artwork-stack[data-swipe-committing="true"]
+  .artwork-stack__item--next,
+.artwork-stack[data-swipe-committing="true"]
+  .artwork-stack__item--far-previous,
+.artwork-stack[data-swipe-committing="true"]
+  .artwork-stack__item--far-next {
+  transition: none !important;
+}
+
+/* ---------------------------------------------------------
+   Refine reverse navigation artwork behavior
+   --------------------------------------------------------- */
+
+/*
+ * Keep the previous artwork fully opaque as it approaches center.
+ * Its scale and position still use the cushioned visual progress.
+ */
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--previous {
+  opacity: calc(
+    0.72 +
+    (var(--artwork-visual-progress) * 0.28)
+  ) !important;
+  filter: none;
+}
+
+/*
+ * Keep the current artwork above the previous artwork during the
+ * forgiving portion of the gesture. This prevents the previous
+ * cover from appearing to jump forward when the swipe is reversed.
+ */
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--current {
+  z-index: 5;
+}
+
+.artwork-stack[
+  data-swipe-direction="previous"
+][data-swipe-promoted="true"]
+  .artwork-stack__item--current {
+  z-index: 3;
+}
+
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--previous {
+  z-index: 4;
+}
+
+/*
+ * Disable interpolation while the previous-track gesture is active.
+ * Reversing the pointer now directly follows the gesture instead of
+ * briefly animating toward an outdated position.
+ */
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--current,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--previous,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--far-previous {
+  transition: none !important;
+}
+
+/*
+ * The next-side artwork is irrelevant during previous-track
+ * navigation. Hide it so it cannot show through either moving cover.
+ */
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--next,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--far-next {
+  z-index: -1;
+  opacity: 0 !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/*
+ * When a reversed gesture returns to rest, restore the previous-side
+ * covers without an intermediate bounce.
+ */
+.artwork-stack[data-swipe-direction="none"]
+  .artwork-stack__item--previous,
+.artwork-stack[data-swipe-direction="none"]
+  .artwork-stack__item--far-previous {
+  transition:
+    opacity 140ms ease,
+    transform 180ms ease,
+    filter 140ms ease;
+}
+
+/* ---------------------------------------------------------
+   Remove reverse-swipe promotion threshold jump
+   --------------------------------------------------------- */
+
+/*
+ * During a previous-track gesture, never swap the previous and
+ * current artwork stacking order mid-drag. The previous artwork
+ * remains behind while the current artwork recedes above it.
+ */
+.artwork-stack[
+  data-swipe-direction="previous"
+]
+  .artwork-stack__item--previous,
+.artwork-stack[
+  data-swipe-direction="previous"
+][data-swipe-promoted="false"]
+  .artwork-stack__item--previous,
+.artwork-stack[
+  data-swipe-direction="previous"
+][data-swipe-promoted="true"]
+  .artwork-stack__item--previous {
+  z-index: 3 !important;
+}
+
+.artwork-stack[
+  data-swipe-direction="previous"
+]
+  .artwork-stack__item--current,
+.artwork-stack[
+  data-swipe-direction="previous"
+][data-swipe-promoted="false"]
+  .artwork-stack__item--current,
+.artwork-stack[
+  data-swipe-direction="previous"
+][data-swipe-promoted="true"]
+  .artwork-stack__item--current {
+  z-index: 4 !important;
+}
+
+/*
+ * Keep both covers tied directly to pointer progress while reversing.
+ * No easing should run as visual progress crosses the promotion point.
+ */
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--previous,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--current {
+  transition: none !important;
+}
+
+/* ---------------------------------------------------------
+   Final reverse-swipe layer handoff
+   --------------------------------------------------------- */
+
+/*
+ * Before the previous artwork reaches the promoted range,
+ * keep the current artwork above it.
+ */
+.artwork-stack[
+  data-swipe-direction="previous"
+][data-swipe-promoted="false"]
+  .artwork-stack__item--current {
+  z-index: 4 !important;
+}
+
+.artwork-stack[
+  data-swipe-direction="previous"
+][data-swipe-promoted="false"]
+  .artwork-stack__item--previous {
+  z-index: 3 !important;
+}
+
+/*
+ * Once the previous artwork is effectively centered, raise it above
+ * the outgoing current artwork so it visually becomes the active cover.
+ */
+.artwork-stack[
+  data-swipe-direction="previous"
+][data-swipe-promoted="true"]
+  .artwork-stack__item--previous {
+  z-index: 5 !important;
+  opacity: 1 !important;
+}
+
+.artwork-stack[
+  data-swipe-direction="previous"
+][data-swipe-promoted="true"]
+  .artwork-stack__item--current {
+  z-index: 3 !important;
+  opacity: calc(
+    1 -
+    (var(--artwork-visual-progress) * 0.34)
+  );
+}
+
+/* Keep the right-swipe handoff directly tied to pointer movement. */
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--current,
+.artwork-stack[data-swipe-direction="previous"]
+  .artwork-stack__item--previous {
+  transition: none !important;
+}
