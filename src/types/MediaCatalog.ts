@@ -58,6 +58,15 @@ export type CatalogTrack = {
           | "missing";
       };
 
+      releaseDate: {
+        value: string | null;
+        source:
+          | "track"
+          | "release"
+          | "directory"
+          | "missing";
+      };
+
       track: MetadataDocument | null;
       credits: MetadataDocument | null;
       production: MetadataDocument | null;

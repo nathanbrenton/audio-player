@@ -98,6 +98,53 @@ function resolveInheritedString(
   };
 }
 
+function resolveTrackReleaseDate(
+  trackValue,
+  releaseValue,
+  directoryValue,
+) {
+  const trackDate =
+    typeof trackValue === "string"
+      ? trackValue.trim()
+      : "";
+
+  if (trackDate) {
+    return {
+      value: trackDate,
+      source: "track",
+    };
+  }
+
+  const releaseDate =
+    typeof releaseValue === "string"
+      ? releaseValue.trim()
+      : "";
+
+  if (releaseDate) {
+    return {
+      value: releaseDate,
+      source: "release",
+    };
+  }
+
+  const directoryDate =
+    typeof directoryValue === "string"
+      ? directoryValue.trim()
+      : "";
+
+  if (directoryDate) {
+    return {
+      value: directoryDate,
+      source: "directory",
+    };
+  }
+
+  return {
+    value: null,
+    source: "missing",
+  };
+}
+
 function deriveTrackDisplayTitle(
   trackDocument,
   fallbackTitle,
@@ -399,6 +446,14 @@ async function buildTrack(
     releaseMetadata.data?.release?.language,
   );
 
+  const releaseDate = resolveTrackReleaseDate(
+    trackMetadata.data?.track?.dates?.release,
+    releaseMetadata.data?.release?.dates?.release,
+    parseReleaseDirectory(
+      path.basename(releaseDirectory),
+    ).date,
+  );
+
   const artworkPath = hasTrackArtwork
     ? toMediaPath(libraryRoot, artworkFile)
     : releaseArtworkPath;
@@ -486,6 +541,7 @@ async function buildTrack(
       resolved: {
         display,
         language,
+        releaseDate,
         track:
           trackMetadata.data?.track ?? null,
         credits:
