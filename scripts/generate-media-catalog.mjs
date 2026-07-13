@@ -64,6 +64,52 @@ function toMediaPath(libraryRoot, filePath) {
  * Parse one optional metadata source without stopping catalog
  * generation when the file is missing or invalid.
  */
+function deriveTrackDisplayTitle(
+  trackDocument,
+  fallbackTitle,
+) {
+  const authoredTrack = trackDocument?.track;
+
+  if (!authoredTrack) {
+    return {
+      title: fallbackTitle,
+      source: "directory",
+    };
+  }
+
+  const explicitDisplayTitle =
+    authoredTrack.display_title?.trim();
+
+  if (explicitDisplayTitle) {
+    return {
+      title: explicitDisplayTitle,
+      source: "authored-display-title",
+    };
+  }
+
+  const title = authoredTrack.title?.trim();
+  const version = authoredTrack.version?.trim();
+  const subtitle = authoredTrack.subtitle?.trim();
+
+  const assembledTitle = [
+    title,
+    version,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const completeTitle = subtitle
+    ? `${assembledTitle || fallbackTitle} — ${subtitle}`
+    : assembledTitle;
+
+  return {
+    title: completeTitle || fallbackTitle,
+    source: completeTitle
+      ? "authored-fields"
+      : "directory",
+  };
+}
+
 async function readWaveformMetadata(
   libraryRoot,
   filePath,
@@ -308,6 +354,11 @@ async function buildTrack(
 
   const parsed = parseTrackDirectory(trackDirectory);
 
+  const display = deriveTrackDisplayTitle(
+    trackMetadata.data,
+    parsed.title,
+  );
+
   const artworkPath = hasTrackArtwork
     ? toMediaPath(libraryRoot, artworkFile)
     : releaseArtworkPath;
@@ -392,6 +443,7 @@ async function buildTrack(
        * the UI will eventually consume as resolved metadata.
        */
       resolved: {
+        display,
         track:
           trackMetadata.data?.track ?? null,
         credits:

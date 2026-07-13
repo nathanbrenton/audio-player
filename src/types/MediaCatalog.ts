@@ -42,6 +42,13 @@ export type CatalogTrack = {
     };
 
     resolved: {
+      display: {
+        title: string;
+        source:
+          | "authored-display-title"
+          | "authored-fields"
+          | "directory";
+      };
       track: MetadataDocument | null;
       credits: MetadataDocument | null;
       production: MetadataDocument | null;
