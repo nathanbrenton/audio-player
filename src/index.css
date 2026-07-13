@@ -2924,6 +2924,48 @@ canvas {
   scrollbar-gutter: stable;
 }
 
+/* Surface advisory catalog warnings without overpowering metadata. */
+.metadata-viewer__warnings {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid #5a4a2b;
+  border-radius: 10px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(150, 111, 42, 0.14),
+      rgba(74, 58, 31, 0.08)
+    );
+}
+
+.metadata-viewer__warnings h3 {
+  margin: 0 0 10px;
+  color: #f2cf88;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metadata-viewer__warning-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.metadata-viewer__warning {
+  color: #ded5c3;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.metadata-viewer__warning strong {
+  color: #f0bd61;
+}
+
 .metadata-viewer__json {
   min-width: max-content;
   margin: 0;
