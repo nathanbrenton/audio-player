@@ -246,6 +246,35 @@ function resolveInheritedStringArray(
   };
 }
 
+function resolveTrackClassification(
+  trackDocument,
+  releaseDocument,
+) {
+  const trackClassification =
+    trackDocument?.track?.classification;
+  const releaseIdentifiers =
+    releaseDocument?.release?.identifiers;
+
+  return {
+    genres: resolveInheritedStringArray(
+      trackClassification?.genres,
+      releaseIdentifiers?.release_genres,
+    ),
+    styles: resolveInheritedStringArray(
+      trackClassification?.styles,
+      releaseIdentifiers?.release_styles,
+    ),
+    moods: resolveInheritedStringArray(
+      trackClassification?.moods,
+      releaseIdentifiers?.release_moods,
+    ),
+    tags: resolveInheritedStringArray(
+      trackClassification?.tags,
+      releaseIdentifiers?.release_tags,
+    ),
+  };
+}
+
 function deriveTrackDisplayTitle(
   trackDocument,
   fallbackTitle,
@@ -561,28 +590,9 @@ async function buildTrack(
     ).date,
   );
 
-  const genres = resolveInheritedStringArray(
-    trackMetadata.data?.track?.classification?.genres,
-    releaseMetadata.data?.release?.identifiers
-      ?.release_genres,
-  );
-
-  const styles = resolveInheritedStringArray(
-    trackMetadata.data?.track?.classification?.styles,
-    releaseMetadata.data?.release?.identifiers
-      ?.release_styles,
-  );
-
-  const moods = resolveInheritedStringArray(
-    trackMetadata.data?.track?.classification?.moods,
-    releaseMetadata.data?.release?.identifiers
-      ?.release_moods,
-  );
-
-  const tags = resolveInheritedStringArray(
-    trackMetadata.data?.track?.classification?.tags,
-    releaseMetadata.data?.release?.identifiers
-      ?.release_tags,
+  const classification = resolveTrackClassification(
+    trackMetadata.data,
+    releaseMetadata.data,
   );
 
   const artworkPath = hasTrackArtwork
@@ -675,10 +685,10 @@ async function buildTrack(
         primaryArtist,
         language,
         releaseDate,
-        genres,
-        styles,
-        moods,
-        tags,
+        genres: classification.genres,
+        styles: classification.styles,
+        moods: classification.moods,
+        tags: classification.tags,
         track:
           trackMetadata.data?.track ?? null,
         credits:
