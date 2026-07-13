@@ -881,3 +881,170 @@ test(
     );
   },
 );
+
+test(
+  "reports invalid authored dates without removing entries",
+  async (context) => {
+    const libraryRoot = await mkdtemp(
+      path.join(
+        os.tmpdir(),
+        "audio-player-invalid-dates-",
+      ),
+    );
+
+    context.after(async () => {
+      await rm(libraryRoot, {
+        recursive: true,
+        force: true,
+      });
+    });
+
+    const releaseDirectory = path.join(
+      libraryRoot,
+      "releases",
+      "2026-07-08_invalid-authored-dates",
+    );
+
+    await mkdir(releaseDirectory, {
+      recursive: true,
+    });
+
+    /*
+     * The date has valid formatting but is not a real calendar
+     * date, which verifies validation beyond a regex check.
+     */
+    await writeFile(
+      path.join(
+        releaseDirectory,
+        "release.toml",
+      ),
+      `[release]
+title = "Invalid Date Test"
+
+[release.dates]
+release = "2026-02-30"
+`,
+    );
+
+    const invalidTrackDirectory =
+      await createPlayableTrack(
+        releaseDirectory,
+        "date-artist_01_invalid-date-track",
+      );
+
+    await writeFile(
+      path.join(
+        invalidTrackDirectory,
+        "track.toml",
+      ),
+      `[track]
+title = "Invalid Date Track"
+
+[track.dates]
+release = "2026-13-01"
+`,
+    );
+
+    const validTrackDirectory =
+      await createPlayableTrack(
+        releaseDirectory,
+        "date-artist_02_valid-date-track",
+      );
+
+    await writeFile(
+      path.join(
+        validTrackDirectory,
+        "track.toml",
+      ),
+      `[track]
+title = "Valid Date Track"
+
+[track.dates]
+release = "2026-07-09"
+`,
+    );
+
+    const catalog = await runGenerator(
+      libraryRoot,
+    );
+
+    const release = catalog.releases.find(
+      (entry) =>
+        entry.id ===
+        "2026-07-08_invalid-authored-dates",
+    );
+
+    assert.ok(release);
+    assert.equal(release.trackCount, 2);
+
+    assert.deepEqual(
+      release.metadata.validation,
+      [
+        {
+          code: "invalid-authored-date",
+          severity: "warning",
+          field: "release.dates.release",
+          value: "2026-02-30",
+          message:
+            "release.dates.release must be a valid YYYY-MM-DD date.",
+        },
+      ],
+    );
+
+    const invalidTrack = release.tracks.find(
+      (track) =>
+        track.id ===
+        "date-artist_01_invalid-date-track",
+    );
+
+    const validTrack = release.tracks.find(
+      (track) =>
+        track.id ===
+        "date-artist_02_valid-date-track",
+    );
+
+    assert.ok(invalidTrack);
+    assert.ok(validTrack);
+
+    assert.deepEqual(
+      invalidTrack.metadata.validation,
+      [
+        {
+          code: "invalid-authored-date",
+          severity: "warning",
+          field: "track.dates.release",
+          value: "2026-13-01",
+          message:
+            "track.dates.release must be a valid YYYY-MM-DD date.",
+        },
+      ],
+    );
+
+    assert.deepEqual(
+      validTrack.metadata.validation,
+      [],
+    );
+
+    /*
+     * Validation remains advisory. Both authored values remain
+     * visible in resolved metadata for diagnosis and correction.
+     */
+    assert.deepEqual(
+      invalidTrack.metadata.resolved.releaseDate,
+      {
+        value: "2026-13-01",
+        source: "track",
+      },
+    );
+
+    assert.equal(
+      invalidTrack.playable,
+      true,
+    );
+
+    assert.equal(
+      validTrack.playable,
+      true,
+    );
+  },
+);

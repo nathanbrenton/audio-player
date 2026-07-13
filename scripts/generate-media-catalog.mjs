@@ -595,6 +595,11 @@ async function buildTrack(
     releaseMetadata.data,
   );
 
+  const validation = validateAuthoredDate(
+    trackMetadata.data?.track?.dates?.release,
+    "track.dates.release",
+  );
+
   const artworkPath = hasTrackArtwork
     ? toMediaPath(libraryRoot, artworkFile)
     : releaseArtworkPath;
@@ -701,12 +706,69 @@ async function buildTrack(
       },
 
       diagnostics: metadataDiagnostics,
+      validation,
     },
 
     playable:
       hasAudioPlayback &&
       hasWaveform,
   };
+}
+
+function isValidIsoDate(value) {
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value)
+  ) {
+    return false;
+  }
+
+  const [
+    year,
+    month,
+    day,
+  ] = value
+    .split("-")
+    .map(Number);
+
+  const date = new Date(
+    Date.UTC(year, month - 1, day),
+  );
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+function validateAuthoredDate(
+  value,
+  field,
+) {
+  if (
+    typeof value !== "string" ||
+    value.trim() === ""
+  ) {
+    return [];
+  }
+
+  const normalizedValue = value.trim();
+
+  if (isValidIsoDate(normalizedValue)) {
+    return [];
+  }
+
+  return [
+    {
+      code: "invalid-authored-date",
+      severity: "warning",
+      field,
+      value: normalizedValue,
+      message:
+        `${field} must be a valid YYYY-MM-DD date.`,
+    },
+  ];
 }
 
 function validateReleaseTracks(tracks) {
@@ -854,7 +916,13 @@ async function buildRelease(
     return first.id.localeCompare(second.id);
   });
 
-  const validation = validateReleaseTracks(tracks);
+  const validation = [
+    ...validateReleaseTracks(tracks),
+    ...validateAuthoredDate(
+      releaseMetadata.data?.release?.dates?.release,
+      "release.dates.release",
+    ),
+  ];
 
   const parsed = parseReleaseDirectory(
     releaseDirectoryName,
