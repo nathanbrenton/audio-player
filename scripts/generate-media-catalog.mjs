@@ -64,6 +64,40 @@ function toMediaPath(libraryRoot, filePath) {
  * Parse one optional metadata source without stopping catalog
  * generation when the file is missing or invalid.
  */
+function resolveInheritedString(
+  trackValue,
+  releaseValue,
+) {
+  const explicitTrackValue =
+    typeof trackValue === "string"
+      ? trackValue.trim()
+      : "";
+
+  if (explicitTrackValue) {
+    return {
+      value: explicitTrackValue,
+      source: "track",
+    };
+  }
+
+  const inheritedReleaseValue =
+    typeof releaseValue === "string"
+      ? releaseValue.trim()
+      : "";
+
+  if (inheritedReleaseValue) {
+    return {
+      value: inheritedReleaseValue,
+      source: "release",
+    };
+  }
+
+  return {
+    value: null,
+    source: "missing",
+  };
+}
+
 function deriveTrackDisplayTitle(
   trackDocument,
   fallbackTitle,
@@ -253,6 +287,7 @@ async function buildTrack(
   releaseDirectory,
   trackDirectory,
   releaseArtworkPath,
+  releaseMetadata,
 ) {
   const trackPath = path.join(
     releaseDirectory,
@@ -359,6 +394,11 @@ async function buildTrack(
     parsed.title,
   );
 
+  const language = resolveInheritedString(
+    trackMetadata.data?.track?.language,
+    releaseMetadata.data?.release?.language,
+  );
+
   const artworkPath = hasTrackArtwork
     ? toMediaPath(libraryRoot, artworkFile)
     : releaseArtworkPath;
@@ -445,6 +485,7 @@ async function buildTrack(
        */
       resolved: {
         display,
+        language,
         track:
           trackMetadata.data?.track ?? null,
         credits:
@@ -559,6 +600,7 @@ async function buildRelease(
         releaseDirectory,
         trackDirectoryName,
         releaseArtworkPath,
+        releaseMetadata,
       ),
     ),
   );

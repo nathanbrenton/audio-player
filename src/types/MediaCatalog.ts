@@ -49,6 +49,15 @@ export type CatalogTrack = {
           | "authored-fields"
           | "directory";
       };
+
+      language: {
+        value: string | null;
+        source:
+          | "track"
+          | "release"
+          | "missing";
+      };
+
       track: MetadataDocument | null;
       credits: MetadataDocument | null;
       production: MetadataDocument | null;
