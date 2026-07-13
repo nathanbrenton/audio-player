@@ -655,3 +655,136 @@ language = "en"
     );
   },
 );
+
+test(
+  "exposes compact waveform metadata without embedding peaks",
+  async (context) => {
+    const libraryRoot = await mkdtemp(
+      path.join(
+        os.tmpdir(),
+        "audio-player-waveform-metadata-",
+      ),
+    );
+
+    context.after(async () => {
+      await rm(libraryRoot, {
+        recursive: true,
+        force: true,
+      });
+    });
+
+    const releaseDirectory = path.join(
+      libraryRoot,
+      "releases",
+      "2026-05-06_waveform-test",
+    );
+
+    const trackDirectory =
+      await createPlayableTrack(
+        releaseDirectory,
+        "waveform-artist_01_waveform-track",
+      );
+
+    const waveformDocument = {
+      version: 2,
+      durationSeconds: 123.45,
+      sampleRate: 48000,
+      sourceChannels: 2,
+      waveformChannels: 1,
+      bitsPerSample: 24,
+      peaksPerSecond: 400,
+      analysis: {
+        fftSize: 1024,
+        window: "hann",
+        bandsHz: {
+          low: [20, 250],
+          mid: [250, 4000],
+          high: [4000, 20000],
+        },
+        normalization:
+          "95th-percentile-per-band",
+      },
+      peakCount: 2,
+      peaks: [
+        [-1, 1, 0.1, 0.2, 0.3],
+        [-0.8, 0.9, 0.2, 0.3, 0.4],
+      ],
+    };
+
+    await writeFile(
+      path.join(
+        trackDirectory,
+        "waveform-peaks.json",
+      ),
+      `${JSON.stringify(waveformDocument)}\n`,
+    );
+
+    const catalog = await runGenerator(
+      libraryRoot,
+    );
+
+    const track =
+      catalog.releases[0]?.tracks[0];
+
+    assert.ok(track);
+
+    const generatedWaveform =
+      track.metadata.generated.waveform;
+
+    const resolvedWaveform =
+      track.metadata.resolved.waveform;
+
+    assert.deepEqual(generatedWaveform, {
+      version: 2,
+      durationSeconds: 123.45,
+      sampleRate: 48000,
+      sourceChannels: 2,
+      waveformChannels: 1,
+      bitsPerSample: 24,
+      peaksPerSecond: 400,
+      analysis: {
+        fftSize: 1024,
+        window: "hann",
+        bandsHz: {
+          low: [20, 250],
+          mid: [250, 4000],
+          high: [4000, 20000],
+        },
+        normalization:
+          "95th-percentile-per-band",
+      },
+      peakCount: 2,
+    });
+
+    assert.deepEqual(
+      resolvedWaveform,
+      generatedWaveform,
+    );
+
+    assert.equal(
+      Object.hasOwn(
+        generatedWaveform,
+        "peaks",
+      ),
+      false,
+    );
+
+    assert.equal(
+      Object.hasOwn(
+        resolvedWaveform,
+        "peaks",
+      ),
+      false,
+    );
+
+    const serializedCatalog =
+      JSON.stringify(catalog);
+
+    assert.equal(
+      serializedCatalog.includes(
+        '"peaks":[[-1,1',
+      ),
+      false,
+    );
+  },
+);
