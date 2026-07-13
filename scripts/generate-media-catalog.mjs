@@ -64,6 +64,31 @@ function toMediaPath(libraryRoot, filePath) {
  * Parse one optional metadata source without stopping catalog
  * generation when the file is missing or invalid.
  */
+async function readWaveformMetadata(
+  libraryRoot,
+  filePath,
+) {
+  const result = await readMetadataFile(
+    libraryRoot,
+    filePath,
+    "json",
+  );
+
+  if (result.status !== "loaded" || !result.data) {
+    return result;
+  }
+
+  const {
+    peaks: _discardedPeaks,
+    ...waveformMetadata
+  } = result.data;
+
+  return {
+    ...result,
+    data: waveformMetadata,
+  };
+}
+
 async function readMetadataFile(
   libraryRoot,
   filePath,
@@ -267,6 +292,10 @@ async function buildTrack(
       trackMetadataFiles.analysis,
       "json",
     ),
+    readWaveformMetadata(
+      libraryRoot,
+      waveformFile,
+    ),
   ]);
 
   const [
@@ -274,6 +303,7 @@ async function buildTrack(
     trackCredits,
     trackProductionNotes,
     trackAnalysis,
+    waveformMetadata,
   ] = metadataDiagnostics;
 
   const parsed = parseTrackDirectory(trackDirectory);
@@ -354,6 +384,7 @@ async function buildTrack(
 
       generated: {
         analysis: trackAnalysis.data,
+        waveform: waveformMetadata.data,
       },
 
       /*
@@ -369,6 +400,7 @@ async function buildTrack(
           trackProductionNotes.data?.production ??
           null,
         analysis: trackAnalysis.data,
+        waveform: waveformMetadata.data,
       },
 
       diagnostics: metadataDiagnostics,

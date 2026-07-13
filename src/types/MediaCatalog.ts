@@ -38,6 +38,7 @@ export type CatalogTrack = {
 
     generated: {
       analysis: MetadataDocument | null;
+      waveform: MetadataDocument | null;
     };
 
     resolved: {
@@ -45,6 +46,7 @@ export type CatalogTrack = {
       credits: MetadataDocument | null;
       production: MetadataDocument | null;
       analysis: MetadataDocument | null;
+      waveform: MetadataDocument | null;
     };
 
     diagnostics: MetadataFileDiagnostic[];
