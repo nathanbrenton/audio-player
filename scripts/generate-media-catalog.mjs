@@ -156,23 +156,40 @@ async function buildTrack(
     trackPath,
     "waveform-peaks.json",
   );
-  const metadataFile = path.join(
-    trackPath,
-    "metadata.json",
-  );
+  const trackMetadataFiles = {
+    track: path.join(trackPath, "track.toml"),
+    credits: path.join(
+      trackPath,
+      "track-credits.toml",
+    ),
+    productionNotes: path.join(
+      trackPath,
+      "track-production-notes.toml",
+    ),
+    analysis: path.join(
+      trackPath,
+      "track-analysis.json",
+    ),
+  };
 
   const [
     hasTrackArtwork,
     hasAudioMaster,
     hasAudioPlayback,
     hasWaveform,
-    hasMetadata,
+    hasTrackMetadata,
+    hasTrackCredits,
+    hasTrackProductionNotes,
+    hasTrackAnalysis,
   ] = await Promise.all([
     pathExists(artworkFile),
     pathExists(audioMasterFile),
     pathExists(audioPlaybackFile),
     pathExists(waveformFile),
-    pathExists(metadataFile),
+    pathExists(trackMetadataFiles.track),
+    pathExists(trackMetadataFiles.credits),
+    pathExists(trackMetadataFiles.productionNotes),
+    pathExists(trackMetadataFiles.analysis),
   ]);
 
   const parsed = parseTrackDirectory(trackDirectory);
@@ -211,8 +228,35 @@ async function buildTrack(
       waveform: hasWaveform
         ? toMediaPath(libraryRoot, waveformFile)
         : null,
-      metadata: hasMetadata
-        ? toMediaPath(libraryRoot, metadataFile)
+    },
+
+    metadataSources: {
+      track: hasTrackMetadata
+        ? toMediaPath(
+            libraryRoot,
+            trackMetadataFiles.track,
+          )
+        : null,
+      credits: hasTrackCredits
+        ? toMediaPath(
+            libraryRoot,
+            trackMetadataFiles.credits,
+          )
+        : null,
+      productionNotes: hasTrackProductionNotes
+        ? toMediaPath(
+            libraryRoot,
+            trackMetadataFiles.productionNotes,
+          )
+        : null,
+      analysis: hasTrackAnalysis
+        ? toMediaPath(
+            libraryRoot,
+            trackMetadataFiles.analysis,
+          )
+        : null,
+      waveform: hasWaveform
+        ? toMediaPath(libraryRoot, waveformFile)
         : null,
     },
 
@@ -242,10 +286,20 @@ async function buildRelease(
     "front",
     "artwork.webp",
   );
-  const releaseMetadataFile = path.join(
-    releaseDirectory,
-    "release.json",
-  );
+  const releaseMetadataFiles = {
+    release: path.join(
+      releaseDirectory,
+      "release.toml",
+    ),
+    productionNotes: path.join(
+      releaseDirectory,
+      "release-production-notes.toml",
+    ),
+    settings: path.join(
+      releaseDirectory,
+      "release-settings.toml",
+    ),
+  };
   const tracksDirectory = path.join(
     releaseDirectory,
     "tracks",
@@ -254,10 +308,16 @@ async function buildRelease(
   const [
     hasArtwork,
     hasReleaseMetadata,
+    hasReleaseProductionNotes,
+    hasReleaseSettings,
     hasTracksDirectory,
   ] = await Promise.all([
     pathExists(artworkFile),
-    pathExists(releaseMetadataFile),
+    pathExists(releaseMetadataFiles.release),
+    pathExists(
+      releaseMetadataFiles.productionNotes,
+    ),
+    pathExists(releaseMetadataFiles.settings),
     pathExists(tracksDirectory),
   ]);
 
@@ -311,12 +371,27 @@ async function buildRelease(
           path: releaseArtworkPath,
         }
       : null,
-    metadata: hasReleaseMetadata
-      ? toMediaPath(
-          libraryRoot,
-          releaseMetadataFile,
-        )
-      : null,
+    metadataSources: {
+      release: hasReleaseMetadata
+        ? toMediaPath(
+            libraryRoot,
+            releaseMetadataFiles.release,
+          )
+        : null,
+      productionNotes:
+        hasReleaseProductionNotes
+          ? toMediaPath(
+              libraryRoot,
+              releaseMetadataFiles.productionNotes,
+            )
+          : null,
+      settings: hasReleaseSettings
+        ? toMediaPath(
+            libraryRoot,
+            releaseMetadataFiles.settings,
+          )
+        : null,
+    },
     trackCount: tracks.length,
     playableTrackCount: tracks.filter(
       (track) => track.playable,

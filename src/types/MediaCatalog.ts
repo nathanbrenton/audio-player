@@ -14,7 +14,14 @@ export type CatalogTrack = {
     audioMaster: string | null;
     audioPlayback: string | null;
     waveform: string | null;
-    metadata: string | null;
+  };
+
+  metadataSources: {
+    track: string | null;
+    credits: string | null;
+    productionNotes: string | null;
+    analysis: string | null;
+    waveform: string | null;
   };
 
   playable: boolean;
@@ -26,7 +33,13 @@ export type CatalogRelease = {
   date: string | null;
   title: string;
   artwork: string | null;
-  metadata: string | null;
+
+  metadataSources: {
+    release: string | null;
+    productionNotes: string | null;
+    settings: string | null;
+  };
+
   trackCount: number;
   playableTrackCount: number;
   tracks: CatalogTrack[];
