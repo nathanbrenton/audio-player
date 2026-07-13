@@ -35,9 +35,18 @@ export type CatalogTrack = {
       credits: MetadataDocument | null;
       productionNotes: MetadataDocument | null;
     };
+
     generated: {
       analysis: MetadataDocument | null;
     };
+
+    resolved: {
+      track: MetadataDocument | null;
+      credits: MetadataDocument | null;
+      production: MetadataDocument | null;
+      analysis: MetadataDocument | null;
+    };
+
     diagnostics: MetadataFileDiagnostic[];
   };
 
@@ -63,6 +72,13 @@ export type CatalogRelease = {
       productionNotes: MetadataDocument | null;
       settings: MetadataDocument | null;
     };
+
+    resolved: {
+      release: MetadataDocument | null;
+      production: MetadataDocument | null;
+      settings: MetadataDocument | null;
+    };
+
     diagnostics: MetadataFileDiagnostic[];
   };
 

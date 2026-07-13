@@ -351,9 +351,26 @@ async function buildTrack(
         productionNotes:
           trackProductionNotes.data,
       },
+
       generated: {
         analysis: trackAnalysis.data,
       },
+
+      /*
+       * Keep source documents intact while exposing the sections
+       * the UI will eventually consume as resolved metadata.
+       */
+      resolved: {
+        track:
+          trackMetadata.data?.track ?? null,
+        credits:
+          trackCredits.data?.track ?? null,
+        production:
+          trackProductionNotes.data?.production ??
+          null,
+        analysis: trackAnalysis.data,
+      },
+
       diagnostics: metadataDiagnostics,
     },
 
@@ -521,6 +538,21 @@ async function buildRelease(
           releaseProductionNotes.data,
         settings: releaseSettings.data,
       },
+
+      /*
+       * Assemble stable namespaces now. Inheritance, normalization,
+       * and conflict handling will be layered on afterward.
+       */
+      resolved: {
+        release:
+          releaseMetadata.data?.release ?? null,
+        production:
+          releaseProductionNotes.data?.production ??
+          null,
+        settings:
+          releaseSettings.data?.settings ?? null,
+      },
+
       diagnostics: metadataDiagnostics,
     },
 
