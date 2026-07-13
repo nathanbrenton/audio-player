@@ -412,3 +412,246 @@ sort_name = "Artist, Track"
     }
   },
 );
+
+test(
+  "reports invalid metadata without stopping catalog generation",
+  async (context) => {
+    const libraryRoot = await mkdtemp(
+      path.join(
+        os.tmpdir(),
+        "audio-player-invalid-metadata-",
+      ),
+    );
+
+    context.after(async () => {
+      await rm(libraryRoot, {
+        recursive: true,
+        force: true,
+      });
+    });
+
+    /*
+     * This release contains invalid release and track metadata.
+     * The catalog should retain the release and playable track,
+     * using directory-derived values where authored data failed.
+     */
+    const invalidReleaseDirectory = path.join(
+      libraryRoot,
+      "releases",
+      "2026-03-04_invalid-metadata",
+    );
+
+    await mkdir(invalidReleaseDirectory, {
+      recursive: true,
+    });
+
+    await writeFile(
+      path.join(
+        invalidReleaseDirectory,
+        "release.toml",
+      ),
+      `[release
+title = "Broken Release"
+`,
+    );
+
+    const invalidTrackDirectory =
+      await createPlayableTrack(
+        invalidReleaseDirectory,
+        "broken-artist_01_broken-track",
+      );
+
+    await writeFile(
+      path.join(
+        invalidTrackDirectory,
+        "track.toml",
+      ),
+      `[track
+title = "Broken Track"
+`,
+    );
+
+    /*
+     * A second valid release proves one invalid metadata source
+     * does not prevent unrelated catalog entries from loading.
+     */
+    const validReleaseDirectory = path.join(
+      libraryRoot,
+      "releases",
+      "2026-04-05_valid-release",
+    );
+
+    await mkdir(validReleaseDirectory, {
+      recursive: true,
+    });
+
+    await writeFile(
+      path.join(
+        validReleaseDirectory,
+        "release.toml",
+      ),
+      `[release]
+id = "2026-04-05_valid-release"
+title = "Valid Release"
+
+[release.primary_artist]
+name = "Valid Artist"
+sort_name = "Artist, Valid"
+`,
+    );
+
+    const validTrackDirectory =
+      await createPlayableTrack(
+        validReleaseDirectory,
+        "valid-artist_01_valid-track",
+      );
+
+    await writeFile(
+      path.join(
+        validTrackDirectory,
+        "track.toml",
+      ),
+      `[track]
+title = "Valid Track"
+language = "en"
+`,
+    );
+
+    const catalog = await runGenerator(
+      libraryRoot,
+    );
+
+    assert.equal(catalog.releases.length, 2);
+
+    const invalidRelease =
+      catalog.releases.find(
+        (release) =>
+          release.id ===
+          "2026-03-04_invalid-metadata",
+      );
+
+    const validRelease =
+      catalog.releases.find(
+        (release) =>
+          release.id ===
+          "2026-04-05_valid-release",
+      );
+
+    assert.ok(invalidRelease);
+    assert.ok(validRelease);
+
+    const invalidReleaseDiagnostic =
+      invalidRelease.metadata.diagnostics.find(
+        (diagnostic) =>
+          diagnostic.path.endsWith(
+            "/release.toml",
+          ),
+      );
+
+    assert.ok(invalidReleaseDiagnostic);
+    assert.equal(
+      invalidReleaseDiagnostic.status,
+      "invalid",
+    );
+    assert.equal(
+      invalidReleaseDiagnostic.format,
+      "toml",
+    );
+    assert.equal(
+      typeof invalidReleaseDiagnostic.error,
+      "string",
+    );
+    assert.ok(
+      invalidReleaseDiagnostic.error.length > 0,
+    );
+
+    assert.equal(
+      invalidRelease.metadata.authored.release,
+      null,
+    );
+
+    const invalidTrack =
+      invalidRelease.tracks.find(
+        (track) =>
+          track.id ===
+          "broken-artist_01_broken-track",
+      );
+
+    assert.ok(invalidTrack);
+    assert.equal(invalidTrack.playable, true);
+    assert.equal(
+      invalidTrack.title,
+      "Broken Track",
+    );
+    assert.equal(
+      invalidTrack.artist,
+      "Broken Artist",
+    );
+
+    const invalidTrackDiagnostic =
+      invalidTrack.metadata.diagnostics.find(
+        (diagnostic) =>
+          diagnostic.path.endsWith(
+            "/track.toml",
+          ),
+      );
+
+    assert.ok(invalidTrackDiagnostic);
+    assert.equal(
+      invalidTrackDiagnostic.status,
+      "invalid",
+    );
+    assert.equal(
+      invalidTrackDiagnostic.format,
+      "toml",
+    );
+    assert.equal(
+      typeof invalidTrackDiagnostic.error,
+      "string",
+    );
+    assert.ok(
+      invalidTrackDiagnostic.error.length > 0,
+    );
+
+    assert.equal(
+      invalidTrack.metadata.authored.track,
+      null,
+    );
+
+    /*
+     * The unrelated valid release and track remain available and
+     * retain their authored metadata.
+     */
+    assert.equal(
+      validRelease.metadata.diagnostics.find(
+        (diagnostic) =>
+          diagnostic.path.endsWith(
+            "/release.toml",
+          ),
+      )?.status,
+      "loaded",
+    );
+
+    const validTrack =
+      validRelease.tracks.find(
+        (track) =>
+          track.id ===
+          "valid-artist_01_valid-track",
+      );
+
+    assert.ok(validTrack);
+    assert.equal(
+      validTrack.title,
+      "Valid Track",
+    );
+    assert.equal(
+      validTrack.metadata.diagnostics.find(
+        (diagnostic) =>
+          diagnostic.path.endsWith(
+            "/track.toml",
+          ),
+      )?.status,
+      "loaded",
+    );
+  },
+);
