@@ -145,6 +145,63 @@ function resolveTrackReleaseDate(
   };
 }
 
+function resolvePrimaryArtist(
+  trackArtist,
+  releaseArtist,
+  directoryArtist,
+) {
+  const trackName =
+    typeof trackArtist?.name === "string"
+      ? trackArtist.name.trim()
+      : "";
+
+  if (trackName) {
+    return {
+      name: trackName,
+      sortName:
+        typeof trackArtist.sort_name === "string"
+          ? trackArtist.sort_name.trim() || null
+          : null,
+      source: "track",
+    };
+  }
+
+  const releaseName =
+    typeof releaseArtist?.name === "string"
+      ? releaseArtist.name.trim()
+      : "";
+
+  if (releaseName) {
+    return {
+      name: releaseName,
+      sortName:
+        typeof releaseArtist.sort_name === "string"
+          ? releaseArtist.sort_name.trim() || null
+          : null,
+      source: "release",
+    };
+  }
+
+  const fallbackName =
+    typeof directoryArtist === "string"
+      ? directoryArtist.trim()
+      : "";
+
+  if (fallbackName) {
+    return {
+      name: fallbackName,
+      sortName: null,
+      source: "directory",
+    };
+  }
+
+  return {
+    name: null,
+    sortName: null,
+    source: "missing",
+  };
+}
+
 function deriveTrackDisplayTitle(
   trackDocument,
   fallbackTitle,
@@ -441,6 +498,12 @@ async function buildTrack(
     parsed.title,
   );
 
+  const primaryArtist = resolvePrimaryArtist(
+    trackCredits.data?.track?.primary_artist,
+    releaseMetadata.data?.release?.primary_artist,
+    parsed.artist,
+  );
+
   const language = resolveInheritedString(
     trackMetadata.data?.track?.language,
     releaseMetadata.data?.release?.language,
@@ -464,7 +527,8 @@ async function buildTrack(
       libraryRoot,
       trackPath,
     ),
-    artist: parsed.artist,
+    // Prefer authored artist metadata over the directory fallback.
+    artist: primaryArtist.name,
     trackNumber: parsed.trackNumber,
     // Use authored display metadata when available.
     title: display.title,
@@ -540,6 +604,7 @@ async function buildTrack(
        */
       resolved: {
         display,
+        primaryArtist,
         language,
         releaseDate,
         track:

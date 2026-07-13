@@ -50,6 +50,16 @@ export type CatalogTrack = {
           | "directory";
       };
 
+      primaryArtist: {
+        name: string | null;
+        sortName: string | null;
+        source:
+          | "track"
+          | "release"
+          | "directory"
+          | "missing";
+      };
+
       language: {
         value: string | null;
         source:
