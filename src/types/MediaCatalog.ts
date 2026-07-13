@@ -1,3 +1,8 @@
+import type {
+  MetadataDocument,
+  MetadataFileDiagnostic,
+} from "./ResolvedMetadata";
+
 export type CatalogTrack = {
   id: string;
   directory: string;
@@ -24,6 +29,18 @@ export type CatalogTrack = {
     waveform: string | null;
   };
 
+  metadata: {
+    authored: {
+      track: MetadataDocument | null;
+      credits: MetadataDocument | null;
+      productionNotes: MetadataDocument | null;
+    };
+    generated: {
+      analysis: MetadataDocument | null;
+    };
+    diagnostics: MetadataFileDiagnostic[];
+  };
+
   playable: boolean;
 };
 
@@ -38,6 +55,15 @@ export type CatalogRelease = {
     release: string | null;
     productionNotes: string | null;
     settings: string | null;
+  };
+
+  metadata: {
+    authored: {
+      release: MetadataDocument | null;
+      productionNotes: MetadataDocument | null;
+      settings: MetadataDocument | null;
+    };
+    diagnostics: MetadataFileDiagnostic[];
   };
 
   trackCount: number;

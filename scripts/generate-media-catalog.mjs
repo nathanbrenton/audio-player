@@ -2,12 +2,14 @@
 
 import {
   access,
+  readFile,
   readdir,
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { parse as parseToml } from "smol-toml";
 
 /*
  * Resolve the default media library relative to the project root,
@@ -56,6 +58,58 @@ function toMediaPath(libraryRoot, filePath) {
   return relativePath
     .split(path.sep)
     .join("/");
+}
+
+/*
+ * Parse one optional metadata source without stopping catalog
+ * generation when the file is missing or invalid.
+ */
+async function readMetadataFile(
+  libraryRoot,
+  filePath,
+  format,
+) {
+  const mediaPath = toMediaPath(
+    libraryRoot,
+    filePath,
+  );
+
+  try {
+    const source = await readFile(filePath, "utf8");
+    const data =
+      format === "toml"
+        ? parseToml(source)
+        : JSON.parse(source);
+
+    return {
+      path: mediaPath,
+      format,
+      status: "loaded",
+      data,
+      error: null,
+    };
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return {
+        path: mediaPath,
+        format,
+        status: "missing",
+        data: null,
+        error: null,
+      };
+    }
+
+    return {
+      path: mediaPath,
+      format,
+      status: "invalid",
+      data: null,
+      error:
+        error instanceof Error
+          ? error.message
+          : String(error),
+    };
+  }
 }
 
 /*
@@ -192,6 +246,36 @@ async function buildTrack(
     pathExists(trackMetadataFiles.analysis),
   ]);
 
+  const metadataDiagnostics = await Promise.all([
+    readMetadataFile(
+      libraryRoot,
+      trackMetadataFiles.track,
+      "toml",
+    ),
+    readMetadataFile(
+      libraryRoot,
+      trackMetadataFiles.credits,
+      "toml",
+    ),
+    readMetadataFile(
+      libraryRoot,
+      trackMetadataFiles.productionNotes,
+      "toml",
+    ),
+    readMetadataFile(
+      libraryRoot,
+      trackMetadataFiles.analysis,
+      "json",
+    ),
+  ]);
+
+  const [
+    trackMetadata,
+    trackCredits,
+    trackProductionNotes,
+    trackAnalysis,
+  ] = metadataDiagnostics;
+
   const parsed = parseTrackDirectory(trackDirectory);
 
   const artworkPath = hasTrackArtwork
@@ -260,6 +344,19 @@ async function buildTrack(
         : null,
     },
 
+    metadata: {
+      authored: {
+        track: trackMetadata.data,
+        credits: trackCredits.data,
+        productionNotes:
+          trackProductionNotes.data,
+      },
+      generated: {
+        analysis: trackAnalysis.data,
+      },
+      diagnostics: metadataDiagnostics,
+    },
+
     playable:
       hasAudioPlayback &&
       hasWaveform,
@@ -320,6 +417,30 @@ async function buildRelease(
     pathExists(releaseMetadataFiles.settings),
     pathExists(tracksDirectory),
   ]);
+
+  const metadataDiagnostics = await Promise.all([
+    readMetadataFile(
+      libraryRoot,
+      releaseMetadataFiles.release,
+      "toml",
+    ),
+    readMetadataFile(
+      libraryRoot,
+      releaseMetadataFiles.productionNotes,
+      "toml",
+    ),
+    readMetadataFile(
+      libraryRoot,
+      releaseMetadataFiles.settings,
+      "toml",
+    ),
+  ]);
+
+  const [
+    releaseMetadata,
+    releaseProductionNotes,
+    releaseSettings,
+  ] = metadataDiagnostics;
 
   const releaseArtworkPath = hasArtwork
     ? toMediaPath(libraryRoot, artworkFile)
@@ -392,6 +513,17 @@ async function buildRelease(
           )
         : null,
     },
+
+    metadata: {
+      authored: {
+        release: releaseMetadata.data,
+        productionNotes:
+          releaseProductionNotes.data,
+        settings: releaseSettings.data,
+      },
+      diagnostics: metadataDiagnostics,
+    },
+
     trackCount: tracks.length,
     playableTrackCount: tracks.filter(
       (track) => track.playable,
