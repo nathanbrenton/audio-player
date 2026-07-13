@@ -256,3 +256,95 @@ Metadata answers:
 
 Artist aliases, featured artists, remixers, BPM, playlists, compilation appearances, and future database relationships should be stored in metadata files rather than encoded into increasingly complex directory structures.
 
+
+---
+
+# Artwork Storage and Resolution
+
+## Release artwork
+
+The primary release cover is stored beneath the release's
+`artwork/front/` directory.
+
+~~~text
+media-library/releases/<release-id>/
+└── artwork/
+    └── front/
+        ├── artwork-master.jpeg
+        └── artwork.webp
+~~~
+
+The web-ready release artwork path is:
+
+~~~text
+releases/<release-id>/artwork/front/artwork.webp
+~~~
+
+## Track artwork
+
+Track-specific artwork is stored beneath the individual track's
+`artwork/` directory.
+
+~~~text
+media-library/releases/<release-id>/tracks/<track-id>/
+└── artwork/
+    ├── artwork-master.jpeg
+    └── artwork.webp
+~~~
+
+The web-ready track artwork path is:
+
+~~~text
+releases/<release-id>/tracks/<track-id>/artwork/artwork.webp
+~~~
+
+## Artwork fallback order
+
+The media catalog generator resolves artwork for each track in this
+order:
+
+1. Track-specific `artwork/artwork.webp`
+2. Release-level `artwork/front/artwork.webp`
+3. No artwork
+
+Track-specific artwork overrides the release artwork.
+
+When a track does not provide individual artwork, the player uses the
+release's front artwork.
+
+A track-specific catalog entry uses:
+
+~~~json
+{
+  "source": "track",
+  "path": "releases/<release-id>/tracks/<track-id>/artwork/artwork.webp"
+}
+~~~
+
+A release-fallback catalog entry uses:
+
+~~~json
+{
+  "source": "release",
+  "path": "releases/<release-id>/artwork/front/artwork.webp"
+}
+~~~
+
+The release-level catalog entry uses the same object structure:
+
+~~~json
+{
+  "source": "release",
+  "path": "releases/<release-id>/artwork/front/artwork.webp"
+}
+~~~
+
+All catalog paths are relative to the `media-library/` directory and
+must use forward slashes.
+
+Regenerate the catalog whenever artwork is added, removed, renamed, or
+moved:
+
+~~~bash
+node scripts/generate-media-catalog.mjs
+~~~

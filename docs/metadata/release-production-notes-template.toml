@@ -1,0 +1,194 @@
+# =========================================================
+# Release production notes
+# =========================================================
+#
+# This file contains production workflow information that applies
+# to the release as a whole.
+#
+# Track-specific exceptions and details belong in each track's
+# track-production-notes.toml file.
+#
+# Formal personnel credits remain in release.toml,
+# track-credits.toml, or other dedicated credit metadata.
+
+
+# ---------------------------------------------------------
+# Schema and release association
+# ---------------------------------------------------------
+
+[schema]
+
+name = "audio-release-production-notes"
+version = 1
+
+
+[release_reference]
+
+# Must match release.id in the sibling release.toml file.
+release_id = "YYYY-MM-DD_release-name"
+
+
+# ---------------------------------------------------------
+# General production context
+# ---------------------------------------------------------
+
+[production]
+
+# Broad release-production context.
+#
+# Common examples:
+# "studio album"
+# "home-studio album"
+# "live album"
+# "compilation"
+# "remix release"
+production_type = ""
+
+# Primary production location.
+location = ""
+
+city = ""
+region = ""
+country = ""
+
+# Primary DAW used across the release.
+daw = ""
+
+# DAW version used across the release.
+daw_version = ""
+
+# Shared production medium.
+#
+# Common examples:
+# "digital"
+# "analog tape"
+# "hybrid"
+production_medium = ""
+
+# General release-production notes.
+notes = ""
+
+
+# ---------------------------------------------------------
+# Project organization
+# ---------------------------------------------------------
+
+[production.project]
+
+# Main release project, workspace, or parent session name.
+project_name = ""
+
+# Project or session directory.
+project_directory = ""
+
+# Shared sample-library or asset notes.
+asset_notes = ""
+
+# Shared plugin, instrument, or dependency notes.
+dependency_notes = ""
+
+
+# ---------------------------------------------------------
+# Recording approach
+# ---------------------------------------------------------
+
+[production.recording]
+
+# Studio, facility, or common recording location.
+location = ""
+
+# Shared recording system, interface, console, or DAW.
+system = ""
+
+# Release-wide recording workflow notes.
+notes = ""
+
+
+# ---------------------------------------------------------
+# Sequencing and assembly
+# ---------------------------------------------------------
+
+[production.sequencing]
+
+# Notes about track order, transitions, gaps, crossfades,
+# continuous mixes, or release assembly.
+notes = ""
+
+
+# ---------------------------------------------------------
+# Mixing approach
+# ---------------------------------------------------------
+
+[production.mix]
+
+# Mix location or studio used across the release.
+location = ""
+
+# Shared mix system or processing environment.
+system = ""
+
+# Release-wide mix revision identifier.
+revision = ""
+
+# Notes about mix consistency, shared routing, templates,
+# buses, stems, or processing.
+notes = ""
+
+
+# ---------------------------------------------------------
+# Mastering approach
+# ---------------------------------------------------------
+
+[production.mastering]
+
+# Mastering location or studio.
+location = ""
+
+# Shared mastering system or processing chain.
+system = ""
+
+# Release-wide master revision.
+revision = ""
+
+# Primary delivery target.
+#
+# Common examples:
+# "streaming"
+# "CD"
+# "vinyl"
+# "web playback"
+target = ""
+
+# Notes about sequencing, loudness consistency, spacing,
+# fades, delivery masters, or alternate formats.
+notes = ""
+
+
+# ---------------------------------------------------------
+# Artwork and package production
+# ---------------------------------------------------------
+
+[production.artwork]
+
+# Design or image-production software.
+system = ""
+
+# Artwork workflow and export notes.
+notes = ""
+
+
+# ---------------------------------------------------------
+# Archive and preservation
+# ---------------------------------------------------------
+
+[production.archive]
+
+# Location or identifier of the authoritative release archive.
+archive_location = ""
+
+# Backup strategy or storage notes.
+backup_notes = ""
+
+# Notes about stems, session copies, alternate masters,
+# dependencies, or long-term restoration requirements.
+restoration_notes = ""

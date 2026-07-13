@@ -1,0 +1,76 @@
+{
+  "schema": {
+    "name": "audio-track-analysis",
+    "version": 1
+  },
+  "trackReference": {
+    "trackId": "primary-artist_01_track-title-version"
+  },
+  "generation": {
+    "generatedAt": null,
+    "generator": null,
+    "generatorVersion": null
+  },
+  "sources": {
+    "audioMaster": "audio-master.wav",
+    "audioPlayback": "audio-playback.mp3",
+    "waveformPeaks": "waveform-peaks.json"
+  },
+  "master": {
+    "path": "audio-master.wav",
+    "exists": false,
+    "durationSeconds": null,
+    "sampleRateHz": null,
+    "bitDepth": null,
+    "channels": null,
+    "channelLayout": null,
+    "container": null,
+    "codec": null,
+    "bitrateBps": null,
+    "fileSizeBytes": null,
+    "sha256": null
+  },
+  "playback": {
+    "path": "audio-playback.mp3",
+    "exists": false,
+    "durationSeconds": null,
+    "sampleRateHz": null,
+    "channels": null,
+    "channelLayout": null,
+    "container": null,
+    "codec": null,
+    "bitrateBps": null,
+    "bitrateMode": null,
+    "fileSizeBytes": null,
+    "sha256": null
+  },
+  "loudness": {
+    "source": "audio-master.wav",
+    "integratedLoudnessLufs": null,
+    "loudnessRangeLu": null,
+    "truePeakDbtp": null,
+    "maximumMomentaryLoudnessLufs": null,
+    "maximumShortTermLoudnessLufs": null,
+    "replayGainTrackGainDb": null,
+    "replayGainTrackPeak": null
+  },
+  "waveform": {
+    "path": "waveform-peaks.json",
+    "exists": false,
+    "version": null,
+    "durationSeconds": null,
+    "peaksPerSecond": null,
+    "peakCount": null,
+    "fftSize": null,
+    "windowFunction": null,
+    "frequencyBands": [],
+    "normalization": null,
+    "compression": null
+  },
+  "validation": {
+    "masterPlaybackDurationMatch": null,
+    "waveformDurationMatch": null,
+    "notices": [],
+    "errors": []
+  }
+}

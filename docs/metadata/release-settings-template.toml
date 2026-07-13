@@ -1,0 +1,204 @@
+# =========================================================
+# Release processing settings
+# =========================================================
+#
+# This file defines validation, inheritance, fallback, and generated
+# data behavior for all tracks in this release.
+#
+# Track-level metadata files should remain focused on descriptive,
+# legal, credit, and production information.
+#
+# A future track-level settings file may override these values only
+# when a specific track requires different processing behavior.
+
+# ---------------------------------------------------------
+# Schema and release association
+# ---------------------------------------------------------
+
+[schema]
+
+name = "audio-release-settings"
+version = 1
+
+[release_reference]
+
+# Must match release.id in the sibling release.toml file.
+release_id = "YYYY-MM-DD_release-name"
+
+# ---------------------------------------------------------
+# File handling policies
+# ---------------------------------------------------------
+
+[settings.files]
+
+# Missing optional-file behavior.
+#
+# "notice" = report the missing file and continue
+# "error"  = stop processing
+# "ignore" = continue silently
+missing_optional_file_policy = "notice"
+
+# Missing required-file behavior.
+missing_required_file_policy = "error"
+
+# Missing track-position behavior.
+#
+# A release may declare track positions that are not yet present.
+# Available tracks should still be processed and displayed.
+missing_track_policy = "notice"
+
+# Duplicate disc and track-number combinations are ambiguous.
+duplicate_track_number_policy = "error"
+
+# Missing track-credits.toml behavior.
+missing_track_credits_policy = "notice"
+
+# Missing track-production-notes.toml behavior.
+missing_track_production_notes_policy = "notice"
+
+# Missing track-analysis.json behavior.
+#
+# Analysis data is generated, so a missing file should normally
+# produce a notice rather than stop catalog generation.
+missing_track_analysis_policy = "notice"
+
+# Missing waveform-peaks.json behavior.
+#
+# The file may be regenerated from audio-master.wav.
+missing_waveform_policy = "notice"
+
+# ---------------------------------------------------------
+# Metadata inheritance policies
+# ---------------------------------------------------------
+
+[settings.inheritance]
+
+# Empty track-level strings inherit corresponding release values
+# when the field supports inheritance.
+empty_string_policy = "inherit"
+
+# Integer value 0 inherits corresponding release values when the
+# field explicitly documents zero as an inheritance sentinel.
+zero_integer_policy = "inherit"
+
+# Empty track-level arrays inherit corresponding release arrays
+# when the field supports inheritance.
+empty_array_policy = "inherit"
+
+# Boolean values are explicit and do not inherit by default.
+boolean_policy = "explicit"
+
+# Track-specific artwork overrides release artwork.
+track_artwork_overrides_release = true
+
+# Use release artwork when track-specific artwork is unavailable.
+release_artwork_fallback = true
+
+# Preferred release fallback artwork.
+release_artwork_fallback_path = "artwork/front/artwork.webp"
+
+# ---------------------------------------------------------
+# Metadata normalization
+# ---------------------------------------------------------
+
+[settings.normalization]
+
+# Remove leading and trailing whitespace from string values.
+trim_strings = true
+
+# Discard placeholder array entries whose meaningful values are empty.
+discard_empty_array_entries = true
+
+# Remove duplicate string-array values while preserving the first
+# occurrence and original order.
+deduplicate_string_arrays = true
+
+# Normalize identifier values when a canonical representation exists.
+#
+# Examples:
+# - uppercase compact ISRC values
+# - lowercase UUID-style MusicBrainz identifiers
+normalize_identifiers = true
+
+# Generate display values from component fields when the display
+# value is empty.
+#
+# Examples:
+# - display title from title and version
+# - copyright notice from year and owner
+# - phonogram notice from year and owner
+derive_display_values = true
+
+# ---------------------------------------------------------
+# Generated-data policies
+# ---------------------------------------------------------
+
+[settings.generated_data]
+
+# Regenerate track-analysis.json when source assets change.
+regenerate_analysis = true
+
+# Regenerate waveform-peaks.json when missing or outdated.
+regenerate_waveform = true
+
+# Generated data must not overwrite hand-authored metadata.
+generated_data_overwrites_authored_data = false
+
+# Include non-fatal notices in diagnostics and generated catalog data.
+include_notices = true
+
+# ---------------------------------------------------------
+# Cross-file consistency checks
+# ---------------------------------------------------------
+
+[settings.consistency]
+
+# Require track_reference.track_id in sibling track files to match
+# track.id.
+require_matching_track_ids = true
+
+# Require release_reference.release_id values to match the parent
+# release ID.
+require_matching_release_ids = true
+
+# Require declared credit-file paths to resolve successfully when
+# the file is present.
+require_valid_credit_paths = true
+
+# Require declared production-note paths to resolve successfully when
+# the file is present.
+require_valid_production_note_paths = true
+
+# Prevent metadata asset paths from escaping the media-library tree
+# through parent-directory traversal.
+restrict_asset_paths_to_media_library = true
+
+# Compare audio-master.wav and audio-playback.mp3 durations.
+validate_master_playback_duration = true
+
+# Compare waveform-peaks.json duration with the analyzed master.
+validate_waveform_duration = true
+
+# Maximum permitted duration difference in seconds.
+#
+# Small differences may result from encoding delay, padding, or
+# rounding.
+duration_tolerance_seconds = 0.1
+
+# ---------------------------------------------------------
+# Notice preferences
+# ---------------------------------------------------------
+
+[settings.notices]
+
+# Report when declared track positions are missing.
+notice_on_missing_tracks = true
+
+# Report when optional metadata files are missing.
+notice_on_missing_optional_metadata = true
+
+# Report when release artwork is used as a track fallback.
+notice_on_release_artwork_fallback = false
+
+# Report discarded empty placeholder blocks.
+notice_on_discarded_empty_entries = false

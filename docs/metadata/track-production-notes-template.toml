@@ -1,0 +1,229 @@
+# =========================================================
+# Track production notes
+# =========================================================
+#
+# This file contains production workflow information for one track.
+#
+# Formal personnel credits remain in track-credits.toml.
+#
+# Examples of formal credits that do not belong here:
+# - producer
+# - arranger
+# - recording engineer
+# - mix engineer
+# - mastering engineer
+#
+# This file instead records:
+# - studios and locations
+# - DAWs and production systems
+# - session filenames
+# - recording media
+# - mix and mastering revisions
+# - technical workflow notes
+# - private production notes
+
+
+# ---------------------------------------------------------
+# Schema and track association
+# ---------------------------------------------------------
+
+[schema]
+
+name = "audio-track-production-notes"
+version = 1
+
+
+[track_reference]
+
+# Must match track.id in the sibling track.toml file.
+track_id = "primary-artist_01_track-title-version"
+
+
+# ---------------------------------------------------------
+# General production context
+# ---------------------------------------------------------
+
+[production]
+
+# Broad production context.
+#
+# Common examples:
+# "studio"
+# "home studio"
+# "live"
+# "field recording"
+# "rehearsal"
+production_type = ""
+
+# Primary recording or production location.
+location = ""
+
+# Room, facility, or workspace description.
+#
+# Common examples:
+# "control room"
+# "live room"
+# "bedroom studio"
+room = ""
+
+city = ""
+region = ""
+country = ""
+
+# Primary digital audio workstation.
+#
+# Common examples:
+# "Pro Tools"
+# "Ableton Live"
+# "Logic Pro"
+# "Cubase"
+# "FL Studio"
+# "Reaper"
+daw = ""
+
+# DAW version used for the project.
+daw_version = ""
+
+# Primary project or session filename.
+#
+# Example:
+# "lettuce-wrap-doctrine-v12.als"
+session_file = ""
+
+# Recording or production medium.
+#
+# Common examples:
+# "digital"
+# "analog tape"
+# "hybrid"
+# "MIDI mockup"
+production_medium = ""
+
+# General production workflow notes.
+notes = ""
+
+
+# ---------------------------------------------------------
+# Recording workflow
+# ---------------------------------------------------------
+
+[production.recording]
+
+# Recording location or facility.
+location = ""
+
+# Recording system, console, interface, or DAW.
+system = ""
+
+# Recording session or revision identifier.
+revision = ""
+
+# Recording workflow notes.
+notes = ""
+
+
+# ---------------------------------------------------------
+# Editing workflow
+# ---------------------------------------------------------
+
+[production.editing]
+
+# Editing system or DAW.
+system = ""
+
+# Edit revision or session identifier.
+revision = ""
+
+# Editing workflow notes.
+notes = ""
+
+
+# ---------------------------------------------------------
+# Sound-design workflow
+# ---------------------------------------------------------
+
+[production.sound_design]
+
+# Primary sound-design system, synthesizer environment,
+# sampler, or software platform.
+system = ""
+
+# Sound-design revision or session identifier.
+revision = ""
+
+# Sound-design notes.
+notes = ""
+
+
+# ---------------------------------------------------------
+# Mixing workflow
+# ---------------------------------------------------------
+
+[production.mix]
+
+# Mix location or studio.
+location = ""
+
+# DAW, console, or mix system.
+system = ""
+
+# Mix session or revision identifier.
+#
+# Common examples:
+# "mix 05"
+# "final mix"
+# "album mix revision 2"
+revision = ""
+
+# Mix workflow notes.
+notes = ""
+
+
+# ---------------------------------------------------------
+# Mastering workflow
+# ---------------------------------------------------------
+
+[production.mastering]
+
+# Mastering location or studio.
+location = ""
+
+# Mastering DAW, system, or processing chain.
+system = ""
+
+# Master revision identifier.
+#
+# Common examples:
+# "master 01"
+# "streaming master"
+# "vinyl pre-master"
+revision = ""
+
+# Intended delivery target.
+#
+# Common examples:
+# "streaming"
+# "CD"
+# "vinyl"
+# "web playback"
+target = ""
+
+# Mastering workflow notes.
+notes = ""
+
+
+# ---------------------------------------------------------
+# Source and archive notes
+# ---------------------------------------------------------
+
+[production.archive]
+
+# Location or identifier of the authoritative session archive.
+archive_location = ""
+
+# Backup or preservation notes.
+backup_notes = ""
+
+# Notes about missing plugins, restored sessions, converted projects,
+# alternate stems, or other archival concerns.
+restoration_notes = ""

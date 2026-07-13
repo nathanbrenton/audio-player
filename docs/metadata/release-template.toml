@@ -1,0 +1,703 @@
+# ---------------------------------------------------------
+# Schema and internal identity
+# ---------------------------------------------------------
+
+[schema]
+
+# Schema name: identifies the metadata format used by this file.
+# Default: "audio-release-metadata"
+name = "audio-release-metadata"
+
+# Schema version: increment when the template structure changes.
+# Default: 1
+version = 1
+
+[release]
+
+# ID: stable internal release identifier.
+# Format: "YYYY-MM-DD_name-of-the-release"
+# Keep this identical to the release directory name.
+id = "YYYY-MM-DD_release-name"
+
+# Title: primary public title of the release.
+title = ""
+
+# Subtitle: optional secondary title.
+# Leave blank when the release has no subtitle.
+subtitle = ""
+
+# Version: optional edition or release-wide variation.
+# Examples: "Deluxe Edition", "Remastered", "Instrumental Version"
+# Leave blank for the standard release.
+version = ""
+
+# Type: general release format or classification.
+# Common values: "album", "lp", "ep", "single", "compilation",
+# "mixtape", "soundtrack", "demo"
+type = ""
+
+# Status: publication status or release classification.
+# Default: "official"
+# Other possible values: "promotional", "demo", "bootleg"
+status = "official"
+
+# Language: primary lyrical language for the release.
+# Prefer an ISO 639-1 code such as:
+# "en", "fr", "de", "es", "ja"
+# Leave blank for instrumental releases or mixed/unknown languages.
+language = ""
+
+# Script: writing system used by titles and textual metadata.
+# Prefer an ISO 15924 code when needed.
+# Examples: "Latn", "Cyrl", "Grek", "Jpan"
+# Leave blank when script information is unnecessary.
+script = ""
+
+
+
+# ---------------------------------------------------------
+# Release artist
+# ---------------------------------------------------------
+
+[release.primary_artist]
+
+# Name: primary credited artist for the release.
+# Use the public display name exactly as it should appear.
+name = ""
+
+# Sort name: optional alternate form used for alphabetical sorting.
+# Examples:
+# "Brenton, Nathan"
+# "Beatles, The"
+# Leave blank to sort by the public artist name.
+sort_name = ""
+
+# Album artists: controls how the release is grouped in media libraries.
+#
+# Add one [[release.album_artists]] block for each album artist.
+#
+# For a standard solo release, this normally matches primary_artist.
+# For a compilation, the album artist may be "Various Artists".
+# For a collaboration, add multiple album-artist blocks.
+[[release.album_artists]]
+
+    # Name: public album-artist credit.
+    name = ""
+
+    # Sort name: optional alphabetical sorting form.
+    # Leave blank when no special sorting value is required.
+    sort_name = ""
+
+
+
+# ---------------------------------------------------------
+# Related production-note files
+# ---------------------------------------------------------
+
+[release.production_note_sources]
+
+# Release-relative file containing release-wide production,
+# sequencing, mixing, mastering, and workflow notes.
+file = "release-production-notes.toml"
+
+# Missing-production-notes behavior:
+# "notice" = report the missing file and continue
+# "error"  = stop processing
+# "ignore" = continue silently
+missing_file_policy = "notice"
+
+
+# ---------------------------------------------------------
+# Release dates
+# ---------------------------------------------------------
+
+[release.dates]
+
+# Release: public release date for this edition.
+#
+# Prefer ISO 8601 formatting:
+# "YYYY"
+# "YYYY-MM"
+# "YYYY-MM-DD"
+#
+# This should normally match the date used in release.id.
+release = ""
+
+# Original release: date the material was first released.
+#
+# Use this when the current release is a reissue, remaster,
+# expanded edition, or other later edition.
+#
+# For a first release, leave blank.
+original_release = ""
+
+# Recorded start: beginning of the recording period.
+#
+# Prefer ISO 8601 formatting when known.
+# Leave blank when unknown or unnecessary.
+recorded_start = ""
+
+# Recorded end: end of the recording period.
+#
+# Use the same date precision as recorded_start when possible.
+# Leave blank when unknown or unnecessary.
+recorded_end = ""
+
+
+
+
+# ---------------------------------------------------------
+# Label and distribution
+# ---------------------------------------------------------
+
+[release.label]
+
+# Name: record label associated with the release.
+#
+# Examples:
+# "Warp Records"
+# "Ninja Tune"
+# "Self-Released"
+#
+# Leave blank when no label applies.
+name = ""
+
+# Catalog number: identifier assigned by the label.
+#
+# Examples:
+# "WARP123"
+# "ZENCD200"
+#
+# Leave blank when unavailable or not applicable.
+catalog_number = ""
+
+[release.distributor]
+
+# Name: company or service responsible for distribution.
+#
+# Examples:
+# "DistroKid"
+# "CD Baby"
+# "The Orchard"
+# "Self-Distributed"
+#
+# Leave blank when unknown or not applicable.
+name = ""
+
+[release.identifiers]
+
+# Barcode: release-level barcode value.
+#
+# Use the full numeric value without spaces or hyphens.
+# Leave blank when none has been assigned.
+barcode = ""
+
+# UPC: Universal Product Code.
+#
+# Usually 12 digits.
+# Leave blank when unavailable.
+upc = ""
+
+# EAN: European Article Number / International Article Number.
+#
+# Usually 13 digits.
+# Leave blank when unavailable.
+ean = ""
+
+# MusicBrainz release ID: UUID assigned to this exact release edition.
+musicbrainz_release_id = ""
+
+# MusicBrainz release-group ID: UUID shared by related editions.
+musicbrainz_release_group_id = ""
+
+# Discogs release ID: numeric Discogs identifier.
+discogs_release_id = ""
+
+
+
+# ---------------------------------------------------------
+# Release classification
+# ---------------------------------------------------------
+
+# Genres: broad musical categories associated with the release.
+#
+# TOML string-array syntax:
+# - quote every value
+# - separate values with commas
+# - keep the surrounding square brackets
+#
+# Multiple values: ["rock", "pop"]
+# One value:      ["rock"]
+# No values:       []
+#
+# Examples:
+# ["Electronic"]
+# ["Electronic", "Dance"]
+# ["Rock", "Alternative"]
+#
+# Use an empty array when no genre has been assigned.
+release_genres = []
+
+# Styles: narrower subgenres or stylistic classifications.
+#
+# Examples:
+# ["Hardstyle"]
+# ["Ambient Techno", "IDM"]
+# ["Post-Rock"]
+#
+# Styles are usually more specific than genres.
+release_styles = []
+
+# Moods: descriptive emotional or atmospheric qualities.
+#
+# Examples:
+# ["Energetic", "Aggressive"]
+# ["Dark", "Atmospheric"]
+# ["Uplifting"]
+#
+# These are optional and may not be supported by every player.
+release_moods = []
+
+# Tags: flexible project-specific keywords.
+#
+# Examples:
+# ["instrumental", "club", "festival"]
+# ["demo", "work-in-progress"]
+#
+# Use tags for searchable descriptors that do not fit cleanly
+# into genre, style, or mood.
+release_tags = []
+
+
+
+
+# ---------------------------------------------------------
+# Release rights
+# ---------------------------------------------------------
+
+[release.rights]
+
+# Copyright: identifies ownership of the release package,
+# artwork, written material, or underlying compositions.
+#
+# Common format:
+# "© 2026 Nathan Brenton"
+#
+# Leave blank when not yet determined.
+copyright = ""
+
+# Phonographic copyright: identifies ownership of the
+# recorded sound represented by this release.
+#
+# Common format:
+# "℗ 2026 Nathan Brenton"
+#
+# Leave blank when not yet determined.
+phonographic_copyright = ""
+
+# Publisher: music publisher or publishing administrator.
+#
+# Examples:
+# "Self-Published"
+# "Example Music Publishing"
+#
+# Leave blank when none applies or the value is unknown.
+publisher = ""
+
+# License: short human-readable license name.
+#
+# Examples:
+# "All Rights Reserved"
+# "CC BY-NC 4.0"
+# "CC BY-SA 4.0"
+#
+# Leave blank until the release policy is decided.
+license = ""
+
+# License URL: authoritative page describing the license.
+#
+# Examples:
+# "https://creativecommons.org/licenses/by-nc/4.0/"
+#
+# Leave blank when no public license URL applies.
+license_url = ""
+
+# Copyright year: four-digit year associated with copyright.
+#
+# Use 0 when unknown or not yet assigned.
+copyright_year = 0
+
+# Phonographic copyright year: four-digit year associated
+# with ownership of the sound recording.
+#
+# Use 0 when unknown or not yet assigned.
+phonographic_copyright_year = 0
+
+
+
+
+# ---------------------------------------------------------
+# Release notes and descriptive text
+# ---------------------------------------------------------
+
+[release.text]
+
+# Description: public-facing summary of the release.
+#
+# Suitable for:
+# - the web player
+# - a release page
+# - a README
+# - distribution metadata
+#
+# TOML basic strings are best for short text.
+# Use triple quotes for longer multi-line descriptions.
+description = ""
+
+# Comment: internal or general-purpose release note.
+#
+# This may be exported to generic COMMENT fields in some
+# media formats, so avoid storing sensitive private notes here.
+comment = ""
+
+# Liner notes: longer editorial text associated with the release.
+#
+# Suitable for:
+# - background information
+# - production notes
+# - acknowledgements
+# - track-by-track context
+#
+# Use a triple-quoted TOML string when multiple paragraphs are needed.
+liner_notes = ""
+
+# Website: primary public URL associated with this release.
+#
+# Examples:
+# - official release page
+# - artist website
+# - label catalog page
+#
+# Leave blank until a permanent URL is available.
+website = ""
+
+
+
+
+# ---------------------------------------------------------
+# Release artwork
+# ---------------------------------------------------------
+#
+# Release-level visual assets should live under:
+#
+# artwork/
+#   - front/
+#   - back/
+#   - booklet/
+#   - disc/
+#   - alternate/
+#
+# Keep placeholder directories even when they are initially empty.
+#
+# Add one [[release.artwork]] block for each artwork asset.
+# The order of these blocks should reflect their preferred display order.
+#
+# The primary front cover should normally be the first entry and should
+# use primary = true. Normally, only one artwork entry should be primary.
+#
+# Paths are relative to the release directory:
+#
+# media-library/releases/<release-id>/
+#
+# Master assets are preservation or source-quality files.
+# Delivery assets are optimized for the web player or embedded tags.
+
+[[release.artwork]]
+
+# ID: stable internal identifier for this artwork entry.
+#
+# Recommended format:
+# lowercase words separated by hyphens
+#
+# Examples:
+# "front-cover"
+# "back-cover"
+# "booklet-cover"
+# "alternate-cover-01"
+id = "front-cover"
+
+# Role: identifies the artwork's purpose.
+#
+# Common values:
+# "front"
+# "back"
+# "booklet"
+# "disc"
+# "media-label"
+# "liner"
+# "leaflet"
+# "alternate"
+# "artist"
+# "band"
+# "composer"
+# "recording-location"
+# "publisher-logo"
+# "studio-logo"
+# "other"
+role = "front"
+
+# Primary: identifies the release's default artwork.
+#
+# Default: false
+#
+# The main front cover should normally use true.
+# Only one release artwork entry should normally be primary.
+primary = true
+
+# Master path: source-quality or archival artwork.
+#
+# Examples:
+# "artwork/front/artwork-master.tif"
+# "artwork/front/artwork-master.png"
+# "artwork/front/artwork-master.psd"
+#
+# Leave blank when no master asset is available.
+master_path = "artwork/front/artwork-master.jpeg"
+
+# Web path: optimized image used by the React player.
+#
+# WebP is recommended for the current application.
+#
+# Example:
+# "artwork/front/artwork.webp"
+web_path = "artwork/front/artwork.webp"
+
+# Embedded path: compatibility-oriented image intended for
+# embedding into MP3, FLAC, M4A, and other audio files.
+#
+# JPEG or PNG generally has wider player compatibility than WebP.
+#
+# Example:
+# "artwork/front/artwork-embedded.jpeg"
+#
+# Leave blank until this derivative is generated.
+embedded_path = ""
+
+# MIME type of the web delivery asset.
+#
+# Common values:
+# "image/webp"
+# "image/jpeg"
+# "image/png"
+web_mime_type = "image/webp"
+
+# MIME type of the embedded artwork asset.
+#
+# Common values:
+# "image/jpeg"
+# "image/png"
+#
+# Leave blank when embedded_path is blank.
+embedded_mime_type = ""
+
+# Description: human-readable description of the artwork.
+#
+# Examples:
+# "Front cover"
+# "Back cover"
+# "Alternate monochrome cover"
+description = "Front cover"
+
+# Credits: names or statements associated with the artwork.
+#
+# Examples:
+# ["Artwork by Nathan Brenton"]
+# ["Photography by Example Person", "Design by Example Studio"]
+#
+# Use an empty array when no credits are currently available.
+credits = []
+
+# Copyright: artwork-specific copyright statement.
+#
+# Example:
+# "© 2026 Nathan Brenton"
+#
+# Leave blank when inherited from the release rights section.
+copyright = ""
+
+# ---------------------------------------------------------
+# Optional back cover
+# ---------------------------------------------------------
+
+[[release.artwork]]
+
+# Keep this placeholder block or remove it until a back cover exists.
+
+id = "back-cover"
+role = "back"
+primary = false
+
+master_path = ""
+web_path = ""
+embedded_path = ""
+
+web_mime_type = ""
+embedded_mime_type = ""
+
+description = "Back cover"
+credits = []
+copyright = ""
+
+# ---------------------------------------------------------
+# Optional booklet cover
+# ---------------------------------------------------------
+
+[[release.artwork]]
+
+# This entry represents booklet artwork, not the booklet PDF itself.
+# The PDF will be represented later as a release document asset.
+
+id = "booklet-cover"
+role = "booklet"
+primary = false
+
+master_path = ""
+web_path = ""
+embedded_path = ""
+
+web_mime_type = ""
+embedded_mime_type = ""
+
+description = "Booklet cover"
+credits = []
+copyright = ""
+
+# ---------------------------------------------------------
+# Optional disc or media-label artwork
+# ---------------------------------------------------------
+
+[[release.artwork]]
+
+id = "disc-artwork"
+role = "disc"
+primary = false
+
+master_path = ""
+web_path = ""
+embedded_path = ""
+
+web_mime_type = ""
+embedded_mime_type = ""
+
+description = "Disc artwork"
+credits = []
+copyright = ""
+
+# ---------------------------------------------------------
+# Optional alternate cover
+# ---------------------------------------------------------
+
+[[release.artwork]]
+
+# Add additional numbered blocks as needed:
+
+# "alternate-cover-01"
+
+# "alternate-cover-02"
+
+id = "alternate-cover-01"
+role = "alternate"
+primary = false
+
+master_path = ""
+web_path = ""
+embedded_path = ""
+
+web_mime_type = ""
+embedded_mime_type = ""
+
+description = "Alternate cover"
+credits = []
+copyright = ""
+
+
+
+
+
+# ---------------------------------------------------------
+# Release numbering
+# ---------------------------------------------------------
+
+[release.numbering]
+
+# Disc total: total number of discs, volumes, or media groups
+# represented by this release.
+#
+# Default: 1
+#
+# Examples:
+# 1 = standard single-disc release
+# 2 = double album or two-volume release
+#
+
+# For digital-only releases, use 1 unless tracks are intentionally
+# organized into multiple disc or volume groups.
+disc_total = 1
+
+# Track total: total number of tracks on the complete release.
+#
+# This should normally equal the number of [[tracks]] blocks.
+#
+# Use 0 while the release is incomplete or while tracks are still
+# being added. The metadata builder can later calculate this value
+# automatically and warn when a nonzero value does not match.
+track_total = 0
+
+
+
+
+
+# ---------------------------------------------------------
+# Track metadata sources
+# ---------------------------------------------------------
+
+[release.track_sources]
+
+# Directory: location of this release's track TOML files.
+#
+# Path is relative to this release.toml file.
+directory = "tracks"
+
+# Pattern: filename pattern used to locate track metadata files.
+#
+# Default: "*.toml"
+pattern = "*.toml"
+
+# Ordering: controls how track files are arranged before validation.
+#
+# Recommended values:
+# "track_number" = use track.track_number from each TOML file
+# "filename"     = sort files alphabetically by filename
+#
+# Default: "track_number"
+ordering = "track_number"
+
+# Require contiguous numbering:
+#
+# true  = report missing or duplicated track numbers
+# false = permit intentional gaps
+#
+# Default: true
+require_contiguous_numbers = true
+
+[release.settings_source]
+
+# Release-relative file containing validation, inheritance,
+# fallback, and generated-data policies.
+file = "release-settings.toml"
+
+# Missing-settings behavior:
+# "notice" = use application defaults and continue
+# "error"  = stop processing
+# "ignore" = use application defaults silently
+missing_file_policy = "notice"

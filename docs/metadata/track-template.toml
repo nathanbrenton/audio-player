@@ -1,0 +1,888 @@
+# =========================================================
+# Track metadata
+# =========================================================
+#
+# This file is the authoritative metadata source for one track.
+#
+# Release-wide values are inherited from the release.toml file
+# located at the root of the parent release directory.
+#
+# Detailed credits are stored in the sibling track-credits.toml file.
+
+
+# ---------------------------------------------------------
+# Schema and release association
+# ---------------------------------------------------------
+
+[schema]
+
+# Schema name: identifies the metadata format.
+name = "audio-track-metadata"
+
+# Schema version: increment when the track metadata structure changes.
+version = 1
+
+
+[release_reference]
+
+# Release ID: must match release.id in the parent release.toml file.
+release_id = "YYYY-MM-DD_release-name"
+
+
+# ---------------------------------------------------------
+# Track identity
+# ---------------------------------------------------------
+
+[track]
+
+# ID: keep identical to the track directory name.
+id = "primary-artist_01_track-title-version"
+
+# Base title without mix, remix, edit, or version text.
+title = ""
+
+# Mix, remix, edit, or alternate version name.
+version = ""
+
+# Optional secondary title that is not a mix or version.
+subtitle = ""
+
+# Normally left blank so the metadata builder derives:
+# "Lettuce Wrap Doctrine (Original Mix)"
+display_title = ""
+
+# Optional alternate value for alphabetical sorting.
+sort_title = ""
+
+# ISO 639-1 language code for lyrical or spoken content.
+language = ""
+
+# ISO 15924 writing-system code when needed.
+script = ""
+
+# Explicit-content flag.
+explicit = false
+
+
+# ---------------------------------------------------------
+# Related metadata files
+# ---------------------------------------------------------
+
+[track.credit_sources]
+
+# Track-relative file containing detailed credits and publishing data.
+file = "track-credits.toml"
+
+# Missing-credit-file behavior:
+# "notice" = report the missing file and continue
+# "error"  = stop processing
+# "ignore" = continue silently
+missing_file_policy = "notice"
+
+
+[track.production_note_sources]
+
+# Track-relative file containing session, recording, mixing,
+# mastering, and workflow notes.
+file = "track-production-notes.toml"
+
+# Missing-production-notes behavior:
+# "notice" = report the missing file and continue
+# "error"  = stop processing
+# "ignore" = continue silently
+missing_file_policy = "notice"
+
+
+# ---------------------------------------------------------
+# Track numbering and movement information
+# ---------------------------------------------------------
+
+[track.numbering]
+
+# TOML integers must not contain leading zeroes.
+#
+# Valid:
+# track_number = 0
+#
+# Invalid:
+# track_number = 01
+track_number = 1
+
+# Declared total number of tracks on this disc.
+#
+# Missing track positions are allowed. The metadata builder should
+# report them as non-fatal notices and process the available tracks.
+track_total = 0
+
+# Disc or volume containing this track.
+disc_number = 1
+
+# Use 0 to inherit release.numbering.disc_total.
+disc_total = 0
+
+
+[track.movement]
+
+# Larger composition, suite, cycle, or grouped work.
+work = ""
+
+# Movement or part title.
+title = ""
+
+# Use 0 when movement numbering is not applicable.
+number = 0
+total = 0
+
+
+# ---------------------------------------------------------
+# Track identifiers
+# ---------------------------------------------------------
+#
+# Store identifier values as strings so leading zeroes, letters,
+# hyphens, and other formatting characters are preserved.
+
+[track.identifiers]
+
+# ISRC = International Standard Recording Code.
+#
+# Identifies this specific sound recording.
+#
+# Accepted examples:
+# isrc = "USABC2612345"
+# isrc = "US-ABC-26-12345"
+#
+# The metadata builder should normalize to uppercase compact form.
+isrc = ""
+
+# ISWC = International Standard Musical Work Code.
+#
+# Identifies the underlying musical composition.
+#
+# Example:
+# iswc = "T-123.456.789-0"
+iswc = ""
+
+# MusicBrainz recording ID: UUID-style identifier for the recording.
+#
+# Format:
+# 8-4-4-4-12 hexadecimal characters
+#
+# Example:
+# musicbrainz_recording_id = "12345678-1234-1234-1234-123456789abc"
+musicbrainz_recording_id = ""
+
+# MusicBrainz track ID: UUID-style identifier for this track's
+# appearance on a particular MusicBrainz release.
+#
+# Example:
+# musicbrainz_track_id = "abcdef12-3456-7890-abcd-ef1234567890"
+musicbrainz_track_id = ""
+
+# Discogs position values may contain letters or punctuation.
+#
+# Examples:
+# "1"
+# "A1"
+# "B2"
+# "1-04"
+discogs_track_position = ""
+
+# Discogs release identifier containing this track.
+#
+# Example:
+# discogs_release_id = "12345678"
+discogs_release_id = ""
+
+# AcoustID fingerprint-based recording identifier.
+#
+# Example:
+# acoustid = "12345678-1234-1234-1234-123456789abc"
+acoustid = ""
+
+# Spotify platform-specific track identifier.
+#
+# Example:
+# spotify_track_id = "4uLU6hMCjMI75M1A2tKUQC"
+spotify_track_id = ""
+
+# Apple Music platform-specific numeric track identifier.
+#
+# Example:
+# apple_music_track_id = "1234567890"
+apple_music_track_id = ""
+
+# YouTube video identifier for an official upload or visualizer.
+#
+# Example:
+# youtube_video_id = "dQw4w9WgXcQ"
+youtube_video_id = ""
+
+
+
+
+# ---------------------------------------------------------
+# Track dates
+# ---------------------------------------------------------
+#
+# Track-level dates should be used only when they differ from,
+# clarify, or provide more detail than the parent release dates.
+#
+# Date values should use ISO 8601-compatible formats:
+#
+# YYYY
+# YYYY-MM
+# YYYY-MM-DD
+#
+# Examples:
+# "2026"
+# "2026-08"
+# "2026-08-14"
+#
+# Leave values empty when the exact date is unknown or when the
+# release-level value should be inherited.
+[track.dates]
+
+# Release date: date this specific recording or version was released.
+#
+# Leave blank to inherit release.dates.release.
+release = ""
+
+# Original release date: earliest known release date for this
+# recording or version.
+#
+# Useful for:
+# - reissues
+# - remasters
+# - compilations
+# - previously released singles
+#
+# Leave blank when this is the recording's first release or when
+# the release-level value applies.
+original_release = ""
+
+# Recording start date: earliest date on which recording began.
+recorded_start = ""
+
+# Recording end date: latest date on which recording was completed.
+#
+# For a single-day recording session, recorded_start and recorded_end
+# may contain the same value.
+recorded_end = ""
+
+# Composition date: date or approximate period when the underlying
+# musical work was composed.
+composed = ""
+
+# Arrangement date: date this specific arrangement was completed.
+arranged = ""
+
+# Mix date: date this version was mixed.
+mixed = ""
+
+# Mastering date: date this version was mastered.
+mastered = ""
+
+# Remix date: date this remix was completed.
+#
+# Leave blank when the track is not a remix.
+remixed = ""
+
+# Remaster date: date this remastered version was completed.
+#
+
+# Leave blank when the track is not a remaster.
+remastered = ""
+
+
+
+
+# ---------------------------------------------------------
+# Track classification
+# ---------------------------------------------------------
+#
+# Track-level classification may:
+# - inherit from the parent release
+# - add more specific values
+# - override release-level values when the track differs substantially
+#
+# During normalization, the metadata builder should:
+# - trim string values
+# - remove empty strings
+# - remove duplicate values
+# - preserve the original value order
+#
+# Use lowercase values unless capitalization is part of a proper name.
+[track.classification]
+
+# Genres: broad musical categories.
+#
+# TOML string-array syntax:
+# - quote every value
+# - separate values with commas
+# - keep the surrounding square brackets
+#
+# Multiple values: ["rock", "pop"]
+# One value:      ["rock"]
+# No values:       []
+#
+# Common examples:
+# "electronic"
+# "rock"
+# "hip-hop"
+# "jazz"
+# "classical"
+# "ambient"
+#
+# Leave empty to inherit release_genres.
+genres = []
+
+# Styles: more specific genres, subgenres, scenes, or production styles.
+#
+# Common examples:
+# "techno"
+# "hardstyle"
+# "synthwave"
+# "industrial"
+# "breakbeat"
+# "electro"
+#
+# Leave empty to inherit release_styles.
+styles = []
+
+# Moods: emotional, atmospheric, or experiential qualities.
+#
+# Common examples:
+# "energetic"
+# "dark"
+# "uplifting"
+# "melancholic"
+# "aggressive"
+# "hypnotic"
+# "playful"
+moods = []
+
+# Tags: flexible project-specific keywords.
+#
+# Tags may describe:
+# - instrumentation
+# - production methods
+# - lyrical themes
+# - intended use
+# - mix characteristics
+#
+# Common examples:
+# "instrumental"
+# "drum programming"
+# "synthesizers"
+# "club mix"
+# "album version"
+tags = []
+
+# Instrumental: indicates whether the track contains no lyrical
+# or spoken vocal content.
+#
+# false = lyrical or spoken content is present
+# true  = no lyrical or spoken content is present
+instrumental = false
+
+# Cover: indicates whether this recording is a performance of a
+# composition primarily associated with another artist or writer.
+cover = false
+
+# Live: indicates whether this recording originates from a live
+# performance rather than a studio production.
+live = false
+
+# Remix: indicates whether this version is formally a remix.
+#
+# Do not set true merely because track.version contains "Mix."
+remix = false
+
+# Remaster: indicates whether this version is a remastered recording.
+remaster = false
+
+
+
+# ---------------------------------------------------------
+# Track text and lyrics
+# ---------------------------------------------------------
+#
+# Use this section for track-specific descriptive text, comments,
+# lyrics, and related source or rights notes.
+#
+# Leave fields empty when no value applies.
+#
+# For multiline values, use TOML multiline strings with
+# triple double-quote delimiters.
+#
+# Example:
+#
+# description = """
+# First paragraph.
+#
+# Second paragraph.
+# """
+
+[track.text]
+
+# Description: public-facing description of this track.
+#
+# This may include:
+# - creative context
+# - production notes
+# - release notes
+# - version-specific information
+description = ""
+
+# Comment: general-purpose internal or exportable comment.
+#
+# Keep this concise because some audio-tag formats expose comments
+# directly to end users.
+comment = ""
+
+# Notes: private or project-specific notes that should not normally
+# be embedded into public audio tags.
+notes = ""
+
+# Lyrics: complete lyrical text for the track.
+#
+# Use a multiline TOML string when lyrics contain multiple lines.
+#
+# Example:
+#
+# lyrics = """
+# First lyric line
+# Second lyric line
+#
+# Next verse
+# """
+#
+# Leave blank for instrumental tracks.
+lyrics = ""
+
+# Lyrics language: primary language of the lyrics.
+#
+# Use an ISO 639-1 language code when applicable.
+#
+# Examples:
+# "en" = English
+# "es" = Spanish
+# "fr" = French
+#
+# Leave blank for instrumental tracks or when inherited from
+# track.language.
+lyrics_language = ""
+
+# Lyrics script: writing system used by the lyrics.
+#
+# Use an ISO 15924 script code when needed.
+#
+# Examples:
+# "Latn" = Latin
+# "Cyrl" = Cyrillic
+# "Jpan" = Japanese
+lyrics_script = ""
+
+# Lyrics copyright: copyright statement associated specifically
+# with the lyrics.
+#
+# Example:
+# "© 2026 Nathan Brenton"
+#
+# Leave blank when inherited from publishing metadata or when
+# no separate lyrics copyright applies.
+lyrics_copyright = ""
+
+# Lyrics source: source from which the lyrics were obtained.
+#
+# Examples:
+# "artist-provided"
+# "publisher-provided"
+# "transcribed"
+# "official booklet"
+#
+# Leave blank when no source needs to be recorded.
+lyrics_source = ""
+
+# Website: optional canonical page for this track.
+website = ""
+
+
+
+
+
+
+# ---------------------------------------------------------
+# Track assets
+# ---------------------------------------------------------
+#
+# Asset paths are relative to the track directory containing this
+# track.toml file.
+#
+# Expected track directory layout:
+#
+# track.toml
+# track-credits.toml
+# audio-master.wav
+# audio-playback.mp3
+# waveform-peaks.json
+# artwork/
+#
+# The metadata builder should:
+# - resolve paths relative to the track directory
+# - verify whether each referenced file exists
+# - report missing required assets as errors
+# - report missing optional assets as notices
+# - ignore empty optional asset paths
+# - preserve the declared path values in normalized metadata
+
+[track.assets]
+
+# Audio master: archival or source-quality audio file.
+#
+# Expected default:
+# "audio-master.wav"
+#
+# This asset is required for waveform generation, technical analysis,
+# transcoding, and archival purposes.
+audio_master = "audio-master.wav"
+
+# Playback audio: compressed delivery file used by the web player.
+#
+# Expected default:
+# "audio-playback.mp3"
+#
+# This asset is required by the current React audio player.
+audio_playback = "audio-playback.mp3"
+
+# Waveform peaks: generated waveform and frequency-band analysis data.
+#
+# Expected default:
+# "waveform-peaks.json"
+#
+# This asset may be regenerated from audio_master when missing.
+waveform_peaks = "waveform-peaks.json"
+
+# Credits metadata: detailed track credits and publishing information.
+#
+# Expected default:
+# "track-credits.toml"
+#
+# This should match track.credit_sources.file.
+credits = "track-credits.toml"
+
+# ---------------------------------------------------------
+# Optional track artwork
+# ---------------------------------------------------------
+#
+# Track-specific artwork overrides the parent release artwork.
+#
+# Fallback behavior:
+#
+# track artwork exists
+# → use track artwork
+#
+# track artwork is absent
+# → use the primary release artwork
+#
+# Track artwork should live under the track-relative artwork/
+# directory.
+
+[track.assets.artwork]
+
+# Master artwork: archival or source-quality track artwork.
+#
+# Common examples:
+# "artwork/artwork-master.tif"
+# "artwork/artwork-master.png"
+# "artwork/artwork-master.jpg"
+#
+# Leave blank when the track has no unique artwork.
+master = ""
+
+# Web artwork: optimized image used by the React player.
+#
+# Recommended format:
+# WebP
+#
+# Expected example:
+# "artwork/artwork.webp"
+#
+# Leave blank to use the primary release artwork.
+web = ""
+
+# Embedded artwork: compatibility-oriented image intended for
+# embedding into MP3, FLAC, M4A, or other tagged audio files.
+#
+# JPEG or PNG is generally more widely supported than WebP.
+#
+# Expected example:
+# "artwork/artwork-embedded.jpg"
+embedded = ""
+
+# MIME type of the web artwork.
+#
+# Common values:
+# "image/webp"
+# "image/jpeg"
+# "image/png"
+web_mime_type = ""
+
+# MIME type of the embedded artwork.
+#
+# Common values:
+# "image/jpeg"
+# "image/png"
+embedded_mime_type = ""
+
+# Description: human-readable artwork role.
+#
+# Common examples:
+# "Track artwork"
+# "Alternate track cover"
+description = ""
+
+
+# ---------------------------------------------------------
+# Musical audio metadata
+# ---------------------------------------------------------
+#
+# This section contains musical properties that are entered or
+# reviewed by a person.
+#
+# Technical properties derived from audio-master.wav,
+# audio-playback.mp3, and waveform-peaks.json are stored in the
+# generated sibling file:
+#
+# track-analysis.json
+#
+# The analysis file may be regenerated whenever source assets change.
+
+
+[track.audio]
+
+# Tempo in beats per minute.
+#
+# Use a floating-point value when needed.
+#
+# Examples:
+# bpm = 128.0
+# bpm = 87.5
+#
+# Use 0.0 when unknown.
+bpm = 0.0
+
+# Musical key in human-readable notation.
+#
+# Recommended ASCII accidental notation:
+# "#" = sharp
+# "b" = flat
+#
+# Examples:
+# "C major"
+# "A minor"
+# "F# minor"
+# "Bb major"
+key = ""
+
+# Camelot wheel key for DJ-oriented metadata.
+#
+# Examples:
+# "8A"  = A minor
+# "8B"  = C major
+# "11A" = F# minor
+# "11B" = A major
+camelot_key = ""
+
+# Time signature in numerator/denominator form.
+#
+# Common examples:
+# "4/4"
+# "3/4"
+# "6/8"
+time_signature = ""
+
+# Optional tuning reference in hertz.
+#
+# Standard concert pitch:
+# tuning_hz = 440.0
+#
+# Use 0.0 when unknown or not applicable.
+tuning_hz = 0.0
+
+
+
+
+# ---------------------------------------------------------
+# Rights and ownership
+# ---------------------------------------------------------
+#
+# Use this section for rights attached to this specific sound recording.
+#
+# Composition and publishing ownership belong primarily in:
+#
+# track-credits.toml
+#
+# Release-wide copyright and ownership values belong in:
+#
+# release.toml
+#
+# Inheritance behavior:
+#
+# - an empty string inherits the corresponding release-level value
+# - a zero year inherits the corresponding release-level year
+# - an explicitly populated track value overrides the release value
+# - boolean permissions do not inherit unless the metadata builder
+# explicitly implements that behavior
+#
+# This allows most tracks to use release-wide rights information while
+# preserving track-specific overrides when necessary.
+
+[track.rights]
+
+# Sound-recording copyright year.
+#
+# This is commonly represented by the phonogram symbol:
+#
+# ℗ 2026
+#
+# Use 0 to inherit the release-level phonogram year.
+#
+# TOML integers must not contain leading zeroes.
+phonogram_year = 0
+
+# Owner of the sound-recording copyright.
+#
+# Leave blank to inherit the release-level phonogram owner.
+#
+# Example:
+# "Nathan Brenton"
+phonogram_owner = ""
+
+# Complete phonogram copyright statement.
+#
+# Example:
+# "℗ 2026 Nathan Brenton"
+#
+# Leave blank so the metadata builder can:
+#
+# 1. inherit the release-level notice, or
+# 2. derive the notice from the resolved phonogram year and owner
+phonogram_notice = ""
+
+# General copyright year for track-specific materials.
+#
+# This may apply to:
+# - track artwork
+# - descriptive text
+# - liner notes
+# - other track-specific materials
+#
+# Use 0 to inherit the release-level copyright year.
+copyright_year = 0
+
+# General copyright owner for track-specific materials.
+#
+# Leave blank to inherit the release-level copyright owner.
+copyright_owner = ""
+
+# Complete copyright statement.
+#
+# Example:
+# "© 2026 Nathan Brenton"
+#
+# Leave blank so the metadata builder can:
+#
+# 1. inherit the release-level notice, or
+# 2. derive the notice from the resolved copyright year and owner
+copyright_notice = ""
+
+# Rights status for this recording.
+#
+# Common examples:
+# "copyrighted"
+# "public domain"
+# "licensed"
+# "unreleased"
+#
+# Leave blank to inherit the release-level status.
+status = ""
+
+# License name governing use of this recording.
+#
+# Common examples:
+# "All Rights Reserved"
+# "CC BY 4.0"
+# "CC BY-NC 4.0"
+#
+# Leave blank to inherit the release-level license.
+license = ""
+
+# Canonical URL describing the license terms.
+#
+# Leave blank to inherit the release-level license URL.
+license_url = ""
+
+# Entity authorized to administer or enforce recording rights.
+#
+# Leave blank to inherit the release-level rights administrator.
+rights_administrator = ""
+
+# Territory in which the stated rights apply.
+#
+# Common examples:
+# "worldwide"
+# "United States"
+# "US and Canada"
+#
+# Leave blank to inherit the release-level territory.
+territory = ""
+
+# Date on which the recording rights expire, when applicable.
+#
+# Use an ISO 8601-compatible value:
+#
+# YYYY
+# YYYY-MM
+# YYYY-MM-DD
+#
+# Leave blank to inherit the release-level expiration date or when
+# no expiration date applies.
+expiration_date = ""
+
+# Whether third-party synchronization use is permitted without
+# additional approval.
+#
+# This value is explicit and does not inherit.
+sync_allowed = false
+
+# Whether third-party sampling is permitted without additional
+# approval.
+#
+# This value is explicit and does not inherit.
+sampling_allowed = false
+
+# Whether remixes or derivative recordings are permitted without
+# additional approval.
+#
+# This value is explicit and does not inherit.
+derivatives_allowed = false
+
+# Whether commercial use is explicitly permitted under the declared
+# license.
+#
+# All Rights Reserved normally requires separate permission.
+#
+# This value is explicit and does not inherit.
+commercial_use_allowed = false
+
+# Public-facing contact or page for licensing inquiries.
+#
+# Leave blank to inherit the release-level licensing contact.
+licensing_contact = ""
+
+# Optional track-specific notes concerning rights, clearances,
+# restrictions, disputes, or licensing history.
+#
+# This field does not inherit.
+notes = ""

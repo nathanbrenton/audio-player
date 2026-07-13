@@ -1,0 +1,238 @@
+# =========================================================
+# Track credits and publishing metadata
+# =========================================================
+#
+# This file contains the detailed credits for one track.
+#
+# Placeholder array entries may remain present with empty values.
+#
+# During normalization, the metadata builder should:
+# - trim string values
+# - remove empty optional fields
+# - discard entries whose meaningful fields are all empty
+# - discard arrays when no valid entries remain
+# - emit a non-fatal notice when a role or identifier is present
+#   but the required name is empty
+
+
+# ---------------------------------------------------------
+# Schema and track association
+# ---------------------------------------------------------
+
+[schema]
+
+name = "audio-track-credits-metadata"
+version = 1
+
+
+[track_reference]
+
+# Must match track.id in the sibling track.toml file.
+track_id = "primary-artist_01_track-title-version"
+
+
+# ---------------------------------------------------------
+# Track artists
+# ---------------------------------------------------------
+
+[track.primary_artist]
+
+# Leave blank to inherit release.primary_artist.
+name = ""
+sort_name = ""
+
+
+# Add at least one album-artist block only when this track needs an
+# override. Add multiple blocks when multiple album artists are credited.
+
+[[track.album_artists]]
+    name = ""
+    sort_name = ""
+
+
+# Add at least one featured-artist block when a featured artist is
+# credited. Add multiple blocks for multiple featured artists.
+
+[[track.featured_artists]]
+    name = ""
+    sort_name = ""
+
+
+# Add at least one remixer block when a distinct remixer is credited.
+# Add multiple blocks for multiple remixers.
+
+[[track.remixers]]
+    name = ""
+    sort_name = ""
+
+
+# ---------------------------------------------------------
+# Performance credits
+# ---------------------------------------------------------
+#
+# Add at least one performer block when performance credits are present.
+# Add one block for each distinct instrument, vocal part, programming
+# role, or other performance role.
+
+[[track.performers]]
+    name = ""
+    role = ""
+    sort_name = ""
+
+# ---------------------------------------------------------
+# Technical and creative contributors
+# ---------------------------------------------------------
+#
+# Add at least one contributor block when a technical or creative
+# contribution applies. Add one block for each distinct person and role.
+#
+# The practical core set represented here is:
+# producer, recording engineer, mix engineer, mastering engineer,
+# editor, sound designer, programmer, and vocal producer.
+#
+# Vocal producer is omitted from this instrumental track because
+# no vocal-production credit applies.
+
+[[track.contributors]]
+    name = ""
+    role = ""
+    sort_name = ""
+
+# ---------------------------------------------------------
+# Composition credits
+# ---------------------------------------------------------
+#
+# Identifier values are strings so leading zeroes, letters,
+# hyphens, and formatting characters are preserved.
+
+
+# Add at least one composer block when composition credit applies.
+# Add multiple blocks when multiple composers are credited.
+
+[[track.composers]]
+    name = ""
+    sort_name = ""
+
+    # IPI = Interested Parties Information.
+    # CAE = Composer, Author and Publisher.
+    #
+    # Examples:
+    # ipi_name_number = "00123456789"
+    # ipi_base_number = "I-001234567-8"
+    ipi_name_number = ""
+    ipi_base_number = ""
+
+    # ISNI = International Standard Name Identifier.
+    #
+    # Example:
+    # isni = "000000012345678X"
+    isni = ""
+
+    # MusicBrainz artist ID: UUID-style identifier.
+    #
+    # Format:
+    # 8-4-4-4-12 hexadecimal characters
+    #
+    # Example:
+    # musicbrainz_artist_id = "12345678-1234-1234-1234-123456789abc"
+    musicbrainz_artist_id = ""
+
+
+# Add at least one lyricist block when lyrical authorship applies.
+# Add multiple blocks when multiple lyricists are credited.
+# Leave the placeholder empty for instrumental tracks.
+
+[[track.lyricists]]
+    name = ""
+    sort_name = ""
+    ipi_name_number = ""
+    ipi_base_number = ""
+    isni = ""
+    musicbrainz_artist_id = ""
+
+
+# Add at least one songwriter block when an official combined
+# songwriter credit applies. Add multiple blocks for multiple songwriters.
+
+[[track.songwriters]]
+    name = ""
+    sort_name = ""
+    ipi_name_number = ""
+    ipi_base_number = ""
+    isni = ""
+    musicbrainz_artist_id = ""
+
+
+# Add at least one arranger block when arrangement credit applies.
+# Add multiple blocks when multiple arrangers are credited.
+
+[[track.arrangers]]
+    name = ""
+    sort_name = ""
+
+    # Role may specify the type of arrangement.
+    #
+    # Common examples:
+    # ""
+    # "string arranger"
+    # "vocal arranger"
+    # "horn arranger"
+    # "orchestral arranger"
+    role = ""
+
+    ipi_name_number = ""
+    ipi_base_number = ""
+    isni = ""
+    musicbrainz_artist_id = ""
+
+
+# ---------------------------------------------------------
+# Publishing credits
+# ---------------------------------------------------------
+
+
+# Add at least one publisher block when a publisher or administrator
+# is credited. Add multiple blocks for multiple publishing entities.
+
+[[track.publishers]]
+    name = ""
+    role = ""
+
+    # IPI = Interested Parties Information.
+    # CAE = Composer, Author and Publisher.
+    ipi_name_number = ""
+    ipi_base_number = ""
+
+    # PRO = Performing Rights Organization.
+    #
+    # Common examples:
+    # "ASCAP"
+    # "BMI"
+    # "SESAC"
+    # "PRS"
+    # "SOCAN"
+    pro = ""
+
+
+[track.publishing]
+
+status = ""
+copyright_owner = ""
+
+# TOML integers must not contain leading zeroes.
+copyright_year = 0
+
+# Work-registration identifier assigned by a PRO.
+#
+# Example:
+# rights_society_work_id = "ASCAP-123456789"
+rights_society_work_id = ""
+
+# ISWC = International Standard Musical Work Code.
+#
+# Example:
+# iswc = "T-123.456.789-0"
+iswc = ""
+
+license = ""
+license_url = ""

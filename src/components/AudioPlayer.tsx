@@ -392,7 +392,7 @@ export default function AudioPlayer() {
     catalog && selectedTrack
       ? getMediaUrl(
           catalog.mediaBaseUrl,
-          selectedTrack.track.artwork.path,
+          selectedTrack.track.artwork?.path ?? null,
         )
       : null;
 
@@ -400,7 +400,7 @@ export default function AudioPlayer() {
     catalog && previousTrack
       ? getMediaUrl(
           catalog.mediaBaseUrl,
-          previousTrack.track.artwork.path,
+          previousTrack.track.artwork?.path ?? null,
         )
       : null;
 
@@ -408,7 +408,7 @@ export default function AudioPlayer() {
     catalog && nextTrack
       ? getMediaUrl(
           catalog.mediaBaseUrl,
-          nextTrack.track.artwork.path,
+          nextTrack.track.artwork?.path ?? null,
         )
       : null;
 
@@ -416,7 +416,7 @@ export default function AudioPlayer() {
     catalog && previousPreviousTrack
       ? getMediaUrl(
           catalog.mediaBaseUrl,
-          previousPreviousTrack.track.artwork.path,
+          previousPreviousTrack.track.artwork?.path ?? null,
         )
       : null;
 
@@ -424,7 +424,7 @@ export default function AudioPlayer() {
     catalog && nextNextTrack
       ? getMediaUrl(
           catalog.mediaBaseUrl,
-          nextNextTrack.track.artwork.path,
+          nextNextTrack.track.artwork?.path ?? null,
         )
       : null;
 

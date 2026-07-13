@@ -7,8 +7,23 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
-const DEFAULT_LIBRARY_ROOT = "media-library";
+/*
+ * Resolve the default media library relative to the project root,
+ * rather than relative to the shell's current working directory.
+ */
+const scriptDirectory = path.dirname(
+  fileURLToPath(import.meta.url),
+);
+const projectRoot = path.resolve(
+  scriptDirectory,
+  "..",
+);
+const DEFAULT_LIBRARY_ROOT = path.join(
+  projectRoot,
+  "media-library",
+);
 const CATALOG_VERSION = 1;
 
 /*
@@ -120,8 +135,13 @@ async function buildTrack(
     trackDirectory,
   );
 
+  /*
+   * Track-specific artwork lives beneath the track's artwork/
+   * directory.
+   */
   const artworkFile = path.join(
     trackPath,
+    "artwork",
     "artwork.webp",
   );
   const audioMasterFile = path.join(
@@ -212,8 +232,14 @@ async function buildRelease(
     releaseDirectoryName,
   );
 
+  /*
+   * The release front cover is the fallback artwork for tracks
+   * that do not provide their own artwork.
+   */
   const artworkFile = path.join(
     releaseDirectory,
+    "artwork",
+    "front",
     "artwork.webp",
   );
   const releaseMetadataFile = path.join(
@@ -279,7 +305,12 @@ async function buildRelease(
     ),
     date: parsed.date,
     title: parsed.title,
-    artwork: releaseArtworkPath,
+    artwork: releaseArtworkPath
+      ? {
+          source: "release",
+          path: releaseArtworkPath,
+        }
+      : null,
     metadata: hasReleaseMetadata
       ? toMediaPath(
           libraryRoot,
