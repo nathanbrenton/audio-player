@@ -93,6 +93,14 @@ export type CatalogTrack = {
           | "missing";
       };
 
+      moods: {
+        values: string[];
+        source:
+          | "track"
+          | "release"
+          | "missing";
+      };
+
       track: MetadataDocument | null;
       credits: MetadataDocument | null;
       production: MetadataDocument | null;
