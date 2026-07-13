@@ -371,7 +371,8 @@ async function buildTrack(
     ),
     artist: parsed.artist,
     trackNumber: parsed.trackNumber,
-    title: parsed.title,
+    // Use authored display metadata when available.
+    title: display.title,
 
     artwork: {
       source:
