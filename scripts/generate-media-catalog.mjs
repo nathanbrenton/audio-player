@@ -202,6 +202,50 @@ function resolvePrimaryArtist(
   };
 }
 
+function normalizeStringArray(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      value
+        .filter((entry) => typeof entry === "string")
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function resolveInheritedStringArray(
+  trackValue,
+  releaseValue,
+) {
+  const trackValues = normalizeStringArray(trackValue);
+
+  if (trackValues.length > 0) {
+    return {
+      values: trackValues,
+      source: "track",
+    };
+  }
+
+  const releaseValues =
+    normalizeStringArray(releaseValue);
+
+  if (releaseValues.length > 0) {
+    return {
+      values: releaseValues,
+      source: "release",
+    };
+  }
+
+  return {
+    values: [],
+    source: "missing",
+  };
+}
+
 function deriveTrackDisplayTitle(
   trackDocument,
   fallbackTitle,
@@ -517,6 +561,12 @@ async function buildTrack(
     ).date,
   );
 
+  const genres = resolveInheritedStringArray(
+    trackMetadata.data?.track?.classification?.genres,
+    releaseMetadata.data?.release?.identifiers
+      ?.release_genres,
+  );
+
   const artworkPath = hasTrackArtwork
     ? toMediaPath(libraryRoot, artworkFile)
     : releaseArtworkPath;
@@ -607,6 +657,7 @@ async function buildTrack(
         primaryArtist,
         language,
         releaseDate,
+        genres,
         track:
           trackMetadata.data?.track ?? null,
         credits:
