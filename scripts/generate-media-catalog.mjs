@@ -709,6 +709,39 @@ async function buildTrack(
   };
 }
 
+function validateReleaseTracks(tracks) {
+  const tracksByNumber = new Map();
+
+  for (const track of tracks) {
+    if (!Number.isInteger(track.trackNumber)) {
+      continue;
+    }
+
+    const matches =
+      tracksByNumber.get(track.trackNumber) ?? [];
+
+    matches.push(track.id);
+    tracksByNumber.set(
+      track.trackNumber,
+      matches,
+    );
+  }
+
+  return [
+    ...tracksByNumber.entries(),
+  ]
+    .filter(([, trackIds]) => trackIds.length > 1)
+    .map(([trackNumber, trackIds]) => ({
+      code: "duplicate-track-number",
+      severity: "warning",
+      trackNumber,
+      trackIds,
+      message:
+        `Track number ${trackNumber} is used by ` +
+        `${trackIds.length} tracks.`,
+    }));
+}
+
 async function buildRelease(
   libraryRoot,
   releasesRoot,
@@ -821,6 +854,8 @@ async function buildRelease(
     return first.id.localeCompare(second.id);
   });
 
+  const validation = validateReleaseTracks(tracks);
+
   const parsed = parseReleaseDirectory(
     releaseDirectoryName,
   );
@@ -884,6 +919,7 @@ async function buildRelease(
       },
 
       diagnostics: metadataDiagnostics,
+      validation,
     },
 
     trackCount: tracks.length,

@@ -788,3 +788,96 @@ test(
     );
   },
 );
+
+test(
+  "reports duplicate track numbers without removing tracks",
+  async (context) => {
+    const libraryRoot = await mkdtemp(
+      path.join(
+        os.tmpdir(),
+        "audio-player-duplicate-tracks-",
+      ),
+    );
+
+    context.after(async () => {
+      await rm(libraryRoot, {
+        recursive: true,
+        force: true,
+      });
+    });
+
+    const releaseDirectory = path.join(
+      libraryRoot,
+      "releases",
+      "2026-06-07_duplicate-track-numbers",
+    );
+
+    await createPlayableTrack(
+      releaseDirectory,
+      "first-artist_01_first-track",
+    );
+
+    await createPlayableTrack(
+      releaseDirectory,
+      "second-artist_01_second-track",
+    );
+
+    await createPlayableTrack(
+      releaseDirectory,
+      "third-artist_02_third-track",
+    );
+
+    const catalog = await runGenerator(
+      libraryRoot,
+    );
+
+    const release = catalog.releases[0];
+
+    assert.ok(release);
+
+    /*
+     * Validation is advisory: all three tracks remain available,
+     * sorted deterministically by number and then directory ID.
+     */
+    assert.equal(release.trackCount, 3);
+    assert.equal(release.tracks.length, 3);
+
+    assert.deepEqual(
+      release.tracks.map((track) => ({
+        id: track.id,
+        trackNumber: track.trackNumber,
+      })),
+      [
+        {
+          id: "first-artist_01_first-track",
+          trackNumber: 1,
+        },
+        {
+          id: "second-artist_01_second-track",
+          trackNumber: 1,
+        },
+        {
+          id: "third-artist_02_third-track",
+          trackNumber: 2,
+        },
+      ],
+    );
+
+    assert.deepEqual(
+      release.metadata.validation,
+      [
+        {
+          code: "duplicate-track-number",
+          severity: "warning",
+          trackNumber: 1,
+          trackIds: [
+            "first-artist_01_first-track",
+            "second-artist_01_second-track",
+          ],
+          message:
+            "Track number 1 is used by 2 tracks.",
+        },
+      ],
+    );
+  },
+);
