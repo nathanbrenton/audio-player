@@ -459,6 +459,178 @@ async function getChildDirectories(directoryPath) {
     );
 }
 
+const CREDIT_COLLECTIONS = [
+  {
+    sourceKey: "performers",
+    outputKey: "performers",
+  },
+  {
+    sourceKey: "contributors",
+    outputKey: "contributors",
+  },
+  {
+    sourceKey: "composers",
+    outputKey: "composers",
+  },
+  {
+    sourceKey: "lyricists",
+    outputKey: "lyricists",
+  },
+  {
+    sourceKey: "songwriters",
+    outputKey: "songwriters",
+  },
+  {
+    sourceKey: "arrangers",
+    outputKey: "arrangers",
+  },
+  {
+    sourceKey: "remixers",
+    outputKey: "remixers",
+  },
+  {
+    sourceKey: "featured_artists",
+    outputKey: "featuredArtists",
+  },
+];
+
+/*
+ * Normalize one authored credit list while preserving the source
+ * scope needed by the metadata viewer.
+ */
+function normalizeCreditEntries(value, scope) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (
+      !entry ||
+      typeof entry !== "object" ||
+      Array.isArray(entry)
+    ) {
+      return [];
+    }
+
+    const name =
+      typeof entry.name === "string"
+        ? entry.name.trim()
+        : "";
+
+    if (!name) {
+      return [];
+    }
+
+    const role =
+      typeof entry.role === "string" &&
+      entry.role.trim()
+        ? entry.role.trim()
+        : null;
+
+    const sortName =
+      typeof entry.sort_name === "string" &&
+      entry.sort_name.trim()
+        ? entry.sort_name.trim()
+        : null;
+
+    return [{
+      name,
+      role,
+      sortName,
+      provenance: [{
+        method: "manual",
+        scope,
+      }],
+    }];
+  });
+}
+
+/*
+ * Release credits establish the baseline. Track credits append to
+ * them. Exact duplicates retain one row with both provenance scopes.
+ */
+function mergeCreditEntries(
+  releaseEntries,
+  trackEntries,
+) {
+  const merged = [];
+  const entriesByKey = new Map();
+
+  for (const entry of [
+    ...releaseEntries,
+    ...trackEntries,
+  ]) {
+    const key = [
+      entry.name.trim().toLocaleLowerCase(),
+      entry.role?.trim().toLocaleLowerCase() ?? "",
+    ].join("::");
+
+    const existing = entriesByKey.get(key);
+
+    if (existing) {
+      for (const provenance of entry.provenance) {
+        const alreadyPresent =
+          existing.provenance.some(
+            (candidate) =>
+              candidate.method === provenance.method &&
+              candidate.scope === provenance.scope,
+          );
+
+        if (!alreadyPresent) {
+          existing.provenance.push(provenance);
+        }
+      }
+
+      continue;
+    }
+
+    const resolvedEntry = {
+      ...entry,
+      provenance: [...entry.provenance],
+    };
+
+    entriesByKey.set(key, resolvedEntry);
+    merged.push(resolvedEntry);
+  }
+
+  return merged;
+}
+
+function resolveCredits(
+  releaseMetadata,
+  trackCredits,
+) {
+  const releaseCredits =
+    releaseMetadata?.release?.credits ?? {};
+  const trackCreditDocument =
+    trackCredits?.track ?? {};
+
+  const resolved = {};
+
+  for (
+    const {
+      sourceKey,
+      outputKey,
+    } of CREDIT_COLLECTIONS
+  ) {
+    resolved[outputKey] = mergeCreditEntries(
+      normalizeCreditEntries(
+        releaseCredits[sourceKey],
+        "release",
+      ),
+      normalizeCreditEntries(
+        trackCreditDocument[sourceKey],
+        "track",
+      ),
+    );
+  }
+
+  resolved.publishing =
+    trackCreditDocument.publishing ?? null;
+
+  return resolved;
+}
+
 async function buildTrack(
   libraryRoot,
   releaseDirectory,
@@ -696,8 +868,10 @@ async function buildTrack(
         tags: classification.tags,
         track:
           trackMetadata.data?.track ?? null,
-        credits:
-          trackCredits.data?.track ?? null,
+        credits: resolveCredits(
+          releaseMetadata.data,
+          trackCredits.data,
+        ),
         production:
           trackProductionNotes.data?.production ??
           null,

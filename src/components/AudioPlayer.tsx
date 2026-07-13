@@ -125,11 +125,23 @@ export default function AudioPlayer() {
   const metadataButtonRef =
     useRef<HTMLButtonElement | null>(null);
 
-  // Diagnostics is the initial metadata presentation mode.
+  // Close the hamburger menu when interaction moves elsewhere.
+  const appMenuRef =
+    useRef<HTMLDetailsElement | null>(null);
+
+  // Open the metadata viewer in its friendly listener-facing mode.
   const [isMetadataViewerOpen, setIsMetadataViewerOpen] =
     useState(false);
-  const [metadataVerbosity] =
-    useState<MetadataVerbosity>("diagnostics");
+  const [
+    metadataVerbosity,
+    setMetadataVerbosity,
+  ] = useState<MetadataVerbosity>("summary");
+
+  // Optional metadata views controlled from the settings menu.
+  const [isAudiophileMode, setIsAudiophileMode] =
+    useState(false);
+  const [isDeveloperMode, setIsDeveloperMode] =
+    useState(false);
 
   // Resume only when adjacent-track navigation started during playback.
   const resumePlaybackAfterTrackChangeRef =
@@ -253,6 +265,43 @@ export default function AudioPlayer() {
             playableTracks.length
         ]
       : null;
+
+  /*
+   * Native details elements do not close when users click elsewhere.
+   * Close the application menu whenever a pointer press occurs
+   * outside the complete hamburger menu and its panel.
+   */
+  useEffect(() => {
+    function handleOutsidePointerDown(
+      event: PointerEvent,
+    ) {
+      const menu = appMenuRef.current;
+      const target = event.target;
+
+      if (
+        !menu ||
+        !menu.open ||
+        !(target instanceof Node) ||
+        menu.contains(target)
+      ) {
+        return;
+      }
+
+      menu.open = false;
+    }
+
+    document.addEventListener(
+      "pointerdown",
+      handleOutsidePointerDown,
+    );
+
+    return () => {
+      document.removeEventListener(
+        "pointerdown",
+        handleOutsidePointerDown,
+      );
+    };
+  }, []);
 
   // Load the generated release and track catalog.
   useEffect(() => {
@@ -836,7 +885,10 @@ export default function AudioPlayer() {
             Audio Player
           </span>
 
-          <details className="app-menu">
+          <details
+            ref={appMenuRef}
+            className="app-menu"
+          >
             <summary aria-label="Open player menu">
               <span aria-hidden="true">☰</span>
             </summary>
@@ -899,149 +951,54 @@ export default function AudioPlayer() {
                     </select>
                   </label>
 
-                  <details className="settings-diagnostics">
-                    <summary>Diagnostics</summary>
+                  <label
+                    className="
+                      settings-toggle
+                      settings-toggle--audiophile
+                    "
+                  >
+                    <span>
+                      <strong>Audiophile Mode</strong>
+                      <small>
+                        Show technical audio and waveform metadata.
+                      </small>
+                    </span>
 
-                    {waveform ? (
-                      <div
-                        className="
-                          settings-diagnostics__content
-                        "
-                      >
-                        <section
-                          className="metadata-card"
-                          aria-labelledby="
-                            waveform-analysis-heading
-                          "
-                        >
-                          <h3 id="waveform-analysis-heading">
-                            Waveform analysis
-                          </h3>
+                    <input
+                      type="checkbox"
+                      checked={isAudiophileMode}
+                      onChange={(event) => {
+                        setIsAudiophileMode(
+                          event.currentTarget.checked,
+                        );
+                      }}
+                    />
+                  </label>
 
-                          <dl>
-                            <dt>Sample rate</dt>
-                            <dd>
-                              {waveform.sampleRate
-                                .toLocaleString()} Hz
-                            </dd>
+                  <label
+                    className="
+                      settings-toggle
+                      settings-toggle--developer
+                    "
+                  >
+                    <span>
+                      <strong>Developer Mode</strong>
+                      <small>
+                        Show source indicators and raw metadata.
+                      </small>
+                    </span>
 
-                            <dt>FFT size</dt>
-                            <dd>
-                              {waveform.analysis.fftSize}
-                            </dd>
+                    <input
+                      type="checkbox"
+                      checked={isDeveloperMode}
+                      onChange={(event) => {
+                        setIsDeveloperMode(
+                          event.currentTarget.checked,
+                        );
+                      }}
+                    />
+                  </label>
 
-                            <dt>Window</dt>
-                            <dd>
-                              {waveform.analysis.window}
-                            </dd>
-
-                            <dt>Peaks per second</dt>
-                            <dd>
-                              {waveform.peaksPerSecond}
-                            </dd>
-
-                            <dt>Peak count</dt>
-                            <dd>
-                              {waveform.peakCount
-                                .toLocaleString()}
-                            </dd>
-                          </dl>
-                        </section>
-
-                        <section
-                          className="metadata-card"
-                          aria-labelledby="
-                            frequency-bands-heading
-                          "
-                        >
-                          <h3 id="frequency-bands-heading">
-                            Frequency bands
-                          </h3>
-
-                          <dl>
-                            <dt>Low</dt>
-                            <dd>
-                              {
-                                waveform.analysis
-                                  .bandsHz.low[0]
-                              }–
-                              {
-                                waveform.analysis
-                                  .bandsHz.low[1]
-                              } Hz
-                            </dd>
-
-                            <dt>Mid</dt>
-                            <dd>
-                              {
-                                waveform.analysis
-                                  .bandsHz.mid[0]
-                              }–
-                              {
-                                waveform.analysis
-                                  .bandsHz.mid[1]
-                              } Hz
-                            </dd>
-
-                            <dt>High</dt>
-                            <dd>
-                              {
-                                waveform.analysis
-                                  .bandsHz.high[0]
-                              }–
-                              {
-                                waveform.analysis
-                                  .bandsHz.high[1]
-                              } Hz
-                            </dd>
-                          </dl>
-                        </section>
-
-                        <section
-                          className="metadata-card"
-                          aria-labelledby="
-                            normalization-heading
-                          "
-                        >
-                          <h3 id="normalization-heading">
-                            Normalization
-                          </h3>
-
-                          <dl>
-                            <dt>Method</dt>
-                            <dd>
-                              {
-                                waveform.analysis
-                                  .normalization.method
-                              }
-                            </dd>
-
-                            <dt>Percentile</dt>
-                            <dd>
-                              {
-                                waveform.analysis
-                                  .normalization
-                                  .percentile
-                              }
-                            </dd>
-
-                            <dt>Compression</dt>
-                            <dd>
-                              {
-                                waveform.analysis
-                                  .normalization
-                                  .compression
-                              }
-                            </dd>
-                          </dl>
-                        </section>
-                      </div>
-                    ) : (
-                      <p className="settings-menu__status">
-                        Track analysis is loading.
-                      </p>
-                    )}
-                  </details>
                 </div>
               </details>
             </div>
@@ -1382,6 +1339,9 @@ export default function AudioPlayer() {
       <MetadataViewer
         isOpen={isMetadataViewerOpen}
         verbosity={metadataVerbosity}
+        onVerbosityChange={setMetadataVerbosity}
+        audiophileMode={isAudiophileMode}
+        developerMode={isDeveloperMode}
         release={selectedTrack?.release ?? null}
         track={selectedTrack?.track ?? null}
         triggerRef={metadataButtonRef}

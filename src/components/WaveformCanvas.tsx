@@ -164,13 +164,29 @@ function drawRgbColumn(
   context: CanvasRenderingContext2D,
   x: number,
   height: number,
+  minimum: number,
+  maximum: number,
   low: number,
   mid: number,
   high: number,
   physicalPixel: number,
 ) {
   const centerY = height / 2;
-  const maximumHalfHeight = height * 0.46;
+
+  /*
+   * Keep RGB inside the same amplitude envelope used by the other
+   * waveform modes. Band energy controls the relative trace height,
+   * but cannot make the waveform larger than the source amplitude.
+   */
+  const envelopeAmplitude = Math.min(
+    1,
+    Math.max(
+      Math.abs(minimum),
+      Math.abs(maximum),
+    ),
+  );
+  const maximumHalfHeight =
+    centerY * envelopeAmplitude;
 
   const bands = [
     {
@@ -456,6 +472,8 @@ export default function WaveformCanvas({
             drawingContext,
             x,
             height,
+            minimum,
+            maximum,
             low,
             mid,
             high,

@@ -3,6 +3,30 @@ import type {
   MetadataFileDiagnostic,
 } from "./ResolvedMetadata";
 
+export type CreditProvenance = {
+  method: "manual";
+  scope: "release" | "track";
+};
+
+export type ResolvedCreditEntry = {
+  name: string;
+  role: string | null;
+  sortName: string | null;
+  provenance: CreditProvenance[];
+};
+
+export type ResolvedCredits = {
+  performers: ResolvedCreditEntry[];
+  contributors: ResolvedCreditEntry[];
+  composers: ResolvedCreditEntry[];
+  lyricists: ResolvedCreditEntry[];
+  songwriters: ResolvedCreditEntry[];
+  arrangers: ResolvedCreditEntry[];
+  remixers: ResolvedCreditEntry[];
+  featuredArtists: ResolvedCreditEntry[];
+  publishing: MetadataDocument | null;
+};
+
 export type CatalogValidationWarning = {
   code: string;
   severity: "warning";
@@ -43,7 +67,7 @@ export type CatalogTrack = {
   metadata: {
     authored: {
       track: MetadataDocument | null;
-      credits: MetadataDocument | null;
+      credits: ResolvedCredits;
       productionNotes: MetadataDocument | null;
     };
 

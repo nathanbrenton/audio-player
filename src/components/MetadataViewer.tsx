@@ -20,6 +20,11 @@ export type { MetadataVerbosity } from "../types/ResolvedMetadata";
 type MetadataViewerProps = {
   isOpen: boolean;
   verbosity: MetadataVerbosity;
+  onVerbosityChange: (
+    verbosity: MetadataVerbosity,
+  ) => void;
+  audiophileMode: boolean;
+  developerMode: boolean;
   release: CatalogRelease | null;
   track: CatalogTrack | null;
   triggerRef: RefObject<HTMLButtonElement | null>;
@@ -141,36 +146,288 @@ function flattenMetadata(
   return rows;
 }
 
-type MetadataSource =
+function findMetadataRowsByKeys(
+  value: unknown,
+  keys: string[],
+): Array<{
+  label: string;
+  value: string;
+}> {
+  if (!isRecord(value)) {
+    return [];
+  }
+
+  const normalizedKeys = new Set(
+    keys.map((key) => key.toLowerCase()),
+  );
+
+  const rows: Array<{
+    label: string;
+    value: string;
+  }> = [];
+
+  function visit(
+    current: unknown,
+    prefix = "",
+  ) {
+    if (!isRecord(current)) {
+      return;
+    }
+
+    for (
+      const [key, entry]
+      of Object.entries(current)
+    ) {
+      const label = prefix
+        ? `${prefix} · ${humanizeMetadataKey(key)}`
+        : humanizeMetadataKey(key);
+
+      if (isRecord(entry)) {
+        visit(entry, label);
+        continue;
+      }
+
+      if (
+        normalizedKeys.has(key.toLowerCase()) &&
+        hasDisplayValue(entry)
+      ) {
+        rows.push({
+          label,
+          value: Array.isArray(entry)
+            ? entry
+                .filter(hasDisplayValue)
+                .map(formatMetadataValue)
+                .join(", ")
+            : formatMetadataValue(entry),
+        });
+      }
+    }
+  }
+
+  visit(value);
+
+  return rows;
+}
+
+type ProvenanceMethod =
+  | "manual"
+  | "generated"
+  | "inherited"
+  | "fallback"
+  | "missing";
+
+type ProvenanceScope =
   | "track"
   | "release"
-  | "directory"
-  | "missing"
-  | "authored-display-title"
-  | "authored-fields";
+  | "directory";
 
-const sourceLabels: Record<MetadataSource, string> = {
-  track: "Track metadata",
-  release: "Inherited from release",
-  directory: "Directory fallback",
-  missing: "Not provided",
-  "authored-display-title": "Authored display title",
-  "authored-fields": "Authored title fields",
+type MetadataProvenance = {
+  method: ProvenanceMethod;
+  scope?: ProvenanceScope;
 };
 
-function SourceBadge({
-  source,
+const provenanceMethodLabels: Record<
+  ProvenanceMethod,
+  string
+> = {
+  manual: "Manual",
+  generated: "Generated",
+  inherited: "Inherited",
+  fallback: "Fallback",
+  missing: "Missing",
+};
+
+const provenanceScopeLabels: Record<
+  ProvenanceScope,
+  string
+> = {
+  track: "Track",
+  release: "Release",
+  directory: "Directory",
+};
+
+function ProvenanceBadge({
+  provenance,
 }: {
-  source: MetadataSource;
+  provenance: MetadataProvenance;
 }) {
   return (
-    <span
-      className={`metadata-viewer__source metadata-viewer__source--${source}`}
-    >
-      {sourceLabels[source]}
+    <span className="metadata-viewer__provenance">
+      <span
+        className={[
+          "metadata-viewer__provenance-part",
+          "metadata-viewer__provenance-part--method",
+          `metadata-viewer__provenance-part--${provenance.method}`,
+        ].join(" ")}
+      >
+        {provenanceMethodLabels[provenance.method]}
+      </span>
+
+      {provenance.scope ? (
+        <span
+          className={[
+            "metadata-viewer__provenance-part",
+            "metadata-viewer__provenance-part--scope",
+            `metadata-viewer__provenance-part--${provenance.scope}`,
+          ].join(" ")}
+        >
+          {provenanceScopeLabels[provenance.scope]}
+        </span>
+      ) : null}
     </span>
   );
 }
+
+function MetadataSourceList({
+  sources,
+}: {
+  sources: MetadataProvenance[];
+}) {
+  if (sources.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="metadata-viewer__section-sources">
+      {sources.map((source, index) => (
+        <ProvenanceBadge
+          key={`${source.method}-${source.scope ?? "none"}-${index}`}
+          provenance={source}
+        />
+      ))}
+    </div>
+  );
+}
+
+function getAuthoredSectionSources(
+  release: CatalogRelease | null,
+  track: CatalogTrack,
+  section: "credits" | "production",
+): MetadataProvenance[] {
+  const sources: MetadataProvenance[] = [];
+
+  if (
+    section === "credits" &&
+    hasDisplayValue(track.metadata.authored.credits)
+  ) {
+    sources.push({
+      method: "manual",
+      scope: "track",
+    });
+  }
+
+  if (section === "production") {
+    if (
+      hasDisplayValue(
+        track.metadata.authored.productionNotes,
+      )
+    ) {
+      sources.push({
+        method: "manual",
+        scope: "track",
+      });
+    }
+
+    if (
+      hasDisplayValue(
+        release?.metadata.authored.productionNotes,
+      )
+    ) {
+      sources.push({
+        method: "manual",
+        scope: "release",
+      });
+    }
+  }
+
+  if (
+    section === "credits" &&
+    isRecord(release?.metadata.authored.release) &&
+    hasDisplayValue(
+      release.metadata.authored.release.credits,
+    )
+  ) {
+    sources.push({
+      method: "manual",
+      scope: "release",
+    });
+  }
+
+  return sources;
+}
+
+function getResolvedProvenance(
+  source:
+    | "track"
+    | "release"
+    | "directory"
+    | "missing"
+    | "authored-display-title"
+    | "authored-fields",
+): MetadataProvenance {
+  if (
+    source === "track" ||
+    source === "authored-display-title" ||
+    source === "authored-fields"
+  ) {
+    return {
+      method: "manual",
+      scope: "track",
+    };
+  }
+
+  if (source === "release") {
+    return {
+      method: "inherited",
+      scope: "release",
+    };
+  }
+
+  if (source === "directory") {
+    return {
+      method: "fallback",
+      scope: "directory",
+    };
+  }
+
+  return {
+    method: "missing",
+  };
+}
+
+function MetadataFieldLabel({
+  label,
+  source,
+  provenance,
+  showSource = false,
+}: {
+  label: string;
+  source?:
+    | "track"
+    | "release"
+    | "directory"
+    | "missing"
+    | "authored-display-title"
+    | "authored-fields";
+  provenance?: MetadataProvenance;
+  showSource?: boolean;
+}) {
+  return (
+    <dt className="metadata-viewer__field-label">
+      <span>{label}</span>
+
+      {showSource && (provenance || source) ? (
+        <ProvenanceBadge
+          provenance={
+            provenance ??
+            getResolvedProvenance(source!)
+          }
+        />
+      ) : null}
+    </dt>
+  );
+}
+
 
 function MetadataValueList({
   values,
@@ -204,6 +461,7 @@ type ScopedValidationWarning = {
 type CreditEntry = {
   name: string;
   role: string | null;
+  sources: MetadataProvenance[];
 };
 
 function getCreditEntries(
@@ -232,9 +490,32 @@ function getCreditEntries(
         ? entry.role.trim() || null
         : null;
 
+    const sources = Array.isArray(entry.provenance)
+      ? entry.provenance.flatMap((source) => {
+          if (
+            !isRecord(source) ||
+            source.method !== "manual" ||
+            (
+              source.scope !== "track" &&
+              source.scope !== "release"
+            )
+          ) {
+            return [];
+          }
+
+          return [{
+            method: "manual" as const,
+            scope: source.scope as
+              | "track"
+              | "release",
+          }];
+        })
+      : [];
+
     return [{
       name,
       role,
+      sources,
     }];
   });
 }
@@ -242,9 +523,11 @@ function getCreditEntries(
 function CreditGroup({
   label,
   entries,
+  roleFirst = false,
 }: {
   label: string;
   entries: CreditEntry[];
+  roleFirst?: boolean;
 }) {
   if (entries.length === 0) {
     return null;
@@ -252,16 +535,35 @@ function CreditGroup({
 
   return (
     <div className="metadata-viewer__credit-group">
-      <h4>{label}</h4>
+      <div className="metadata-viewer__credit-heading">
+        <h4>{label}</h4>
+      </div>
 
       <ul className="metadata-viewer__credit-list">
         {entries.map((entry, index) => (
-          <li key={`${entry.name}-${entry.role}-${index}`}>
+          <li
+            key={`${entry.name}-${entry.role}-${index}`}
+            className={
+              roleFirst
+                ? "metadata-viewer__credit-entry--role-first"
+                : undefined
+            }
+          >
+            {roleFirst && entry.role ? (
+              <span className="metadata-viewer__credit-role">
+                {entry.role}
+              </span>
+            ) : null}
+
             <span className="metadata-viewer__credit-name">
               {entry.name}
             </span>
 
-            {entry.role ? (
+            <MetadataSourceList
+              sources={entry.sources}
+            />
+
+            {!roleFirst && entry.role ? (
               <span className="metadata-viewer__credit-role">
                 {entry.role}
               </span>
@@ -276,12 +578,14 @@ function CreditGroup({
 function MetadataRows({
   rows,
   emptyLabel,
+  sources = [],
 }: {
   rows: Array<{
     label: string;
     value: string;
   }>;
   emptyLabel: string;
+  sources?: MetadataProvenance[];
 }) {
   if (rows.length === 0) {
     return (
@@ -295,7 +599,10 @@ function MetadataRows({
     <dl className="metadata-viewer__detail-rows">
       {rows.map((row, index) => (
         <div key={`${row.label}-${index}`}>
-          <dt>{row.label}</dt>
+          <dt className="metadata-viewer__detail-label">
+            <span>{row.label}</span>
+            <MetadataSourceList sources={sources} />
+          </dt>
           <dd>{row.value}</dd>
         </div>
       ))}
@@ -303,17 +610,19 @@ function MetadataRows({
   );
 }
 
-function DetailedMetadataView({
+function CreditsMetadataView({
   release,
   track,
+  showSources,
 }: {
   release: CatalogRelease | null;
   track: CatalogTrack | null;
+  showSources: boolean;
 }) {
   if (!track) {
     return (
       <p className="metadata-viewer__empty-state">
-        No detailed track metadata is available.
+        No track credits are available.
       </p>
     );
   }
@@ -346,7 +655,7 @@ function DetailedMetadataView({
     credits.remixers,
   );
   const featuredArtists = getCreditEntries(
-    credits.featured_artists,
+    credits.featuredArtists,
   );
 
   const hasCredits = [
@@ -364,55 +673,24 @@ function DetailedMetadataView({
     credits.publishing,
   );
 
-  const productionRows = flattenMetadata(
-    track.metadata.resolved.production,
-  );
-
-  const analysis = isRecord(
-    track.metadata.resolved.analysis,
-  )
-    ? track.metadata.resolved.analysis
-    : {};
-
-  const technicalRows = [
-    ...flattenMetadata(
-      analysis.master,
-      "Master",
-    ),
-    ...flattenMetadata(
-      analysis.playback,
-      "Playback",
-    ),
-    ...flattenMetadata(
-      analysis.loudness,
-      "Loudness",
-    ),
-  ];
-
-  const waveformRows = flattenMetadata(
-    track.metadata.resolved.waveform,
-  );
+  const creditSources = showSources
+    ? getAuthoredSectionSources(
+        release,
+        track,
+        "credits",
+      )
+    : [];
 
   return (
     <div className="metadata-viewer__detailed">
-      <BasicMetadataView
-        release={release}
-        track={track}
-      />
-
       <section
         className="metadata-viewer__section"
         aria-labelledby="metadata-credits-title"
       >
         <div className="metadata-viewer__section-heading">
-          <div>
-            <span className="metadata-viewer__section-eyebrow">
-              Credits
-            </span>
-            <h3 id="metadata-credits-title">
-              Artists and contributors
-            </h3>
-          </div>
+          <h3 id="metadata-credits-title">
+            Artists and contributors
+          </h3>
         </div>
 
         {hasCredits ? (
@@ -420,10 +698,12 @@ function DetailedMetadataView({
             <CreditGroup
               label="Performers"
               entries={performers}
+              roleFirst
             />
             <CreditGroup
               label="Contributors"
               entries={contributors}
+              roleFirst
             />
             <CreditGroup
               label="Composers"
@@ -458,32 +738,104 @@ function DetailedMetadataView({
 
         {publishingRows.length > 0 ? (
           <div className="metadata-viewer__subsection">
-            <h4>Publishing</h4>
+            <div className="metadata-viewer__subsection-heading">
+              <h4>Publishing</h4>
+              <MetadataSourceList
+                sources={creditSources}
+              />
+            </div>
+
             <MetadataRows
               rows={publishingRows}
+              sources={creditSources}
               emptyLabel="No publishing information is available."
             />
           </div>
         ) : null}
       </section>
+    </div>
+  );
+}
 
+function DetailedMetadataView({
+  release,
+  track,
+  showSources,
+}: {
+  release: CatalogRelease | null;
+  track: CatalogTrack | null;
+  showSources: boolean;
+}) {
+  if (!track) {
+    return (
+      <p className="metadata-viewer__empty-state">
+        No detailed track metadata is available.
+      </p>
+    );
+  }
+
+  const productionRows = flattenMetadata(
+    track.metadata.resolved.production,
+  );
+
+  const analysis = isRecord(
+    track.metadata.resolved.analysis,
+  )
+    ? track.metadata.resolved.analysis
+    : {};
+
+  /*
+   * Details exposes listener-facing musical analysis.
+   * File paths and generation diagnostics live in Files.
+   */
+  const technicalRows = findMetadataRowsByKeys(
+    analysis,
+    [
+      "bpm",
+      "tempo",
+      "tempo_bpm",
+      "key",
+      "musical_key",
+      "initial_key",
+    ],
+  );
+
+  const productionSources = showSources
+    ? getAuthoredSectionSources(
+        release,
+        track,
+        "production",
+      )
+    : [];
+
+  const analysisSources: MetadataProvenance[] =
+    showSources &&
+    track.metadata.generated.analysis
+      ? [{
+          method: "generated",
+          scope: "track",
+        }]
+      : [];
+
+  return (
+    <div className="metadata-viewer__detailed">
       <section
         className="metadata-viewer__section"
         aria-labelledby="metadata-production-title"
       >
         <div className="metadata-viewer__section-heading">
-          <div>
-            <span className="metadata-viewer__section-eyebrow">
-              Production
-            </span>
-            <h3 id="metadata-production-title">
-              Recording and mastering
-            </h3>
-          </div>
+          <h3 id="metadata-production-title">
+            Recording and mastering
+          </h3>
+
+          <MetadataSourceList
+            sources={productionSources}
+          />
         </div>
 
         <MetadataRows
           rows={productionRows}
+          sources={productionSources}
           emptyLabel="No production notes have been entered."
         />
       </section>
@@ -493,39 +845,148 @@ function DetailedMetadataView({
         aria-labelledby="metadata-technical-title"
       >
         <div className="metadata-viewer__section-heading">
-          <div>
-            <span className="metadata-viewer__section-eyebrow">
-              Technical
-            </span>
-            <h3 id="metadata-technical-title">
-              Audio analysis
-            </h3>
-          </div>
+          <h3 id="metadata-technical-title">
+            Audio Analysis
+          </h3>
+
+          <MetadataSourceList
+            sources={analysisSources}
+          />
         </div>
 
         <MetadataRows
           rows={technicalRows}
-          emptyLabel="No populated master, playback, or loudness analysis is available."
+          sources={analysisSources}
+          emptyLabel="No BPM or musical-key analysis is available."
         />
       </section>
 
+    </div>
+  );
+}
+
+function FilesMetadataView({
+  track,
+  showSources,
+}: {
+  track: CatalogTrack | null;
+  showSources: boolean;
+}) {
+  if (!track) {
+    return (
+      <p className="metadata-viewer__empty-state">
+        No file metadata is available.
+      </p>
+    );
+  }
+
+  const analysis = isRecord(
+    track.metadata.resolved.analysis,
+  )
+    ? track.metadata.resolved.analysis
+    : {};
+
+  /*
+   * Keep storage paths, existence checks, and source-file
+   * diagnostics separate from listener-facing analysis.
+   */
+  const fileRows = findMetadataRowsByKeys(
+    analysis,
+    [
+      "path",
+      "master_path",
+      "playback_path",
+      "exists",
+      "master_exists",
+      "playback_exists",
+      "source",
+      "source_path",
+      "loudness_source",
+    ],
+  );
+
+  const fileSources: MetadataProvenance[] =
+    showSources &&
+    track.metadata.generated.analysis
+      ? [{
+          method: "generated",
+          scope: "track",
+        }]
+      : [];
+
+  return (
+    <div className="metadata-viewer__detailed">
+      <section
+        className="metadata-viewer__section"
+        aria-labelledby="metadata-files-title"
+      >
+        <div className="metadata-viewer__section-heading">
+          <h3 id="metadata-files-title">
+            Files
+          </h3>
+
+          <MetadataSourceList
+            sources={fileSources}
+          />
+        </div>
+
+        <MetadataRows
+          rows={fileRows}
+          sources={fileSources}
+          emptyLabel="No generated file diagnostics are available."
+        />
+      </section>
+    </div>
+  );
+}
+
+function WaveformMetadataView({
+  track,
+  showSources,
+}: {
+  track: CatalogTrack | null;
+  showSources: boolean;
+}) {
+  if (!track) {
+    return (
+      <p className="metadata-viewer__empty-state">
+        No waveform metadata is available.
+      </p>
+    );
+  }
+
+  const waveformRows = flattenMetadata(
+    track.metadata.resolved.waveform,
+  );
+
+  const waveformSources: MetadataProvenance[] =
+    showSources &&
+    track.metadata.generated.waveform
+      ? [{
+          method: "generated",
+          scope: "track",
+        }]
+      : [];
+
+  return (
+    <div className="metadata-viewer__detailed">
       <section
         className="metadata-viewer__section"
         aria-labelledby="metadata-waveform-title"
       >
         <div className="metadata-viewer__section-heading">
-          <div>
-            <span className="metadata-viewer__section-eyebrow">
-              Waveform
-            </span>
-            <h3 id="metadata-waveform-title">
-              Generated waveform data
-            </h3>
-          </div>
+          <h3 id="metadata-waveform-title">
+            Waveform generation
+          </h3>
+
+          <MetadataSourceList
+            sources={waveformSources}
+          />
         </div>
 
         <MetadataRows
           rows={waveformRows}
+          sources={waveformSources}
           emptyLabel="No waveform metadata is available."
         />
       </section>
@@ -536,9 +997,11 @@ function DetailedMetadataView({
 function BasicMetadataView({
   release,
   track,
+  showSources,
 }: {
   release: CatalogRelease | null;
   track: CatalogTrack | null;
+  showSources: boolean;
 }) {
   if (!track) {
     return (
@@ -557,32 +1020,32 @@ function BasicMetadataView({
         aria-labelledby="metadata-overview-title"
       >
         <div className="metadata-viewer__section-heading">
-          <div>
-            <span className="metadata-viewer__section-eyebrow">
-              Overview
-            </span>
-            <h3 id="metadata-overview-title">
-              Track details
-            </h3>
-          </div>
+          <h3 id="metadata-overview-title">
+            Track details
+          </h3>
         </div>
 
         <dl className="metadata-viewer__field-grid">
           <div className="metadata-viewer__field metadata-viewer__field--wide">
-            <dt>Title</dt>
+            <MetadataFieldLabel
+              label="Title"
+              source={resolved.display.source}
+              showSource={showSources}
+            />
             <dd>
               <span className="metadata-viewer__primary-value">
                 {resolved.display.title}
               </span>
 
-              <SourceBadge
-                source={resolved.display.source}
-              />
             </dd>
           </div>
 
           <div className="metadata-viewer__field">
-            <dt>Artist</dt>
+            <MetadataFieldLabel
+              label="Artist"
+              source={resolved.primaryArtist.source}
+              showSource={showSources}
+            />
             <dd>
               <span>
                 {resolved.primaryArtist.name ?? (
@@ -592,14 +1055,18 @@ function BasicMetadataView({
                 )}
               </span>
 
-              <SourceBadge
-                source={resolved.primaryArtist.source}
-              />
             </dd>
           </div>
 
           <div className="metadata-viewer__field">
-            <dt>Release</dt>
+            <MetadataFieldLabel
+              label="Release"
+              provenance={{
+                method: "inherited",
+                scope: "release",
+              }}
+              showSource={showSources}
+            />
             <dd>
               <span>
                 {release?.title ?? (
@@ -612,7 +1079,11 @@ function BasicMetadataView({
           </div>
 
           <div className="metadata-viewer__field">
-            <dt>Release date</dt>
+            <MetadataFieldLabel
+              label="Release date"
+              source={resolved.releaseDate.source}
+              showSource={showSources}
+            />
             <dd>
               <span>
                 {resolved.releaseDate.value ?? (
@@ -622,14 +1093,15 @@ function BasicMetadataView({
                 )}
               </span>
 
-              <SourceBadge
-                source={resolved.releaseDate.source}
-              />
             </dd>
           </div>
 
           <div className="metadata-viewer__field">
-            <dt>Language</dt>
+            <MetadataFieldLabel
+              label="Language"
+              source={resolved.language.source}
+              showSource={showSources}
+            />
             <dd>
               <span>
                 {resolved.language.value ?? (
@@ -639,9 +1111,6 @@ function BasicMetadataView({
                 )}
               </span>
 
-              <SourceBadge
-                source={resolved.language.source}
-              />
             </dd>
           </div>
         </dl>
@@ -652,61 +1121,60 @@ function BasicMetadataView({
         aria-labelledby="metadata-classification-title"
       >
         <div className="metadata-viewer__section-heading">
-          <div>
-            <span className="metadata-viewer__section-eyebrow">
-              Classification
-            </span>
-            <h3 id="metadata-classification-title">
-              Sound and context
-            </h3>
-          </div>
+          <h3 id="metadata-classification-title">
+            Classification
+          </h3>
         </div>
 
         <dl className="metadata-viewer__field-grid">
           <div className="metadata-viewer__field">
-            <dt>Genres</dt>
+            <MetadataFieldLabel
+              label="Genres"
+              source={resolved.genres.source}
+              showSource={showSources}
+            />
             <dd>
               <MetadataValueList
                 values={resolved.genres.values}
               />
-              <SourceBadge
-                source={resolved.genres.source}
-              />
             </dd>
           </div>
 
           <div className="metadata-viewer__field">
-            <dt>Styles</dt>
+            <MetadataFieldLabel
+              label="Styles"
+              source={resolved.styles.source}
+              showSource={showSources}
+            />
             <dd>
               <MetadataValueList
                 values={resolved.styles.values}
               />
-              <SourceBadge
-                source={resolved.styles.source}
-              />
             </dd>
           </div>
 
           <div className="metadata-viewer__field">
-            <dt>Moods</dt>
+            <MetadataFieldLabel
+              label="Moods"
+              source={resolved.moods.source}
+              showSource={showSources}
+            />
             <dd>
               <MetadataValueList
                 values={resolved.moods.values}
               />
-              <SourceBadge
-                source={resolved.moods.source}
-              />
             </dd>
           </div>
 
           <div className="metadata-viewer__field">
-            <dt>Tags</dt>
+            <MetadataFieldLabel
+              label="Tags"
+              source={resolved.tags.source}
+              showSource={showSources}
+            />
             <dd>
               <MetadataValueList
                 values={resolved.tags.values}
-              />
-              <SourceBadge
-                source={resolved.tags.source}
               />
             </dd>
           </div>
@@ -769,12 +1237,86 @@ const focusableSelector = [
 export default function MetadataViewer({
   isOpen,
   verbosity,
+  onVerbosityChange,
+  audiophileMode,
+  developerMode,
   release,
   track,
   triggerRef,
   onClose,
 }: MetadataViewerProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  type MetadataViewDefinition = {
+    value: MetadataVerbosity;
+    label: string;
+    theme: "default" | "audiophile" | "developer";
+  };
+
+  /*
+   * General metadata lives in the primary row. Developer-only
+   * diagnostics and generated artifacts use a separate row.
+   */
+  const primaryMetadataViews: MetadataViewDefinition[] = [
+    {
+      value: "summary",
+      label: "Overview",
+      theme: "default",
+    },
+    {
+      value: "credits",
+      label: "Credits",
+      theme: "default",
+    },
+    ...(audiophileMode
+      ? [{
+          value: "detailed" as const,
+          label: "Details",
+          theme: "audiophile" as const,
+        }]
+      : []),
+  ];
+
+  const developerMetadataViews: MetadataViewDefinition[] =
+    developerMode
+      ? [
+          {
+            value: "files",
+            label: "Files",
+            theme: "developer",
+          },
+          {
+            value: "waveforms",
+            label: "Waveforms",
+            theme: "developer",
+          },
+          {
+            value: "raw",
+            label: "Raw Metadata",
+            theme: "developer",
+          },
+        ]
+      : [];
+
+  const metadataViews = [
+    ...primaryMetadataViews,
+    ...developerMetadataViews,
+  ];
+
+  useEffect(() => {
+    const viewIsAvailable = metadataViews.some(
+      (view) => view.value === verbosity,
+    );
+
+    if (!viewIsAvailable) {
+      onVerbosityChange("summary");
+    }
+  }, [
+    audiophileMode,
+    developerMode,
+    verbosity,
+    onVerbosityChange,
+  ]);
 
   /*
    * Move focus into the modal when it opens and prevent the page
@@ -851,6 +1393,50 @@ export default function MetadataViewer({
     }
   }
 
+  function handleViewKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    views: MetadataViewDefinition[],
+    currentIndex: number,
+  ) {
+    if (
+      event.key !== "ArrowLeft" &&
+      event.key !== "ArrowRight" &&
+      event.key !== "Home" &&
+      event.key !== "End"
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+
+    let nextIndex = currentIndex;
+
+    if (event.key === "ArrowRight") {
+      nextIndex =
+        (currentIndex + 1) % views.length;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex =
+        (currentIndex - 1 + views.length) %
+        views.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = views.length - 1;
+    }
+
+    const nextView = views[nextIndex];
+
+    onVerbosityChange(nextView.value);
+
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById(
+          `metadata-view-tab-${nextView.value}`,
+        )
+        ?.focus();
+    });
+  }
+
   if (!isOpen) {
     return null;
   }
@@ -870,8 +1456,7 @@ export default function MetadataViewer({
     ),
   ];
 
-  const diagnostics = {
-    verbosity,
+  const rawMetadata = {
     release,
     track,
   };
@@ -916,24 +1501,138 @@ export default function MetadataViewer({
           </button>
         </header>
 
-        <div className="metadata-viewer__content">
+        <div className="metadata-viewer__tab-rows">
+          <div
+            className="metadata-viewer__tabs"
+            role="tablist"
+            aria-label="Metadata views"
+          >
+            {primaryMetadataViews.map((view, index) => {
+              const isSelected =
+                verbosity === view.value;
+
+              return (
+                <button
+                  key={view.value}
+                  id={`metadata-view-tab-${view.value}`}
+                  type="button"
+                  className={[
+                    "metadata-viewer__tab",
+                    view.theme !== "default"
+                      ? `metadata-viewer__tab--${view.theme}`
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  role="tab"
+                  aria-selected={isSelected}
+                  aria-controls="metadata-view-panel"
+                  tabIndex={isSelected ? 0 : -1}
+                  onClick={() => {
+                    onVerbosityChange(view.value);
+                  }}
+                  onKeyDown={(event) => {
+                    handleViewKeyDown(
+                      event,
+                      primaryMetadataViews,
+                      index,
+                    );
+                  }}
+                >
+                  {view.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {developerMetadataViews.length > 0 ? (
+            <div
+              className={[
+                "metadata-viewer__tabs",
+                "metadata-viewer__tabs--developer",
+              ].join(" ")}
+              role="tablist"
+              aria-label="Developer metadata views"
+            >
+              {developerMetadataViews.map(
+                (view, index) => {
+                  const isSelected =
+                    verbosity === view.value;
+
+                  return (
+                    <button
+                      key={view.value}
+                      id={`metadata-view-tab-${view.value}`}
+                      type="button"
+                      className={[
+                        "metadata-viewer__tab",
+                        "metadata-viewer__tab--developer",
+                      ].join(" ")}
+                      role="tab"
+                      aria-selected={isSelected}
+                      aria-controls="metadata-view-panel"
+                      tabIndex={isSelected ? 0 : -1}
+                      onClick={() => {
+                        onVerbosityChange(view.value);
+                      }}
+                      onKeyDown={(event) => {
+                        handleViewKeyDown(
+                          event,
+                          developerMetadataViews,
+                          index,
+                        );
+                      }}
+                    >
+                      {view.label}
+                    </button>
+                  );
+                },
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        <div
+          id="metadata-view-panel"
+          className="metadata-viewer__content"
+          role="tabpanel"
+          aria-labelledby={`metadata-view-tab-${verbosity}`}
+        >
           <ValidationWarnings
             warnings={validationWarnings}
           />
 
-          {verbosity === "diagnostics" ? (
+          {verbosity === "raw" ? (
             <pre className="metadata-viewer__json">
-              {JSON.stringify(diagnostics, null, 2)}
+              {JSON.stringify(rawMetadata, null, 2)}
             </pre>
-          ) : verbosity === "summary" ? (
-            <BasicMetadataView
+          ) : verbosity === "files" ? (
+            <FilesMetadataView
+              track={track}
+              showSources={developerMode}
+            />
+          ) : verbosity === "waveforms" ? (
+            <WaveformMetadataView
+              track={track}
+              showSources={developerMode}
+            />
+          ) : verbosity === "credits" ? (
+            <CreditsMetadataView
               release={release}
               track={track}
+              showSources={developerMode}
             />
-          ) : (
+          ) : verbosity === "detailed" ? (
             <DetailedMetadataView
               release={release}
               track={track}
+              showSources={developerMode}
+            />
+          ) : (
+            <BasicMetadataView
+              release={release}
+              track={track}
+              showSources={developerMode}
             />
           )}
         </div>

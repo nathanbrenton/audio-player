@@ -2915,6 +2915,53 @@ canvas {
   outline-offset: 2px;
 }
 
+/* Accessible view selector for summary, detail, and diagnostics. */
+.metadata-viewer__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 20px;
+  border-bottom: 1px solid #303030;
+  background: #171717;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.metadata-viewer__tab {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #969696;
+  background: transparent;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  cursor: pointer;
+}
+
+.metadata-viewer__tab:hover {
+  color: #dddddd;
+  background: #242424;
+}
+
+.metadata-viewer__tab[aria-selected="true"] {
+  border-color: #3f5663;
+  color: #c6e8fa;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(65, 119, 148, 0.24),
+      rgba(44, 69, 83, 0.18)
+    );
+}
+
+.metadata-viewer__tab:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
 /* Only this region scrolls when diagnostics exceed the viewport. */
 .metadata-viewer__content {
   min-height: 0;
@@ -3282,6 +3329,10 @@ canvas {
     padding: 14px;
   }
 
+  .metadata-viewer__tabs {
+    padding: 8px 14px;
+  }
+
   .metadata-viewer__content {
     padding: 14px;
   }
@@ -3372,4 +3423,581 @@ canvas {
   .player-controls__track-selector {
     grid-template-columns: minmax(0, 1fr) 38px;
   }
+}
+
+/*
+ * Keep the modal shell fixed while allowing the metadata panel to
+ * scroll independently with mouse wheels, trackpads, and touch.
+ */
+.metadata-viewer {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.metadata-viewer__header,
+.metadata-viewer__tabs {
+  flex: 0 0 auto;
+}
+
+.metadata-viewer__content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent wide diagnostic JSON from disabling vertical scrolling. */
+.metadata-viewer__json {
+  max-width: 100%;
+}
+
+/*
+ * Performer and contributor rows read as role-to-person credits:
+ * role on the left, credited name aligned on the right.
+ */
+.metadata-viewer__credit-entry--role-first {
+  display: grid !important;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px 16px;
+}
+
+.metadata-viewer__credit-entry--role-first
+  .metadata-viewer__credit-role {
+  justify-self: start;
+  color: #aaaaaa;
+  text-align: left;
+}
+
+.metadata-viewer__credit-entry--role-first
+  .metadata-viewer__credit-name {
+  justify-self: end;
+  text-align: right;
+}
+
+@media (max-width: 520px) {
+  .metadata-viewer__credit-entry--role-first {
+    grid-template-columns:
+      minmax(0, 0.9fr)
+      minmax(0, 1.1fr);
+    gap: 8px 12px;
+  }
+}
+
+/*
+ * Keep provenance badges beside field headings so the relationship
+ * between a resolved value and its source is immediately clear.
+ */
+.metadata-viewer__field-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+
+.metadata-viewer__field-label
+  .metadata-viewer__source {
+  min-height: 19px;
+  padding: 2px 6px;
+  font-size: 0.61rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Settings switches for optional metadata-viewer modes. */
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 58px;
+  padding: 12px;
+  border: 1px solid #303030;
+  border-radius: 8px;
+  background: #181818;
+  cursor: pointer;
+}
+
+.settings-toggle > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.settings-toggle strong {
+  color: #d7d7d7;
+  font-size: 0.875rem;
+}
+
+.settings-toggle small {
+  color: #8f8f8f;
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.settings-toggle input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #4f9ac4;
+  cursor: pointer;
+}
+
+.settings-toggle:focus-within {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------
+   Audiophile and Developer metadata themes
+   --------------------------------------------------------- */
+
+/*
+ * Audiophile features use warm amber and red accents associated
+ * with meters, analog equipment, and mastering indicators.
+ */
+.settings-toggle--audiophile {
+  border-color: #5f3928;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(139, 65, 35, 0.18),
+      rgba(92, 52, 24, 0.1)
+    );
+}
+
+.settings-toggle--audiophile strong {
+  color: #f1ad75;
+}
+
+.settings-toggle--audiophile input {
+  accent-color: #d66a3d;
+}
+
+.metadata-viewer__tab--audiophile {
+  color: #c99473;
+}
+
+.metadata-viewer__tab--audiophile:hover {
+  color: #f0b184;
+  background: rgba(137, 62, 32, 0.17);
+}
+
+.metadata-viewer__tab--audiophile[
+  aria-selected="true"
+] {
+  border-color: #87482e;
+  color: #ffc08d;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(174, 69, 35, 0.28),
+      rgba(116, 70, 27, 0.2)
+    );
+}
+
+/*
+ * Developer features use a restrained console-green palette.
+ */
+.settings-toggle--developer {
+  border-color: #28523a;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(30, 101, 61, 0.18),
+      rgba(20, 67, 42, 0.1)
+    );
+}
+
+.settings-toggle--developer strong {
+  color: #80d69b;
+}
+
+.settings-toggle--developer input {
+  accent-color: #49b86d;
+}
+
+.metadata-viewer__tab--developer {
+  color: #72b88a;
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    "Liberation Mono",
+    monospace;
+}
+
+.metadata-viewer__tab--developer:hover {
+  color: #9be4af;
+  background: rgba(34, 105, 60, 0.16);
+}
+
+.metadata-viewer__tab--developer[
+  aria-selected="true"
+] {
+  border-color: #367c50;
+  color: #a6f2ba;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(35, 126, 67, 0.26),
+      rgba(22, 77, 45, 0.18)
+    );
+}
+
+/*
+ * Provenance indicators are Developer Mode information, so they
+ * inherit the console-green visual language.
+ */
+.metadata-viewer__source,
+.metadata-viewer__source--track,
+.metadata-viewer__source--release,
+.metadata-viewer__source--directory,
+.metadata-viewer__source--missing,
+.metadata-viewer__source--authored-display-title,
+.metadata-viewer__source--authored-fields {
+  border-color: #306b46;
+  color: #8ddaa4;
+  background: rgba(31, 104, 59, 0.16);
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    "Liberation Mono",
+    monospace;
+}
+
+/*
+ * Developer provenance bubbles can appear beside section headings
+ * in Credits and Details without disturbing the heading layout.
+ */
+.metadata-viewer__section-sources {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 58%;
+}
+
+/* Generated documents use a brighter console-green distinction. */
+.metadata-viewer__source--generated-analysis,
+.metadata-viewer__source--generated-waveform {
+  border-color: #3b8a57;
+  color: #a9efbc;
+  background: rgba(34, 130, 67, 0.2);
+}
+
+@media (max-width: 520px) {
+  .metadata-viewer__section-heading {
+    flex-wrap: wrap;
+  }
+
+  .metadata-viewer__section-sources {
+    justify-content: flex-start;
+    width: 100%;
+    max-width: none;
+  }
+}
+
+/*
+ * Credit-card headings keep their label and Developer provenance
+ * together without crowding the credited names below.
+ */
+.metadata-viewer__credit-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px 10px;
+  margin-bottom: 9px;
+}
+
+.metadata-viewer__credit-heading h4 {
+  margin: 0;
+}
+
+.metadata-viewer__credit-heading
+  .metadata-viewer__section-sources {
+  max-width: none;
+}
+
+.metadata-viewer__credit-heading
+  .metadata-viewer__source {
+  min-height: 18px;
+  padding: 2px 6px;
+  font-size: 0.58rem;
+}
+
+/* ---------------------------------------------------------
+   Paired provenance badges
+   --------------------------------------------------------- */
+
+.metadata-viewer__provenance {
+  display: inline-flex;
+  min-height: 20px;
+  overflow: hidden;
+  border: 1px solid #3a3a3a;
+  border-radius: 999px;
+  background: #202020;
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    "Liberation Mono",
+    monospace;
+  font-size: 0.59rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.metadata-viewer__provenance-part {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 7px;
+}
+
+.metadata-viewer__provenance-part +
+.metadata-viewer__provenance-part {
+  border-left: 1px solid rgb(255 255 255 / 14%);
+}
+
+/* Method colors. */
+.metadata-viewer__provenance-part--manual {
+  color: #b9dcff;
+  background: rgba(52, 113, 168, 0.3);
+}
+
+.metadata-viewer__provenance-part--generated {
+  color: #ffd49a;
+  background: rgba(173, 101, 31, 0.32);
+}
+
+.metadata-viewer__provenance-part--inherited {
+  color: #d7c2ff;
+  background: rgba(100, 72, 157, 0.32);
+}
+
+.metadata-viewer__provenance-part--fallback {
+  color: #dfc99f;
+  background: rgba(119, 91, 47, 0.3);
+}
+
+.metadata-viewer__provenance-part--missing {
+  color: #a5a5a5;
+  background: rgba(90, 90, 90, 0.28);
+}
+
+/* Scope colors. */
+.metadata-viewer__provenance-part--track {
+  color: #a9ebe1;
+  background: rgba(31, 113, 102, 0.32);
+}
+
+.metadata-viewer__provenance-part--release {
+  color: #f0b9df;
+  background: rgba(133, 52, 108, 0.3);
+}
+
+.metadata-viewer__provenance-part--directory {
+  color: #d5dda3;
+  background: rgba(101, 112, 43, 0.3);
+}
+
+/* Keep provenance aligned to the right of headings. */
+.metadata-viewer__field-label,
+.metadata-viewer__credit-heading,
+.metadata-viewer__subsection > h4 {
+  align-items: center;
+}
+
+.metadata-viewer__credit-heading {
+  flex-wrap: nowrap;
+}
+
+.metadata-viewer__credit-heading
+  .metadata-viewer__section-sources {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* Publishing needs a real heading row for right-aligned provenance. */
+.metadata-viewer__subsection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+
+.metadata-viewer__subsection-heading h4 {
+  margin: 0;
+  color: #a7a7a7;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 520px) {
+  .metadata-viewer__credit-heading {
+    flex-wrap: wrap;
+  }
+
+  .metadata-viewer__credit-heading
+    .metadata-viewer__section-sources {
+    margin-left: 0;
+  }
+}
+
+/*
+ * Keep provenance on the same line as individual detail labels,
+ * including Publishing, production, analysis, and waveform fields.
+ */
+.metadata-viewer__detail-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+
+.metadata-viewer__detail-label > span {
+  min-width: 0;
+}
+
+.metadata-viewer__detail-label
+  .metadata-viewer__section-sources {
+  flex: 0 0 auto;
+  max-width: none;
+}
+
+.metadata-viewer__detail-label
+  .metadata-viewer__provenance {
+  min-height: 18px;
+  font-size: 0.56rem;
+}
+
+.metadata-viewer__detail-label
+  .metadata-viewer__provenance-part {
+  padding: 3px 5px;
+}
+
+@media (max-width: 520px) {
+  .metadata-viewer__detail-label {
+    flex-wrap: wrap;
+  }
+
+  .metadata-viewer__detail-label
+    .metadata-viewer__section-sources {
+    width: auto;
+  }
+}
+
+/*
+ * Individual credit rows carry their own provenance. The role,
+ * credited person, and source badges remain readable as one row.
+ */
+.metadata-viewer__credit-list li {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 0.9fr)
+    minmax(0, 1.1fr)
+    auto;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.metadata-viewer__credit-entry--role-first
+  .metadata-viewer__section-sources {
+  justify-self: end;
+  width: auto;
+  max-width: none;
+}
+
+@media (max-width: 620px) {
+  .metadata-viewer__credit-list li {
+    grid-template-columns:
+      minmax(0, 0.9fr)
+      minmax(0, 1.1fr);
+  }
+
+  .metadata-viewer__credit-entry--role-first
+    .metadata-viewer__section-sources {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+/* ---------------------------------------------------------
+   Primary and Developer metadata tab rows
+   --------------------------------------------------------- */
+
+.metadata-viewer__tab-rows {
+  display: grid;
+  gap: 7px;
+}
+
+.metadata-viewer__tabs--developer {
+  position: relative;
+  padding-top: 7px;
+  border-top: 1px solid rgba(92, 176, 112, 0.2);
+  background:
+    linear-gradient(
+      90deg,
+      rgba(28, 93, 48, 0.1),
+      transparent 70%
+    );
+}
+
+.metadata-viewer__tabs-label {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+  color: #7fca91;
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    "Liberation Mono",
+    monospace;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metadata-viewer__tabs--developer
+  .metadata-viewer__tab[aria-selected="true"] {
+  border-color: #4b9a63;
+  color: #b6f3c4;
+  background: rgba(38, 122, 65, 0.22);
+}
+
+@media (max-width: 520px) {
+  .metadata-viewer__tabs--developer {
+    align-items: flex-start;
+  }
+
+  .metadata-viewer__tabs-label {
+    width: 100%;
+  }
+}
+
+/*
+ * Developer tabs form their own clean second row without a
+ * redundant heading. The green treatment identifies the mode.
+ */
+.metadata-viewer__tabs--developer {
+  padding-left: 0;
+}
+
+.metadata-viewer__tabs--developer
+  .metadata-viewer__tabs-label {
+  display: none;
 }

@@ -91,6 +91,54 @@ sort_name = ""
 
 
 # ---------------------------------------------------------
+# Release-wide credits
+# ---------------------------------------------------------
+#
+# Release credits apply to every track unless a track adds more
+# entries in its track-credits.toml file.
+#
+# Release and track entries stack. An exact duplicate name/role pair
+# is retained once with both release and track provenance.
+
+[release.credits]
+
+[[release.credits.performers]]
+    name = ""
+    role = ""
+    sort_name = ""
+
+[[release.credits.contributors]]
+    name = ""
+    role = ""
+    sort_name = ""
+
+[[release.credits.composers]]
+    name = ""
+    sort_name = ""
+
+[[release.credits.lyricists]]
+    name = ""
+    sort_name = ""
+
+[[release.credits.songwriters]]
+    name = ""
+    sort_name = ""
+
+[[release.credits.arrangers]]
+    name = ""
+    role = ""
+    sort_name = ""
+
+[[release.credits.remixers]]
+    name = ""
+    sort_name = ""
+
+[[release.credits.featured_artists]]
+    name = ""
+    sort_name = ""
+
+
+# ---------------------------------------------------------
 # Related production-note files
 # ---------------------------------------------------------
 

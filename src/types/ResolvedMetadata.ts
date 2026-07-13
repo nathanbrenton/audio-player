@@ -3,12 +3,14 @@ import type {
   CatalogTrack,
 } from "./MediaCatalog";
 
-/* Planned levels of metadata detail presented by the viewer. */
+/* User-facing sections available in the metadata viewer. */
 export type MetadataVerbosity =
   | "summary"
-  | "standard"
+  | "credits"
   | "detailed"
-  | "diagnostics";
+  | "files"
+  | "waveforms"
+  | "raw";
 
 /*
  * TOML and JSON documents may contain nested objects, arrays,

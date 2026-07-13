@@ -1048,3 +1048,166 @@ release = "2026-07-09"
     );
   },
 );
+
+test(
+  "stacks release and track credits with per-entry provenance",
+  async (context) => {
+    const libraryRoot = await mkdtemp(
+      path.join(
+        os.tmpdir(),
+        "audio-player-credit-resolution-",
+      ),
+    );
+
+    context.after(async () => {
+      await rm(libraryRoot, {
+        recursive: true,
+        force: true,
+      });
+    });
+
+    const releaseDirectory = path.join(
+      libraryRoot,
+      "releases",
+      "2026-03-04_credit-resolution",
+    );
+
+    await mkdir(releaseDirectory, {
+      recursive: true,
+    });
+
+    await writeFile(
+      path.join(releaseDirectory, "release.toml"),
+      `[release]
+id = "2026-03-04_credit-resolution"
+title = "Credit Resolution"
+
+[release.credits]
+
+[[release.credits.performers]]
+name = "Release Guitarist"
+role = "guitars"
+sort_name = "Guitarist, Release"
+
+[[release.credits.contributors]]
+name = "Release Engineer"
+role = "recording engineer"
+sort_name = "Engineer, Release"
+
+[[release.credits.contributors]]
+name = "Shared Producer"
+role = "producer"
+sort_name = "Producer, Shared"
+`,
+    );
+
+    const trackDirectory =
+      await createPlayableTrack(
+        releaseDirectory,
+        "artist_01_credit-track",
+      );
+
+    await writeFile(
+      path.join(
+        trackDirectory,
+        "track-credits.toml",
+      ),
+      `[track]
+
+[[track.performers]]
+name = "Track Guitarist"
+role = "guitars"
+sort_name = "Guitarist, Track"
+
+[[track.contributors]]
+name = "Track Engineer"
+role = "recording engineer"
+sort_name = "Engineer, Track"
+
+[[track.contributors]]
+name = "Shared Producer"
+role = "producer"
+sort_name = "Producer, Shared"
+`,
+    );
+
+    const catalog = await runGenerator(
+      libraryRoot,
+    );
+
+    const credits =
+      catalog.releases[0]
+        .tracks[0]
+        .metadata.resolved.credits;
+
+    assert.deepEqual(
+      credits.performers.map(
+        ({ name, role, provenance }) => ({
+          name,
+          role,
+          provenance,
+        }),
+      ),
+      [
+        {
+          name: "Release Guitarist",
+          role: "guitars",
+          provenance: [{
+            method: "manual",
+            scope: "release",
+          }],
+        },
+        {
+          name: "Track Guitarist",
+          role: "guitars",
+          provenance: [{
+            method: "manual",
+            scope: "track",
+          }],
+        },
+      ],
+    );
+
+    assert.deepEqual(
+      credits.contributors.map(
+        ({ name, role, provenance }) => ({
+          name,
+          role,
+          provenance,
+        }),
+      ),
+      [
+        {
+          name: "Release Engineer",
+          role: "recording engineer",
+          provenance: [{
+            method: "manual",
+            scope: "release",
+          }],
+        },
+        {
+          name: "Shared Producer",
+          role: "producer",
+          provenance: [
+            {
+              method: "manual",
+              scope: "release",
+            },
+            {
+              method: "manual",
+              scope: "track",
+            },
+          ],
+        },
+        {
+          name: "Track Engineer",
+          role: "recording engineer",
+          provenance: [{
+            method: "manual",
+            scope: "track",
+          }],
+        },
+      ],
+    );
+  },
+);
