@@ -10,16 +10,11 @@ import type {
   CatalogRelease,
   CatalogTrack,
 } from "../types/MediaCatalog";
+import type {
+  MetadataVerbosity,
+} from "../types/ResolvedMetadata";
 
-/*
- * Define every planned metadata presentation level now.
- * Only diagnostics is rendered during the initial implementation.
- */
-export type MetadataVerbosity =
-  | "summary"
-  | "standard"
-  | "detailed"
-  | "diagnostics";
+export type { MetadataVerbosity } from "../types/ResolvedMetadata";
 
 type MetadataViewerProps = {
   isOpen: boolean;
