@@ -3086,6 +3086,116 @@ canvas {
   text-align: center;
 }
 
+/* Detailed credits, production, and technical metadata. */
+.metadata-viewer__detailed {
+  display: grid;
+  gap: 18px;
+}
+
+.metadata-viewer__credit-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metadata-viewer__credit-group {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #2f2f2f;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.metadata-viewer__credit-group h4,
+.metadata-viewer__subsection > h4 {
+  margin: 0 0 9px;
+  color: #a7a7a7;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.metadata-viewer__credit-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.metadata-viewer__credit-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 5px 12px;
+}
+
+.metadata-viewer__credit-name {
+  color: #e5e5e5;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.metadata-viewer__credit-role {
+  color: #969696;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  text-transform: capitalize;
+}
+
+.metadata-viewer__subsection {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #303030;
+}
+
+.metadata-viewer__detail-rows {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.metadata-viewer__detail-rows > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #2f2f2f;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.metadata-viewer__detail-rows dt {
+  margin: 0 0 5px;
+  color: #8f8f8f;
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.metadata-viewer__detail-rows dd {
+  margin: 0;
+  color: #dedede;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.metadata-viewer__section-empty {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed #363636;
+  border-radius: 8px;
+  color: #858585;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
 /* Surface advisory catalog warnings without overpowering metadata. */
 .metadata-viewer__warnings {
   margin: 0 0 18px;
@@ -3176,7 +3286,9 @@ canvas {
     padding: 14px;
   }
 
-  .metadata-viewer__field-grid {
+  .metadata-viewer__field-grid,
+  .metadata-viewer__credit-grid,
+  .metadata-viewer__detail-rows {
     grid-template-columns: 1fr;
   }
 
