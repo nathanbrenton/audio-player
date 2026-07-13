@@ -2772,3 +2772,276 @@ canvas {
     min-height: 34px;
   }
 }
+
+/* ---------------------------------------------------------
+   Track metadata viewer
+   --------------------------------------------------------- */
+
+/* Keep the track selector and information trigger aligned together. */
+.player-controls__track-selector {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.player-controls__track-selector .player-controls__field {
+  min-width: 0;
+}
+
+/* Compact circular information trigger beside the track selector. */
+.player-controls__metadata-button {
+  display: grid;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #484848;
+  border-radius: 50%;
+  background: #202020;
+  color: #f5f5f5;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.player-controls__metadata-button:hover:not(:disabled) {
+  border-color: #666666;
+  background: #2a2a2a;
+}
+
+.player-controls__metadata-button:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+.player-controls__metadata-button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+/* Cover the application while leaving the dialog independently scrollable. */
+.metadata-viewer__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  place-items: center;
+  background: rgb(0 0 0 / 72%);
+  backdrop-filter: blur(6px);
+}
+
+/* Constrain the modal to the viewport instead of scrolling the page. */
+.metadata-viewer {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(100%, 820px);
+  max-height: min(88dvh, 760px);
+  overflow: hidden;
+  border: 1px solid #404040;
+  border-radius: 12px;
+  background: #151515;
+  color: #f5f5f5;
+  box-shadow:
+    0 24px 70px rgb(0 0 0 / 68%);
+}
+
+.metadata-viewer:focus {
+  outline: none;
+}
+
+.metadata-viewer__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #333333;
+  background: #191919;
+}
+
+.metadata-viewer__eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: #929292;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.metadata-viewer__header h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.1rem, 4vw, 1.45rem);
+  line-height: 1.25;
+}
+
+/* Keep the close button obvious and touch-friendly. */
+.metadata-viewer__close-button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #454545;
+  border-radius: 8px;
+  background: #222222;
+  color: #f5f5f5;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.metadata-viewer__close-button:hover {
+  background: #2d2d2d;
+}
+
+.metadata-viewer__close-button:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+/* Only this region scrolls when diagnostics exceed the viewport. */
+.metadata-viewer__content {
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 20px 22px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.metadata-viewer__json {
+  min-width: max-content;
+  margin: 0;
+  color: #d8d8d8;
+  font-family:
+    "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  tab-size: 2;
+}
+
+/* Preserve full-width mobile selector behavior after adding its wrapper. */
+@media (max-width: 639px) {
+  .player-controls__track-selector {
+    order: 2;
+    width: 100%;
+  }
+
+  .player-controls__metadata-button {
+    align-self: end;
+  }
+
+  .metadata-viewer__backdrop {
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+  }
+
+  .metadata-viewer {
+    width: 100%;
+    max-height: calc(
+      100dvh -
+      max(16px, env(safe-area-inset-top)) -
+      max(16px, env(safe-area-inset-bottom))
+    );
+    border-radius: 10px;
+  }
+
+  .metadata-viewer__header {
+    padding: 14px;
+  }
+
+  .metadata-viewer__content {
+    padding: 14px;
+  }
+}
+
+/* Fit the selector wrapper into the existing landscape control grid. */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .player-controls__track-selector {
+    width: 100%;
+  }
+
+  .player-controls__metadata-button {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
+  }
+
+  .metadata-viewer__backdrop {
+    padding: 8px;
+  }
+
+  .metadata-viewer {
+    max-height: calc(100dvh - 16px);
+  }
+
+  .metadata-viewer__header {
+    padding: 10px 12px;
+  }
+
+  .metadata-viewer__close-button {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
+  }
+
+  .metadata-viewer__content {
+    padding: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metadata-viewer__backdrop {
+    backdrop-filter: none;
+  }
+}
+
+/* ---------------------------------------------------------
+   Prevent mobile track selector and metadata button overlap
+   --------------------------------------------------------- */
+
+/*
+ * Allow the selector column to shrink within its two-column grid.
+ * The information button keeps its fixed touch-friendly width.
+ */
+.player-controls__track-selector {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) 42px;
+}
+
+.player-controls__track-selector .player-controls__field,
+.player-controls__track-selector select {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Match the smaller control height used in short landscape layouts. */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .player-controls__track-selector {
+    grid-template-columns: minmax(0, 1fr) 38px;
+  }
+}

@@ -8,6 +8,9 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
+import MetadataViewer, {
+  type MetadataVerbosity,
+} from "./MetadataViewer";
 import WaveformCanvas, {
   type WaveformColorMode,
 } from "./WaveformCanvas";
@@ -117,6 +120,16 @@ function getMediaUrl(
 
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Restore focus to this trigger after closing the metadata modal.
+  const metadataButtonRef =
+    useRef<HTMLButtonElement | null>(null);
+
+  // Diagnostics is the initial metadata presentation mode.
+  const [isMetadataViewerOpen, setIsMetadataViewerOpen] =
+    useState(false);
+  const [metadataVerbosity] =
+    useState<MetadataVerbosity>("diagnostics");
 
   // Resume only when adjacent-track navigation started during playback.
   const resumePlaybackAfterTrackChangeRef =
@@ -1298,10 +1311,11 @@ export default function AudioPlayer() {
           </button>
         </div>
 
-        <label className="player-controls__field">
-          <span>Track</span>
+        <div className="player-controls__track-selector">
+          <label className="player-controls__field">
+            <span>Track</span>
 
-          <select
+            <select
             value={selectedTrackKey}
             disabled={!catalog || playableTracks.length === 0}
             onChange={(event) => {
@@ -1346,10 +1360,35 @@ export default function AudioPlayer() {
                 </optgroup>
               );
             })}
-          </select>
-        </label>
+            </select>
+          </label>
 
+          <button
+            ref={metadataButtonRef}
+            type="button"
+            className="player-controls__metadata-button"
+            aria-label="View selected track metadata"
+            title="Track information"
+            disabled={!selectedTrack}
+            onClick={() => {
+              setIsMetadataViewerOpen(true);
+            }}
+          >
+            <span aria-hidden="true">i</span>
+          </button>
+        </div>
       </div>
+
+      <MetadataViewer
+        isOpen={isMetadataViewerOpen}
+        verbosity={metadataVerbosity}
+        release={selectedTrack?.release ?? null}
+        track={selectedTrack?.track ?? null}
+        triggerRef={metadataButtonRef}
+        onClose={() => {
+          setIsMetadataViewerOpen(false);
+        }}
+      />
 
       {loadError ? (
         <p role="alert">{loadError}</p>
