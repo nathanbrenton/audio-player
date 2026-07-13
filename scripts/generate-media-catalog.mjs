@@ -579,6 +579,12 @@ async function buildTrack(
       ?.release_moods,
   );
 
+  const tags = resolveInheritedStringArray(
+    trackMetadata.data?.track?.classification?.tags,
+    releaseMetadata.data?.release?.identifiers
+      ?.release_tags,
+  );
+
   const artworkPath = hasTrackArtwork
     ? toMediaPath(libraryRoot, artworkFile)
     : releaseArtworkPath;
@@ -672,6 +678,7 @@ async function buildTrack(
         genres,
         styles,
         moods,
+        tags,
         track:
           trackMetadata.data?.track ?? null,
         credits:
