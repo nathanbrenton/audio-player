@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import type {
   CatalogRelease,
   CatalogTrack,
+  CatalogValidationWarning,
 } from "../types/MediaCatalog";
 import type {
   MetadataVerbosity,
@@ -24,6 +25,52 @@ type MetadataViewerProps = {
   triggerRef: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
 };
+
+type ScopedValidationWarning = {
+  scope: "Release" | "Track";
+  warning: CatalogValidationWarning;
+};
+
+function ValidationWarnings({
+  warnings,
+}: {
+  warnings: ScopedValidationWarning[];
+}) {
+  if (warnings.length === 0) {
+    return null;
+  }
+
+  return (
+    <section
+      className="metadata-viewer__warnings"
+      aria-labelledby="metadata-viewer-warnings-title"
+    >
+      <h3 id="metadata-viewer-warnings-title">
+        Warnings
+      </h3>
+
+      <ul className="metadata-viewer__warning-list">
+        {warnings.map(({ scope, warning }, index) => (
+          <li
+            key={`${scope}-${warning.code}-${index}`}
+            className="metadata-viewer__warning"
+          >
+            <strong>{scope}:</strong>{" "}
+            {warning.message}
+
+            {warning.trackIds &&
+            warning.trackIds.length > 0 ? (
+              <span>
+                {" "}
+                Tracks: {warning.trackIds.join(", ")}
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 const focusableSelector = [
   "button:not([disabled])",
@@ -123,6 +170,21 @@ export default function MetadataViewer({
     return null;
   }
 
+  const validationWarnings: ScopedValidationWarning[] = [
+    ...(release?.metadata.validation ?? []).map(
+      (warning) => ({
+        scope: "Release" as const,
+        warning,
+      }),
+    ),
+    ...(track?.metadata.validation ?? []).map(
+      (warning) => ({
+        scope: "Track" as const,
+        warning,
+      }),
+    ),
+  ];
+
   const diagnostics = {
     verbosity,
     release,
@@ -170,6 +232,10 @@ export default function MetadataViewer({
         </header>
 
         <div className="metadata-viewer__content">
+          <ValidationWarnings
+            warnings={validationWarnings}
+          />
+
           {verbosity === "diagnostics" ? (
             <pre className="metadata-viewer__json">
               {JSON.stringify(diagnostics, null, 2)}

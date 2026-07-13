@@ -3,6 +3,17 @@ import type {
   MetadataFileDiagnostic,
 } from "./ResolvedMetadata";
 
+export type CatalogValidationWarning = {
+  code: string;
+  severity: "warning";
+  message: string;
+
+  field?: string;
+  value?: string;
+  trackNumber?: number;
+  trackIds?: string[];
+};
+
 export type CatalogTrack = {
   id: string;
   directory: string;
@@ -117,6 +128,7 @@ export type CatalogTrack = {
     };
 
     diagnostics: MetadataFileDiagnostic[];
+    validation: CatalogValidationWarning[];
   };
 
   playable: boolean;
@@ -149,6 +161,7 @@ export type CatalogRelease = {
     };
 
     diagnostics: MetadataFileDiagnostic[];
+    validation: CatalogValidationWarning[];
   };
 
   trackCount: number;
