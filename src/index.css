@@ -482,7 +482,7 @@ canvas {
 @media (min-width: 900px) {
   .player-layout {
     grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
-    gap: 24px;
+    gap: 52px;
     align-items: start;
   }
 
@@ -506,7 +506,7 @@ canvas {
 @media (min-width: 1200px) {
   .player-layout {
     grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-    gap: 32px;
+    gap: 64px;
   }
 }
 
@@ -4380,6 +4380,28 @@ canvas {
 
   .artwork-stack__edge-control--next {
     left: 85%;
+  }
+}
+
+/* ---------------------------------------------------------
+   Narrow desktop artwork left-edge clearance
+   --------------------------------------------------------- */
+
+/*
+ * At narrower desktop widths, shift only the artwork panel inward.
+ * The larger desktop column gap provides room on its right side.
+ */
+@media (min-width: 900px) and (max-width: 1199px) {
+  /*
+   * The artwork shift is visual and does not affect grid calculations.
+   * Add matching right-side clearance so next artwork stays clear.
+   */
+  .player-layout {
+    gap: 80px;
+  }
+
+  .artwork-panel {
+    transform: translateX(28px);
   }
 }
 
