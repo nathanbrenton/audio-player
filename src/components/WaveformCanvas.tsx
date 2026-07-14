@@ -53,6 +53,12 @@ type WaveformCanvasProps = {
    * This is independent from the visual zoom level.
    */
   peaksPerSecond?: number;
+
+  /*
+   * Reports the complete pointer-hold interval so parent transport
+   * controls can remain visually paused during audible previews.
+   */
+  onScrubbingChange?: (isScrubbing: boolean) => void;
 };
 
 /*
@@ -261,6 +267,7 @@ export default function WaveformCanvas({
   colorMode = "3band",
   pixelsPerSecond = DEFAULT_PIXELS_PER_SECOND,
   peaksPerSecond = DEFAULT_PEAKS_PER_SECOND,
+  onScrubbingChange,
 }: WaveformCanvasProps) {
   // References used for drawing and animation.
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -695,6 +702,12 @@ export default function WaveformCanvas({
     };
 
     /*
+     * Keep parent transport visuals paused for the entire pointer
+     * hold, including brief audible scrub-preview playback.
+     */
+    onScrubbingChange?.(true);
+
+    /*
      * The complete gesture owns playback until pointer-up. This keeps
      * the playhead stationary whenever the pointer stops moving.
      */
@@ -780,6 +793,7 @@ export default function WaveformCanvas({
      */
     stopScrubPreview();
     dragRef.current = null;
+    onScrubbingChange?.(false);
 
     const audio = audioRef.current;
 
@@ -805,6 +819,7 @@ export default function WaveformCanvas({
 
   useEffect(() => {
     return () => {
+      onScrubbingChange?.(false);
       scrubPreviewGenerationRef.current += 1;
 
       if (scrubPreviewTimerRef.current !== null) {
