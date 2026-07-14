@@ -1,6 +1,8 @@
 import {
   useEffect,
   useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
 
@@ -13,6 +15,9 @@ type OscilloscopeCanvasProps = {
   audioRef: RefObject<HTMLAudioElement | null>;
   isPlaying: boolean;
   colorMode: WaveformColorMode;
+
+  // Number of time-domain samples stretched across the canvas.
+  sampleWindow: number;
 };
 
 /*
@@ -95,9 +100,88 @@ export default function OscilloscopeCanvas({
   audioRef,
   isPlaying,
   colorMode,
+  sampleWindow,
 }: OscilloscopeCanvasProps) {
   const canvasRef =
     useRef<HTMLCanvasElement | null>(null);
+
+  /*
+   * Hold-to-inspect pauses playback and preserves the current live
+   * trace until the mouse, touch, or stylus gesture is released.
+   */
+  const activePointerIdRef =
+    useRef<number | null>(null);
+
+  const wasPlayingBeforeInspectRef =
+    useRef(false);
+
+  const isInspectingRef =
+    useRef(false);
+
+  const [
+    isInspecting,
+    setIsInspecting,
+  ] = useState(false);
+
+  function beginInspection(
+    event: ReactPointerEvent<HTMLCanvasElement>,
+  ) {
+    if (activePointerIdRef.current !== null) {
+      return;
+    }
+
+    const audio = audioRef.current;
+
+    activePointerIdRef.current = event.pointerId;
+    wasPlayingBeforeInspectRef.current =
+      Boolean(audio && !audio.paused);
+
+    /*
+     * Update the ref synchronously so an already-scheduled animation
+     * frame cannot erase or replace the visible trace.
+     */
+    isInspectingRef.current = true;
+    setIsInspecting(true);
+
+    event.currentTarget.setPointerCapture(
+      event.pointerId,
+    );
+
+    audio?.pause();
+    event.preventDefault();
+  }
+
+  function endInspection(
+    event: ReactPointerEvent<HTMLCanvasElement>,
+  ) {
+    if (
+      activePointerIdRef.current !== event.pointerId
+    ) {
+      return;
+    }
+
+    const shouldResume =
+      wasPlayingBeforeInspectRef.current;
+
+    activePointerIdRef.current = null;
+    wasPlayingBeforeInspectRef.current = false;
+    isInspectingRef.current = false;
+    setIsInspecting(false);
+
+    /*
+     * Resume only when playback was active before inspection. A track
+     * that was already paused remains paused after the gesture.
+     */
+    if (shouldResume) {
+      void audioRef.current?.play();
+    }
+  }
+
+  function cancelInspection(
+    event: ReactPointerEvent<HTMLCanvasElement>,
+  ) {
+    endInspection(event);
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -177,6 +261,15 @@ export default function OscilloscopeCanvas({
       const centerY = height / 2;
 
       /*
+       * Preserve the exact canvas pixels visible at pointer-down.
+       * No clearing, idle line, or replacement frame occurs while
+       * the user holds or drags across the oscilloscope.
+       */
+      if (isInspectingRef.current) {
+        return;
+      }
+
+      /*
        * A translucent clear produces a restrained phosphor trail
        * without permanently accumulating old frames.
        */
@@ -243,19 +336,38 @@ export default function OscilloscopeCanvas({
         highEnergy,
       );
 
+      /*
+       * Draw a centered subsection of the analyser buffer. Smaller
+       * windows create the increasingly magnified oscilloscope views.
+       */
+      const visibleSampleCount = Math.max(
+        2,
+        Math.min(
+          sampleWindow,
+          timeDomainData.length,
+        ),
+      );
+
+      const firstVisibleSample = Math.floor(
+        (timeDomainData.length - visibleSampleCount) / 2,
+      );
+
       resolvedContext.beginPath();
 
       for (
-        let index = 0;
-        index < timeDomainData.length;
-        index += 1
+        let visibleIndex = 0;
+        visibleIndex < visibleSampleCount;
+        visibleIndex += 1
       ) {
+        const sampleIndex =
+          firstVisibleSample + visibleIndex;
+
         const x =
-          (index / (timeDomainData.length - 1)) *
+          (visibleIndex / (visibleSampleCount - 1)) *
           width;
 
         const normalized =
-          (timeDomainData[index] - 128) / 128;
+          (timeDomainData[sampleIndex] - 128) / 128;
 
         const y =
           centerY +
@@ -263,7 +375,7 @@ export default function OscilloscopeCanvas({
             height *
             0.42;
 
-        if (index === 0) {
+        if (visibleIndex === 0) {
           resolvedContext.moveTo(x, y);
         } else {
           resolvedContext.lineTo(x, y);
@@ -304,14 +416,32 @@ export default function OscilloscopeCanvas({
     analyser,
     audioRef,
     colorMode,
+    isInspecting,
     isPlaying,
+    sampleWindow,
   ]);
 
   return (
     <canvas
       ref={canvasRef}
       className="oscilloscope-canvas"
-      aria-label="Live audio oscilloscope"
+      data-inspecting={
+        isInspecting ? "true" : "false"
+      }
+      aria-label={
+        isInspecting
+          ? "Frozen oscilloscope frame"
+          : "Live audio oscilloscope; press and hold to inspect"
+      }
+      title={
+        isInspecting
+          ? "Release to resume"
+          : "Press and hold to freeze and inspect"
+      }
+      onPointerDown={beginInspection}
+      onPointerUp={endInspection}
+      onPointerCancel={cancelInspection}
+      onLostPointerCapture={cancelInspection}
     />
   );
 }

@@ -5481,3 +5481,34 @@ canvas {
     height: var(--waveform-canvas-height, 145px);
   }
 }
+
+/* ---------------------------------------------------------
+   Waveform-to-oscilloscope visual handoff
+   --------------------------------------------------------- */
+
+/*
+ * Both canvases retain the same physical panel and briefly fade into
+ * place when crossing between generated and live visualization modes.
+ */
+.waveform-panel > canvas {
+  animation:
+    waveform-view-enter 180ms ease-out both;
+}
+
+@keyframes waveform-view-enter {
+  from {
+    opacity: 0.42;
+    filter: brightness(0.82) saturate(0.84);
+  }
+
+  to {
+    opacity: 1;
+    filter: brightness(1) saturate(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waveform-panel > canvas {
+    animation: none;
+  }
+}

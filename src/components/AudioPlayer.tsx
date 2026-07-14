@@ -280,6 +280,25 @@ export default function AudioPlayer() {
   const lastWaveformZoomRef = useRef(100);
 
   /*
+   * Smaller sample windows magnify progressively shorter slices of
+   * the live signal while leaving audio speed and pitch unchanged.
+   */
+  const oscilloscopeSampleWindows = [
+    2048,
+    1024,
+    512,
+    256,
+    128,
+  ] as const;
+
+  const [
+    oscilloscopeSampleWindow,
+    setOscilloscopeSampleWindow,
+  ] = useState<number>(
+    oscilloscopeSampleWindows[0],
+  );
+
+  /*
    * Flatten playable tracks for lookup while retaining their
    * parent-release information.
    */
@@ -1055,6 +1074,25 @@ export default function AudioPlayer() {
 
   function decreaseWaveformZoom() {
     if (waveformViewMode === "oscilloscope") {
+      const currentIndex =
+        oscilloscopeSampleWindows.indexOf(
+          oscilloscopeSampleWindow as
+            (typeof oscilloscopeSampleWindows)[number],
+        );
+
+      /*
+       * Widen the oscilloscope first. One more minus press from the
+       * widest stage returns to the saved scrolling waveform zoom.
+       */
+      if (currentIndex > 0) {
+        setOscilloscopeSampleWindow(
+          oscilloscopeSampleWindows[
+            currentIndex - 1
+          ],
+        );
+        return;
+      }
+
       setWaveformViewMode("waveform");
       setPixelsPerSecond(
         lastWaveformZoomRef.current,
@@ -1076,6 +1114,26 @@ export default function AudioPlayer() {
 
   function increaseWaveformZoom() {
     if (waveformViewMode === "oscilloscope") {
+      const currentIndex =
+        oscilloscopeSampleWindows.indexOf(
+          oscilloscopeSampleWindow as
+            (typeof oscilloscopeSampleWindows)[number],
+        );
+
+      const maximumIndex =
+        oscilloscopeSampleWindows.length - 1;
+
+      if (
+        currentIndex >= 0 &&
+        currentIndex < maximumIndex
+      ) {
+        setOscilloscopeSampleWindow(
+          oscilloscopeSampleWindows[
+            currentIndex + 1
+          ],
+        );
+      }
+
       return;
     }
 
@@ -1085,10 +1143,17 @@ export default function AudioPlayer() {
     const maximumIndex =
       waveformZoomSteps.length - 1;
 
+    /*
+     * Continue beyond maximum waveform zoom into the widest
+     * oscilloscope stage.
+     */
     if (currentIndex >= maximumIndex) {
       lastWaveformZoomRef.current =
         pixelsPerSecond;
 
+      setOscilloscopeSampleWindow(
+        oscilloscopeSampleWindows[0],
+      );
       setWaveformViewMode("oscilloscope");
       return;
     }
@@ -1173,6 +1238,10 @@ export default function AudioPlayer() {
                       if (nextMode === "oscilloscope") {
                         lastWaveformZoomRef.current =
                           pixelsPerSecond;
+
+                        setOscilloscopeSampleWindow(
+                          oscilloscopeSampleWindows[0],
+                        );
                       } else {
                         setPixelsPerSecond(
                           lastWaveformZoomRef.current,
@@ -1758,6 +1827,9 @@ export default function AudioPlayer() {
                 audioRef={audioRef}
                 isPlaying={isPlaying}
                 colorMode={colorMode}
+                sampleWindow={
+                  oscilloscopeSampleWindow
+                }
               />
             ) : (
               <WaveformCanvas
@@ -1789,11 +1861,20 @@ export default function AudioPlayer() {
                 "
                 onClick={increaseWaveformZoom}
                 disabled={
-                  waveformViewMode === "oscilloscope"
+                  waveformViewMode === "oscilloscope" &&
+                  oscilloscopeSampleWindow ===
+                    oscilloscopeSampleWindows[
+                      oscilloscopeSampleWindows.length - 1
+                    ]
                 }
                 aria-label={
                   waveformViewMode === "oscilloscope"
-                    ? "Oscilloscope active"
+                    ? oscilloscopeSampleWindow ===
+                        oscilloscopeSampleWindows[
+                          oscilloscopeSampleWindows.length - 1
+                        ]
+                      ? "Maximum oscilloscope magnification"
+                      : "Magnify oscilloscope"
                     : pixelsPerSecond >=
                         waveformZoomSteps[
                           waveformZoomSteps.length - 1
@@ -1803,7 +1884,12 @@ export default function AudioPlayer() {
                 }
                 title={
                   waveformViewMode === "oscilloscope"
-                    ? "Oscilloscope active"
+                    ? oscilloscopeSampleWindow ===
+                        oscilloscopeSampleWindows[
+                          oscilloscopeSampleWindows.length - 1
+                        ]
+                      ? "Maximum oscilloscope magnification"
+                      : "Magnify oscilloscope"
                     : pixelsPerSecond >=
                         waveformZoomSteps[
                           waveformZoomSteps.length - 1
@@ -1828,12 +1914,18 @@ export default function AudioPlayer() {
                 }
                 aria-label={
                   waveformViewMode === "oscilloscope"
-                    ? "Return to waveform"
+                    ? oscilloscopeSampleWindow ===
+                        oscilloscopeSampleWindows[0]
+                      ? "Return to waveform"
+                      : "Widen oscilloscope"
                     : "Zoom waveform out"
                 }
                 title={
                   waveformViewMode === "oscilloscope"
-                    ? "Return to waveform"
+                    ? oscilloscopeSampleWindow ===
+                        oscilloscopeSampleWindows[0]
+                      ? "Return to waveform"
+                      : "Widen oscilloscope"
                     : "Zoom waveform out"
                 }
               >

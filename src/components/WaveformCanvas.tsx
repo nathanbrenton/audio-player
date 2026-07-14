@@ -282,7 +282,24 @@ export default function WaveformCanvas({
     pointerId: number;
     startClientX: number;
     startTime: number;
+    heldTime: number;
+    wasPlaying: boolean;
   } | null>(null);
+
+  /*
+   * Scrub previews are brief audible snippets triggered only by
+   * pointer movement. Playback remains paused while the pointer is
+   * held still.
+   */
+  const scrubPreviewTimerRef =
+    useRef<number | null>(null);
+
+  /*
+   * Every preview receives a generation number. Ending the gesture
+   * invalidates unresolved play promises and pending pause timers.
+   */
+  const scrubPreviewGenerationRef =
+    useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -395,7 +412,10 @@ export default function WaveformCanvas({
         0,
         0,
       );
-      const currentTime = audio?.currentTime ?? 0;
+      const currentTime =
+        dragRef.current?.heldTime ??
+        audio?.currentTime ??
+        0;
 
       /*
        * Lock waveform movement to intrinsic canvas pixels.
@@ -568,6 +588,91 @@ export default function WaveformCanvas({
     pixelsPerSecond,
   ]);
 
+  function stopScrubPreview({
+    invalidate = true,
+  }: {
+    invalidate?: boolean;
+  } = {}) {
+    if (invalidate) {
+      scrubPreviewGenerationRef.current += 1;
+    }
+
+    if (scrubPreviewTimerRef.current !== null) {
+      window.clearTimeout(
+        scrubPreviewTimerRef.current,
+      );
+
+      scrubPreviewTimerRef.current = null;
+    }
+
+    audioRef.current?.pause();
+  }
+
+  function previewScrubPosition(
+    previewTime: number,
+  ) {
+    const audio = audioRef.current;
+    const drag = dragRef.current;
+
+    if (!audio || !drag) {
+      return;
+    }
+
+    /*
+     * Replace the previous preview and assign this movement a unique
+     * generation so older asynchronous work becomes harmless.
+     */
+    stopScrubPreview();
+
+    const previewGeneration =
+      scrubPreviewGenerationRef.current;
+
+    audio.currentTime = previewTime;
+
+    void audio.play()
+      .then(() => {
+        if (
+          scrubPreviewGenerationRef.current !==
+            previewGeneration ||
+          !dragRef.current
+        ) {
+          return;
+        }
+
+        scrubPreviewTimerRef.current =
+          window.setTimeout(() => {
+            if (
+              scrubPreviewGenerationRef.current !==
+                previewGeneration ||
+              !dragRef.current
+            ) {
+              return;
+            }
+
+            audio.pause();
+
+            /*
+             * Return the media clock to the exact held position after
+             * the tiny audible preview. The canvas remains visually
+             * fixed there for the complete pointer hold.
+             */
+            audio.currentTime =
+              dragRef.current.heldTime;
+
+            scrubPreviewTimerRef.current = null;
+            renderFrameRef.current?.();
+          }, 45);
+      })
+      .catch(() => {
+        if (
+          scrubPreviewGenerationRef.current ===
+          previewGeneration
+        ) {
+          scrubPreviewTimerRef.current = null;
+        }
+      });
+  }
+
   function handlePointerDown(
     event: ReactPointerEvent<HTMLCanvasElement>,
   ) {
@@ -585,7 +690,15 @@ export default function WaveformCanvas({
       pointerId: event.pointerId,
       startClientX: event.clientX,
       startTime: audio.currentTime,
+      heldTime: audio.currentTime,
+      wasPlaying: !audio.paused,
     };
+
+    /*
+     * The complete gesture owns playback until pointer-up. This keeps
+     * the playhead stationary whenever the pointer stops moving.
+     */
+    stopScrubPreview();
 
     canvas.style.cursor = "grabbing";
   }
@@ -608,12 +721,13 @@ export default function WaveformCanvas({
 
     event.preventDefault();
 
-    const bounds = canvas.getBoundingClientRect();
-
-    // Convert displayed CSS pixels into intrinsic canvas pixels.
-    const canvasScaleX = canvas.width / bounds.width;
+    /*
+     * Pointer coordinates and pixelsPerSecond are both expressed in
+     * CSS pixels. Applying canvas DPR here doubled scrub distance on
+     * high-density displays and caused reversal jumps.
+     */
     const dragDistance =
-      (event.clientX - drag.startClientX) * canvasScaleX;
+      event.clientX - drag.startClientX;
 
     /*
      * Dragging the waveform left advances playback.
@@ -627,13 +741,19 @@ export default function WaveformCanvas({
       ? audio.duration
       : requestedTime;
 
-    audio.currentTime = Math.max(
+    const clampedTime = Math.max(
       0,
       Math.min(requestedTime, maximumTime),
     );
 
-    // Redraw immediately when scrubbing while paused.
+    drag.heldTime = clampedTime;
+    audio.currentTime = clampedTime;
+
+    // Redraw immediately at the exact held scrub position.
     renderFrameRef.current?.();
+
+    // Audition this position without allowing continuous playback.
+    previewScrubPosition(clampedTime);
   }
 
   function finishPointerDrag(
@@ -650,13 +770,50 @@ export default function WaveformCanvas({
       return;
     }
 
+    const shouldResume = drag.wasPlaying;
+    const releaseTime = drag.heldTime;
+
+    /*
+     * Invalidate all pending preview work before releasing pointer
+     * capture. Clearing dragRef first also prevents a subsequent
+     * lostpointercapture event from completing the gesture twice.
+     */
+    stopScrubPreview();
+    dragRef.current = null;
+
+    const audio = audioRef.current;
+
+    if (audio) {
+      audio.currentTime = releaseTime;
+    }
+
     if (canvas.hasPointerCapture(event.pointerId)) {
       canvas.releasePointerCapture(event.pointerId);
     }
 
-    dragRef.current = null;
     canvas.style.cursor = "grab";
+    renderFrameRef.current?.();
+
+    /*
+     * Resume exactly once and only when playback was active before
+     * pointer-down. Stale preview timers can no longer pause it.
+     */
+    if (shouldResume && audio) {
+      void audio.play();
+    }
   }
+
+  useEffect(() => {
+    return () => {
+      scrubPreviewGenerationRef.current += 1;
+
+      if (scrubPreviewTimerRef.current !== null) {
+        window.clearTimeout(
+          scrubPreviewTimerRef.current,
+        );
+      }
+    };
+  }, []);
 
   return (
     <canvas
@@ -667,6 +824,17 @@ export default function WaveformCanvas({
       onPointerMove={handlePointerMove}
       onPointerUp={finishPointerDrag}
       onPointerCancel={finishPointerDrag}
+      onLostPointerCapture={finishPointerDrag}
+      onContextMenu={(event) => {
+        /*
+         * Prevent mobile long-press and desktop secondary-click menus
+         * only within the interactive waveform surface.
+         */
+        event.preventDefault();
+      }}
+      onDragStart={(event) => {
+        event.preventDefault();
+      }}
       style={{
         display: "block",
         width: "100%",
@@ -680,6 +848,9 @@ export default function WaveformCanvas({
 
         // Prevent accidental text selection during mouse drags.
         userSelect: "none",
+
+        // Disable Safari/iOS long-press callouts on this canvas only.
+        WebkitTouchCallout: "none",
       }}
     />
   );
