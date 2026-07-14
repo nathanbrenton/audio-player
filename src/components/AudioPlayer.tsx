@@ -8,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
+import LibraryBrowser from "./LibraryBrowser";
 import MetadataViewer, {
   type MetadataVerbosity,
 } from "./MetadataViewer";
@@ -165,9 +166,13 @@ function ArtworkTransportIcon({
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Restore focus to this trigger after closing the metadata modal.
+  // Restore focus to these triggers after closing overlays.
   const metadataButtonRef =
     useRef<HTMLButtonElement | null>(null);
+  const libraryButtonRef =
+    useRef<HTMLButtonElement | null>(null);
+  const librarySheetRef =
+    useRef<HTMLDivElement | null>(null);
 
   // Close the hamburger menu when interaction moves elsewhere.
   const appMenuRef =
@@ -175,6 +180,8 @@ export default function AudioPlayer() {
 
   // Open the metadata viewer in its friendly listener-facing mode.
   const [isMetadataViewerOpen, setIsMetadataViewerOpen] =
+    useState(false);
+  const [isLibraryOpen, setIsLibraryOpen] =
     useState(false);
   const [
     metadataVerbosity,
@@ -349,6 +356,42 @@ export default function AudioPlayer() {
       );
     };
   }, []);
+
+  /*
+   * Focus the mobile library sheet when opened, close it with Escape,
+   * and restore focus to its launcher afterward.
+   */
+  useEffect(() => {
+    if (!isLibraryOpen) {
+      return;
+    }
+
+    librarySheetRef.current?.focus();
+
+    function handleLibraryKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      setIsLibraryOpen(false);
+
+      window.requestAnimationFrame(() => {
+        libraryButtonRef.current?.focus();
+      });
+    }
+
+    document.addEventListener(
+      "keydown",
+      handleLibraryKeyDown,
+    );
+
+    return () => {
+      document.removeEventListener(
+        "keydown",
+        handleLibraryKeyDown,
+      );
+    };
+  }, [isLibraryOpen]);
 
   // Load the generated release and track catalog.
   useEffect(() => {
@@ -895,7 +938,7 @@ export default function AudioPlayer() {
   );
 
   // Keep dropdown and button zoom controls on the same fixed steps.
-  const waveformZoomSteps = [3, 6, 12, 25, 50, 100, 200, 400, 800, 1600];
+  const waveformZoomSteps = [2, 3, 6, 12, 25, 50, 100, 200, 400, 800, 1600, 2400, 3200, 4000, 4800, 5600, 6400];
   const waveformZoomIndex =
     waveformZoomSteps.indexOf(pixelsPerSecond);
 
@@ -944,63 +987,8 @@ export default function AudioPlayer() {
             </summary>
 
             <div className="app-menu__panel">
-              <details className="settings-menu">
-                <summary>Settings</summary>
-
-                <div className="settings-menu__content">
-                  <label className="settings-control">
-                    <span>Waveform color</span>
-
-                    <select
-                      value={colorMode}
-                      onChange={(event) => {
-                        setColorMode(
-                          event.currentTarget
-                            .value as WaveformColorMode,
-                        );
-                      }}
-                    >
-                      <option value="3band">
-                        3Band
-                      </option>
-                      <option value="rgb">
-                        RGB
-                      </option>
-                      <option value="blue">
-                        Blue
-                      </option>
-                      <option value="monochrome">
-                        Monochrome
-                      </option>
-                    </select>
-                  </label>
-
-                  <label className="settings-control">
-                    <span>Waveform zoom</span>
-
-                    <select
-                      value={pixelsPerSecond}
-                      onChange={(event) => {
-                        setPixelsPerSecond(
-                          Number(
-                            event.currentTarget.value,
-                          ),
-                        );
-                      }}
-                    >
-                      <option value={3}>3 px/s</option>
-                      <option value={6}>6 px/s</option>
-                      <option value={12}>12 px/s</option>
-                      <option value={25}>25 px/s</option>
-                      <option value={50}>50 px/s</option>
-                      <option value={100}>100 px/s</option>
-                      <option value={200}>200 px/s</option>
-                      <option value={400}>400 px/s</option>
-                      <option value={800}>800 px/s</option>
-                      <option value={1600}>1600 px/s</option>
-                    </select>
-                  </label>
-
+              <div className="app-menu__content">
+                <div className="app-menu__top-items">
                   <label
                     className="
                       settings-toggle
@@ -1025,32 +1013,96 @@ export default function AudioPlayer() {
                     />
                   </label>
 
-                  <label
-                    className="
-                      settings-toggle
-                      settings-toggle--developer
-                    "
+                  <button
+                    type="button"
+                    className="app-menu__about-button"
+                    disabled
+                    aria-disabled="true"
+                    title="About information will be added later."
                   >
                     <span>
-                      <strong>Developer Mode</strong>
-                      <small>
-                        Show source indicators and raw metadata.
-                      </small>
+                      <strong>About</strong>
+                      <small>Coming soon.</small>
                     </span>
-
-                    <input
-                      type="checkbox"
-                      checked={isDeveloperMode}
-                      onChange={(event) => {
-                        setIsDeveloperMode(
-                          event.currentTarget.checked,
-                        );
-                      }}
-                    />
-                  </label>
-
+                  </button>
                 </div>
-              </details>
+
+                <label className="settings-control">
+                  <span>Waveform color</span>
+
+                  <select
+                    value={colorMode}
+                    onChange={(event) => {
+                      setColorMode(
+                        event.currentTarget
+                          .value as WaveformColorMode,
+                      );
+                    }}
+                  >
+                    <option value="3band">3Band</option>
+                    <option value="rgb">RGB</option>
+                    <option value="blue">Blue</option>
+                    <option value="monochrome">
+                      Monochrome
+                    </option>
+                  </select>
+                </label>
+
+                <label className="settings-control">
+                  <span>Waveform zoom</span>
+
+                  <select
+                    value={pixelsPerSecond}
+                    onChange={(event) => {
+                      setPixelsPerSecond(
+                        Number(event.currentTarget.value),
+                      );
+                    }}
+                  >
+                    <option value={2}>2 px/s</option>
+                    <option value={3}>3 px/s</option>
+                    <option value={6}>6 px/s</option>
+                    <option value={12}>12 px/s</option>
+                    <option value={25}>25 px/s</option>
+                    <option value={50}>50 px/s</option>
+                    <option value={100}>100 px/s</option>
+                    <option value={200}>200 px/s</option>
+                    <option value={400}>400 px/s</option>
+                    <option value={800}>800 px/s</option>
+                    <option value={1600}>1600 px/s</option>
+                    <option value={2400}>2400 px/s</option>
+                    <option value={3200}>3200 px/s</option>
+                    <option value={4000}>4000 px/s</option>
+                    <option value={4800}>4800 px/s</option>
+                    <option value={5600}>5600 px/s</option>
+                    <option value={6400}>6400 px/s</option>
+                  </select>
+                </label>
+
+                <label
+                  className="
+                    settings-toggle
+                    settings-toggle--developer
+                  "
+                >
+                  <span>
+                    <strong>Developer Mode</strong>
+                    <small>
+                      Show source indicators and raw metadata.
+                    </small>
+                  </span>
+
+                  <input
+                    type="checkbox"
+                    checked={isDeveloperMode}
+                    onChange={(event) => {
+                      setIsDeveloperMode(
+                        event.currentTarget.checked,
+                      );
+                    }}
+                  />
+                </label>
+              </div>
             </div>
           </details>
         </div>
@@ -1338,54 +1390,88 @@ export default function AudioPlayer() {
 
       <div className="player-controls">
         <div className="player-controls__track-selector">
-          <label className="player-controls__field">
+          <button
+            ref={libraryButtonRef}
+            type="button"
+            className="player-controls__library-button"
+            disabled={!catalog || playableTracks.length === 0}
+            aria-haspopup="dialog"
+            aria-expanded={isLibraryOpen}
+            onClick={() => {
+              setIsLibraryOpen(true);
+            }}
+          >
+            <span className="player-controls__library-label">
+              Browse Library
+            </span>
+
+            <span className="player-controls__library-summary">
+              {selectedTrack
+                ? `${selectedTrack.track.title} · ${
+                    selectedTrack.release.title
+                  }`
+                : "Choose a track"}
+            </span>
+
+            <span
+              className="player-controls__library-chevron"
+              aria-hidden="true"
+            >
+              ▾
+            </span>
+          </button>
+
+          <label className="
+            player-controls__field
+            player-controls__field--desktop-track
+          ">
             <span>Track</span>
 
             <select
-            value={selectedTrackKey}
-            disabled={!catalog || playableTracks.length === 0}
-            onChange={(event) => {
-              setSelectedTrackKey(
-                event.currentTarget.value,
-              );
-            }}
-          >
-            {catalog?.releases.map((release) => {
-              const playableReleaseTracks =
-                release.tracks.filter(
-                  (track) => track.playable,
+              value={selectedTrackKey}
+              disabled={!catalog || playableTracks.length === 0}
+              onChange={(event) => {
+                setSelectedTrackKey(
+                  event.currentTarget.value,
                 );
+              }}
+            >
+              {catalog?.releases.map((release) => {
+                const playableReleaseTracks =
+                  release.tracks.filter(
+                    (track) => track.playable,
+                  );
 
-              if (playableReleaseTracks.length === 0) {
-                return null;
-              }
+                if (playableReleaseTracks.length === 0) {
+                  return null;
+                }
 
-              return (
-                <optgroup
-                  key={release.id}
-                  label={release.title}
-                >
-                  {playableReleaseTracks.map((track) => {
-                    const trackNumber =
-                      track.trackNumber !== null
-                        ? `${track.trackNumber
-                            .toString()
-                            .padStart(2, "0")}. `
-                        : "";
+                return (
+                  <optgroup
+                    key={release.id}
+                    label={release.title}
+                  >
+                    {playableReleaseTracks.map((track) => {
+                      const trackNumber =
+                        track.trackNumber !== null
+                          ? `${track.trackNumber
+                              .toString()
+                              .padStart(2, "0")}. `
+                          : "";
 
-                    return (
-                      <option
-                        key={getTrackKey(release, track)}
-                        value={getTrackKey(release, track)}
-                      >
-                        {trackNumber}
-                        {track.title}
-                      </option>
-                    );
-                  })}
-                </optgroup>
-              );
-            })}
+                      return (
+                        <option
+                          key={getTrackKey(release, track)}
+                          value={getTrackKey(release, track)}
+                        >
+                          {trackNumber}
+                          {track.title}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                );
+              })}
             </select>
           </label>
 
@@ -1404,6 +1490,76 @@ export default function AudioPlayer() {
           </button>
         </div>
       </div>
+
+      {isLibraryOpen ? (
+        <div
+          className="library-sheet__backdrop"
+          role="presentation"
+          onPointerDown={(event) => {
+            if (event.target !== event.currentTarget) {
+              return;
+            }
+
+            setIsLibraryOpen(false);
+
+            window.requestAnimationFrame(() => {
+              libraryButtonRef.current?.focus();
+            });
+          }}
+        >
+          <div
+            ref={librarySheetRef}
+            className="library-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="library-sheet-title"
+            tabIndex={-1}
+          >
+            <header className="library-sheet__header">
+              <div>
+                <span className="library-sheet__eyebrow">
+                  Music Library
+                </span>
+
+                <h2 id="library-sheet-title">
+                  Browse releases and tracks
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                className="library-sheet__close-button"
+                aria-label="Close music library"
+                onClick={() => {
+                  setIsLibraryOpen(false);
+
+                  window.requestAnimationFrame(() => {
+                    libraryButtonRef.current?.focus();
+                  });
+                }}
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="library-sheet__content">
+              <LibraryBrowser
+                variant="mobile"
+                catalog={catalog}
+                selectedTrackKey={selectedTrackKey}
+                onSelectTrack={(trackKey) => {
+                  setSelectedTrackKey(trackKey);
+                  setIsLibraryOpen(false);
+
+                  window.requestAnimationFrame(() => {
+                    libraryButtonRef.current?.focus();
+                  });
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <MetadataViewer
         isOpen={isMetadataViewerOpen}
@@ -1488,7 +1644,16 @@ export default function AudioPlayer() {
       ) : !loadError ? (
         <p>Loading track data…</p>
       ) : null}
+
         </div>
+
+        <LibraryBrowser
+          catalog={catalog}
+          selectedTrackKey={selectedTrackKey}
+          onSelectTrack={(trackKey) => {
+            setSelectedTrackKey(trackKey);
+          }}
+        />
       </div>
     </section>
   );

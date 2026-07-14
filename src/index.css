@@ -4449,3 +4449,1002 @@ canvas {
   }
 }
 
+
+/* ---------------------------------------------------------
+   Desktop library browser
+   --------------------------------------------------------- */
+
+/*
+ * Browsing remains secondary to the artwork and waveform. The library
+ * is hidden on mobile and sits quietly below the primary player.
+ */
+.library-browser {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .library-browser {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid #292929;
+  }
+
+  .library-browser__heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  .library-browser__eyebrow {
+    display: block;
+    margin-bottom: 3px;
+    color: #777777;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .library-browser__heading h2 {
+    margin: 0;
+    color: #d7d7d7;
+    font-size: 0.95rem;
+    font-weight: 650;
+  }
+
+  .library-browser__count {
+    color: #777777;
+    font-size: 0.72rem;
+  }
+
+  /*
+   * Release artwork stays intentionally small so it supports rather
+   * than competes with the main swipeable artwork stack.
+   */
+  .library-browser__release-strip {
+    display: flex;
+    gap: 10px;
+    min-width: 0;
+    padding-bottom: 4px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .library-browser__release-button {
+    display: grid;
+    flex: 0 0 72px;
+    min-width: 72px;
+    min-height: 0;
+    gap: 6px;
+    padding: 5px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: #8f8f8f;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .library-browser__release-button:hover {
+    color: #d7d7d7;
+    background: #181818;
+  }
+
+  .library-browser__release-button[
+    aria-pressed="true"
+  ] {
+    border-color: #4b6777;
+    color: #d9f1ff;
+    background: rgba(54, 92, 112, 0.18);
+  }
+
+  .library-browser__release-artwork,
+  .library-browser__all-artwork {
+    display: grid;
+    width: 60px;
+    aspect-ratio: 1;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid #303030;
+    border-radius: 7px;
+    background: #171717;
+  }
+
+  .library-browser__release-artwork img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .library-browser__all-artwork {
+    color: #777777;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .library-browser__release-label {
+    overflow: hidden;
+    font-size: 0.67rem;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /*
+   * Track rows use subtle separators rather than card borders so the
+   * list remains visually lighter than the waveform panel.
+   */
+  .library-browser__track-list {
+    max-height: 238px;
+    overflow-y: auto;
+    border-top: 1px solid #2b2b2b;
+    border-bottom: 1px solid #2b2b2b;
+    scrollbar-width: thin;
+  }
+
+  .library-browser__track-header,
+  .library-browser__track-row {
+    display: grid;
+    grid-template-columns:
+      34px
+      minmax(160px, 1.6fr)
+      minmax(110px, 0.9fr)
+      minmax(110px, 0.9fr);
+    align-items: center;
+    gap: 12px;
+  }
+
+  .library-browser__track-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    min-height: 30px;
+    padding: 5px 10px;
+    border-bottom: 1px solid #303030;
+    color: #707070;
+    background: #111111;
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .library-browser__track-row {
+    width: 100%;
+    min-height: 44px;
+    padding: 7px 10px;
+    border: 0;
+    border-bottom: 1px solid #242424;
+    border-radius: 0;
+    color: #8f8f8f;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .library-browser__track-row:last-child {
+    border-bottom: 0;
+  }
+
+  .library-browser__track-row:hover {
+    color: #d5d5d5;
+    background: #171717;
+  }
+
+  .library-browser__track-row[
+    aria-current="true"
+  ] {
+    color: #dff4ff;
+    background:
+      linear-gradient(
+        90deg,
+        rgba(62, 112, 138, 0.2),
+        rgba(34, 55, 66, 0.08)
+      );
+  }
+
+  .library-browser__track-row strong,
+  .library-browser__track-row span {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 0.74rem;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .library-browser__track-row strong {
+    color: #d3d3d3;
+    font-weight: 600;
+  }
+
+  .library-browser__track-row[
+    aria-current="true"
+  ] strong {
+    color: #eefaff;
+  }
+
+  .library-browser__track-number {
+    color: #686868;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+
+/* ---------------------------------------------------------
+   Full-width desktop library distribution
+   --------------------------------------------------------- */
+
+@media (min-width: 900px) {
+  /*
+   * The primary artwork and waveform remain paired in the first row.
+   * The quieter browsing interface spans both columns underneath.
+   */
+  .library-browser {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  /*
+   * Use the available desktop width for more readable release filters
+   * and track metadata without enlarging the primary artwork tiles.
+   */
+  .library-browser__release-strip {
+    padding-inline: 2px;
+  }
+
+  .library-browser__track-header,
+  .library-browser__track-row {
+    grid-template-columns:
+      42px
+      minmax(220px, 2fr)
+      minmax(150px, 1fr)
+      minmax(170px, 1.2fr);
+    gap: 18px;
+    padding-inline: 14px;
+  }
+
+  .library-browser__track-list {
+    max-height: 284px;
+  }
+}
+
+/* ---------------------------------------------------------
+   Desktop vertical-fit refinement
+   --------------------------------------------------------- */
+
+@media (min-width: 900px) {
+  /*
+   * Recover vertical space without changing the primary artwork or
+   * waveform dimensions and without locking the page to the viewport.
+   */
+  #root {
+    padding-top: 18px;
+    padding-bottom: 18px;
+  }
+
+  main > h1 {
+    margin: 0 0 8px;
+    font-size: 1.35rem;
+    line-height: 1.15;
+  }
+
+  .audio-player__header {
+    margin-bottom: 8px;
+  }
+
+  .player-layout {
+    row-gap: 8px;
+  }
+
+  .library-browser {
+    gap: 9px;
+    margin-top: 0;
+    padding-top: 10px;
+  }
+
+  /*
+   * The track list remains independently scrollable while giving the
+   * overall desktop page enough room to fit within a 993px viewport.
+   */
+  .library-browser__track-list {
+    max-height: 220px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+}
+
+/* ---------------------------------------------------------
+   Mobile library menu
+   --------------------------------------------------------- */
+
+/*
+ * The desktop browser remains hidden on compact layouts, while the
+ * shared menu variant becomes available inside the hamburger panel.
+ */
+.library-browser--menu {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.library-browser--menu .library-browser__heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.library-browser--menu .library-browser__eyebrow {
+  display: block;
+  margin-bottom: 3px;
+  color: #777777;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.library-browser--menu .library-browser__heading h2 {
+  margin: 0;
+  color: #d8d8d8;
+  font-size: 0.88rem;
+}
+
+.library-browser--menu .library-browser__count {
+  color: #777777;
+  font-size: 0.68rem;
+}
+
+/* Compact horizontal release navigator. */
+.library-browser--menu .library-browser__release-strip {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  padding-bottom: 3px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.library-browser--menu .library-browser__release-button {
+  display: grid;
+  flex: 0 0 66px;
+  min-width: 66px;
+  min-height: 0;
+  gap: 5px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #8e8e8e;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.library-browser--menu
+  .library-browser__release-button[aria-pressed="true"] {
+  border-color: #4b6777;
+  color: #d9f1ff;
+  background: rgba(54, 92, 112, 0.18);
+}
+
+.library-browser--menu .library-browser__release-artwork,
+.library-browser--menu .library-browser__all-artwork {
+  display: grid;
+  width: 56px;
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #303030;
+  border-radius: 7px;
+  background: #171717;
+}
+
+.library-browser--menu .library-browser__release-artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.library-browser--menu .library-browser__all-artwork {
+  color: #777777;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.library-browser--menu .library-browser__release-label {
+  overflow: hidden;
+  font-size: 0.62rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * Mobile rows intentionally omit the separate Release column. The
+ * release remains visible through filtering and the row subtitle.
+ */
+.library-browser--menu .library-browser__track-list {
+  max-height: min(44dvh, 330px);
+  overflow-y: auto;
+  border-top: 1px solid #2b2b2b;
+  border-bottom: 1px solid #2b2b2b;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.library-browser--menu .library-browser__track-header {
+  display: none;
+}
+
+.library-browser--menu .library-browser__track-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 9px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 9px;
+  border: 0;
+  border-bottom: 1px solid #252525;
+  border-radius: 0;
+  color: #8f8f8f;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.library-browser--menu .library-browser__track-row:last-child {
+  border-bottom: 0;
+}
+
+.library-browser--menu
+  .library-browser__track-row[aria-current="true"] {
+  color: #dff4ff;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(62, 112, 138, 0.22),
+      rgba(34, 55, 66, 0.08)
+    );
+}
+
+.library-browser--menu .library-browser__track-number {
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: #6f6f6f;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.library-browser--menu .library-browser__track-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #d5d5d5;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Artist and release become a compact two-part subtitle. */
+.library-browser--menu .library-browser__track-row > span:not(
+    .library-browser__track-number
+  ) {
+  display: inline;
+  min-width: 0;
+  overflow: hidden;
+  color: #7f7f7f;
+  font-size: 0.65rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-browser--menu
+  .library-browser__track-row
+  > span:last-child {
+  display: none;
+}
+
+.settings-menu--library > .settings-menu__content {
+  padding-top: 2px;
+}
+
+/* Never display the hamburger copy alongside the desktop library. */
+@media (min-width: 900px) {
+  .settings-menu--library {
+    display: none;
+  }
+
+  .library-browser--menu {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------
+   First-class mobile library navigation
+   --------------------------------------------------------- */
+
+/* Desktop keeps its existing selector and full-width library. */
+.player-controls__library-button {
+  display: none;
+}
+
+/* Mobile replaces the native selector with a richer library launcher. */
+@media (max-width: 899px) {
+  .player-controls__field--desktop-track {
+    display: none;
+  }
+
+  .player-controls__track-selector {
+    grid-template-columns: minmax(0, 1fr) 42px;
+  }
+
+  .player-controls__library-button {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 2px 10px;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 7px 11px;
+    border: 1px solid #444444;
+    border-radius: 7px;
+    color: #f2f2f2;
+    background: #202020;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .player-controls__library-button:focus-visible {
+    outline: 2px solid #8fd3ff;
+    outline-offset: 2px;
+  }
+
+  .player-controls__library-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .player-controls__library-label {
+    grid-column: 1;
+    color: #d6d6d6;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .player-controls__library-summary {
+    grid-column: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: #929292;
+    font-size: 0.67rem;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .player-controls__library-chevron {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    color: #8e8e8e;
+    font-size: 0.82rem;
+  }
+}
+
+/* Full-viewport backdrop; the sheet itself scrolls independently. */
+.library-sheet__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  display: grid;
+  padding:
+    max(8px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
+  place-items: end center;
+  background: rgb(0 0 0 / 70%);
+  backdrop-filter: blur(5px);
+}
+
+.library-sheet {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(100%, 720px);
+  max-height: min(88dvh, 760px);
+  overflow: hidden;
+  border: 1px solid #3d3d3d;
+  border-radius: 14px 14px 10px 10px;
+  background: #141414;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 68%);
+}
+
+.library-sheet:focus {
+  outline: none;
+}
+
+.library-sheet__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #303030;
+  background: #191919;
+}
+
+.library-sheet__eyebrow {
+  display: block;
+  margin-bottom: 3px;
+  color: #858585;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.library-sheet__header h2 {
+  margin: 0;
+  color: #ededed;
+  font-size: 1rem;
+}
+
+.library-sheet__close-button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #444444;
+  border-radius: 8px;
+  color: #f2f2f2;
+  background: #222222;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.library-sheet__close-button:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+.library-sheet__content {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Shared browser styling inside the dedicated mobile sheet. */
+.library-browser--mobile {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.library-browser--mobile .library-browser__heading {
+  display: none;
+}
+
+.library-browser--mobile .library-browser__release-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.library-browser--mobile .library-browser__release-button {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: #8f8f8f;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.library-browser--mobile
+  .library-browser__release-button[aria-pressed="true"] {
+  border-color: #4b6777;
+  color: #dff3ff;
+  background: rgba(54, 92, 112, 0.18);
+}
+
+.library-browser--mobile .library-browser__release-artwork,
+.library-browser--mobile .library-browser__all-artwork {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #303030;
+  border-radius: 8px;
+  background: #181818;
+}
+
+.library-browser--mobile .library-browser__release-artwork img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.library-browser--mobile .library-browser__all-artwork {
+  color: #858585;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.library-browser--mobile .library-browser__release-label {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-browser--mobile .library-browser__track-header {
+  display: none;
+}
+
+.library-browser--mobile .library-browser__track-list {
+  overflow: hidden;
+  border-top: 1px solid #2d2d2d;
+  border-bottom: 1px solid #2d2d2d;
+}
+
+.library-browser--mobile .library-browser__track-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 3px 10px;
+  width: 100%;
+  min-height: 50px;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 1px solid #252525;
+  border-radius: 0;
+  color: #8e8e8e;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.library-browser--mobile .library-browser__track-row:last-child {
+  border-bottom: 0;
+}
+
+.library-browser--mobile
+  .library-browser__track-row[aria-current="true"] {
+  color: #dff4ff;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(62, 112, 138, 0.22),
+      rgba(34, 55, 66, 0.08)
+    );
+}
+
+.library-browser--mobile .library-browser__track-number {
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: #6f6f6f;
+  font-size: 0.7rem;
+  text-align: right;
+}
+
+.library-browser--mobile .library-browser__track-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #d8d8d8;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-browser--mobile
+  .library-browser__track-row
+  > span:not(.library-browser__track-number) {
+  min-width: 0;
+  overflow: hidden;
+  color: #818181;
+  font-size: 0.66rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-browser--mobile
+  .library-browser__track-row
+  > span:last-child {
+  display: none;
+}
+
+/* Landscape uses a shorter centered dialog rather than a tall sheet. */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .library-sheet__backdrop {
+    place-items: center;
+  }
+
+  .library-sheet {
+    width: min(88vw, 760px);
+    max-height: calc(100dvh - 16px);
+    border-radius: 12px;
+  }
+
+  .library-sheet__header {
+    padding: 9px 12px;
+  }
+
+  .library-sheet__content {
+    padding: 10px;
+  }
+
+  .library-browser--mobile {
+    grid-template-columns: minmax(210px, 0.8fr) minmax(0, 1.4fr);
+    align-items: start;
+  }
+
+  .library-browser--mobile .library-browser__release-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .library-browser--mobile .library-browser__track-list {
+    max-height: calc(100dvh - 92px);
+    overflow-y: auto;
+  }
+}
+
+/* The mobile sheet is unnecessary alongside the desktop browser. */
+@media (min-width: 900px) {
+  .library-sheet__backdrop {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------
+   Correct mobile library launcher placement
+   --------------------------------------------------------- */
+
+@media (max-width: 899px) {
+  /*
+   * The native Track selector remains available on desktop only.
+   * Use a direct-child selector and !important to defeat earlier
+   * mobile field rules accumulated during responsive refinements.
+   */
+  .player-controls__track-selector
+    > .player-controls__field--desktop-track {
+    display: none !important;
+  }
+
+  /*
+   * Keep Browse Library and track information together in exactly
+   * one row so controls do not change artwork/waveform geometry.
+   */
+  .player-controls__track-selector {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px;
+    grid-template-rows: auto;
+    grid-template-areas: "library info";
+    align-items: stretch;
+  }
+
+  .player-controls__track-selector
+    > .player-controls__library-button {
+    grid-area: library;
+    display: grid;
+    align-self: stretch;
+  }
+
+  .player-controls__track-selector
+    > .player-controls__metadata-button {
+    grid-area: info;
+    align-self: end;
+  }
+}
+
+/* Match the compact information-button width in mobile landscape. */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 899px) {
+  .player-controls__track-selector {
+    grid-template-columns: minmax(0, 1fr) 38px;
+  }
+}
+
+/* ---------------------------------------------------------
+   Flattened hamburger menu
+   --------------------------------------------------------- */
+
+/* Settings are now direct contents of the hamburger panel. */
+.app-menu__content {
+  display: grid;
+  gap: 10px;
+}
+
+/* Keep Audiophile and About prominent at the top of the menu. */
+.app-menu__top-items {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(110px, 0.75fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.app-menu__top-items .settings-toggle {
+  min-width: 0;
+}
+
+/* Placeholder uses the same card language as the mode controls. */
+.app-menu__about-button {
+  display: flex;
+  min-width: 0;
+  min-height: 58px;
+  padding: 12px;
+  align-items: center;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  color: #d7d7d7;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.045),
+      rgba(255, 255, 255, 0.015)
+    );
+  text-align: left;
+}
+
+.app-menu__about-button > span {
+  display: grid;
+  gap: 3px;
+}
+
+.app-menu__about-button strong {
+  color: #d7d7d7;
+  font-size: 0.875rem;
+}
+
+.app-menu__about-button small {
+  color: #858585;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.app-menu__about-button:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+
+/* Stack the top pair only when the menu becomes exceptionally narrow. */
+@media (max-width: 380px) {
+  .app-menu__top-items {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
