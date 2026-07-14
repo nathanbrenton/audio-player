@@ -186,6 +186,8 @@ export default function AudioPlayer() {
    * moving. The real media state is reconciled after release.
    */
   const scrubDisplayPlayingRef = useRef(false);
+  const scrubReleaseTimeoutRef =
+    useRef<number | null>(null);
 
   /*
    * A MediaElementAudioSourceNode can only be created once for an
@@ -1352,10 +1354,18 @@ export default function AudioPlayer() {
   ) {
     const audio = audioRef.current;
 
+    if (scrubReleaseTimeoutRef.current !== null) {
+      window.clearTimeout(
+        scrubReleaseTimeoutRef.current,
+      );
+
+      scrubReleaseTimeoutRef.current = null;
+    }
+
     if (nextIsScrubbing) {
       /*
-       * Freeze the status indicators at their pre-gesture state.
-       * Rapid back-and-forth seeks may emit transient media events.
+       * Freeze all visible playback indicators at their pre-gesture
+       * state while media events fire beneath the scrub interaction.
        */
       scrubDisplayPlayingRef.current =
         Boolean(
@@ -1368,27 +1378,39 @@ export default function AudioPlayer() {
       return;
     }
 
-    setIsScrubbing(false);
-
     /*
-     * Reconcile once the complete pointer gesture has ended. Waiting
-     * one frame lets the final seeked/playing events settle first.
+     * Pointer release can trigger pause, seeked, timeupdate, waiting,
+     * and playing events in quick succession. Retain the visual scrub
+     * lock until those transient states have settled.
      */
-    window.requestAnimationFrame(() => {
-      const settledAudio = audioRef.current;
+    scrubReleaseTimeoutRef.current =
+      window.setTimeout(() => {
+        const settledAudio = audioRef.current;
 
-      if (!settledAudio) {
-        setIsPlaying(false);
-        return;
-      }
+        if (!settledAudio) {
+          setIsPlaying(false);
+          setIsScrubbing(false);
+          scrubReleaseTimeoutRef.current = null;
+          return;
+        }
 
-      setIsPlaying(
-        !settledAudio.paused &&
-        !settledAudio.ended &&
-        settledAudio.readyState >=
-          HTMLMediaElement.HAVE_CURRENT_DATA,
-      );
-    });
+        const settledIsPlaying =
+          !settledAudio.paused &&
+          !settledAudio.ended &&
+          settledAudio.readyState >=
+            HTMLMediaElement.HAVE_CURRENT_DATA;
+
+        /*
+         * Update the underlying playback state before removing the
+         * visual lock so only the final settled state is exposed.
+         */
+        setIsPlaying(settledIsPlaying);
+
+        window.requestAnimationFrame(() => {
+          setIsScrubbing(false);
+          scrubReleaseTimeoutRef.current = null;
+        });
+      }, 80);
   }
 
   async function togglePlayback() {
