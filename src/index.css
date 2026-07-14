@@ -4592,6 +4592,7 @@ canvas {
   .library-browser__track-row {
     display: grid;
     grid-template-columns:
+      32px
       34px
       minmax(160px, 1.6fr)
       minmax(110px, 0.9fr)
@@ -4618,14 +4619,65 @@ canvas {
   .library-browser__track-row {
     width: 100%;
     min-height: 44px;
-    padding: 7px 10px;
+    padding: 0 10px;
     border: 0;
     border-bottom: 1px solid #242424;
     border-radius: 0;
     color: #8f8f8f;
     background: transparent;
     text-align: left;
+  }
+
+  .library-browser__track-select-button {
+    display: grid;
+    grid-column: 2 / -1;
+    grid-template-columns:
+      34px
+      minmax(160px, 1.6fr)
+      minmax(110px, 0.9fr)
+      minmax(110px, 0.9fr);
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    min-height: 43px;
+    padding: 7px 0;
+    border: 0;
+    border-radius: 0;
+    color: inherit;
+    background: transparent;
+    text-align: left;
     cursor: pointer;
+  }
+
+  .library-browser__track-play-button {
+    display: grid;
+    grid-column: 1;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
+    padding: 0;
+    place-items: center;
+    border: 1px solid #3d3d3d;
+    border-radius: 50%;
+    color: #a3a3a3;
+    background: #191919;
+    font-size: 0.66rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .library-browser__track-play-button:hover {
+    border-color: #607987;
+    color: #e1f5ff;
+    background: #20313a;
+  }
+
+  .library-browser__track-play-button:focus-visible,
+  .library-browser__track-select-button:focus-visible {
+    outline: 2px solid #8fd3ff;
+    outline-offset: 2px;
   }
 
   .library-browser__track-row:last-child {
@@ -4638,7 +4690,7 @@ canvas {
   }
 
   .library-browser__track-row[
-    aria-current="true"
+    data-selected="true"
   ] {
     color: #dff4ff;
     background:
@@ -4665,7 +4717,7 @@ canvas {
   }
 
   .library-browser__track-row[
-    aria-current="true"
+    data-selected="true"
   ] strong {
     color: #eefaff;
   }
@@ -4674,6 +4726,28 @@ canvas {
     color: #686868;
     font-variant-numeric: tabular-nums;
     text-align: right;
+  }
+
+  .library-browser__track-row[
+    data-playing="true"
+  ] {
+    color: #eefaff;
+    background:
+      linear-gradient(
+        90deg,
+        rgba(64, 129, 161, 0.28),
+        rgba(34, 61, 75, 0.12)
+      );
+  }
+
+  .library-browser__track-row[
+    data-playing="true"
+  ] .library-browser__track-play-button {
+    border-color: #79badc;
+    color: #ffffff;
+    background: #28627f;
+    box-shadow:
+      0 0 0 3px rgba(80, 159, 198, 0.12);
   }
 }
 
@@ -4703,12 +4777,22 @@ canvas {
   .library-browser__track-header,
   .library-browser__track-row {
     grid-template-columns:
+      32px
       42px
       minmax(220px, 2fr)
       minmax(150px, 1fr)
       minmax(170px, 1.2fr);
     gap: 18px;
     padding-inline: 14px;
+  }
+
+  .library-browser__track-select-button {
+    grid-template-columns:
+      42px
+      minmax(220px, 2fr)
+      minmax(150px, 1fr)
+      minmax(170px, 1.2fr);
+    gap: 18px;
   }
 
   .library-browser__track-list {
@@ -5512,3 +5596,587 @@ canvas {
     animation: none;
   }
 }
+
+
+/* ---------------------------------------------------------
+   Unified mobile library playback rows
+   --------------------------------------------------------- */
+
+/*
+ * `manipulation` keeps ordinary scrolling and taps available while
+ * preventing browser double-tap zoom inside the library interface.
+ */
+.library-sheet,
+.library-browser--mobile,
+.library-browser--mobile button {
+  touch-action: manipulation;
+}
+
+.library-browser--mobile {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.library-browser--mobile .library-browser__track-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 9px;
+}
+
+.library-browser--mobile
+  .library-browser__track-play-button {
+  display: grid;
+  grid-column: 1;
+  align-self: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #414141;
+  border-radius: 50%;
+  color: #a9a9a9;
+  background: #1c1c1c;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.library-browser--mobile
+  .library-browser__track-select-button {
+  display: grid;
+  grid-column: 2;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 3px 10px;
+  width: 100%;
+  min-width: 0;
+  min-height: 51px;
+  padding: 8px 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+}
+
+.library-browser--mobile
+  .library-browser__track-select-button
+  .library-browser__track-number {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.library-browser--mobile
+  .library-browser__track-select-button
+  strong {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.library-browser--mobile
+  .library-browser__track-select-button
+  > span:not(.library-browser__track-number) {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.library-browser--mobile
+  .library-browser__track-select-button
+  > span:last-child {
+  display: none;
+}
+
+.library-browser--mobile
+  .library-browser__track-row[data-selected="true"] {
+  color: #dff4ff;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(62, 112, 138, 0.22),
+      rgba(34, 55, 66, 0.08)
+    );
+}
+
+.library-browser--mobile
+  .library-browser__track-row[data-playing="true"] {
+  color: #eefaff;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(64, 129, 161, 0.3),
+      rgba(34, 61, 75, 0.12)
+    );
+}
+
+.library-browser--mobile
+  .library-browser__track-row[data-playing="true"]
+  .library-browser__track-play-button {
+  border-color: #79badc;
+  color: #ffffff;
+  background: #28627f;
+}
+
+.library-browser--mobile
+  .library-browser__track-play-button:focus-visible,
+.library-browser--mobile
+  .library-browser__track-select-button:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------
+   Independent mobile library scrolling
+   --------------------------------------------------------- */
+
+/*
+ * Constrain the browser to the sheet's content region. The release
+ * grid and track list can then divide this known available height.
+ */
+.library-sheet__content {
+  display: grid;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.library-browser--mobile {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/*
+ * Let release tiles grow naturally. Scrolling starts only when the
+ * grid would consume the space reserved for the track list below.
+ */
+.library-browser--mobile
+  .library-browser__release-strip {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: calc(100% - 180px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+/*
+ * The track list owns all remaining sheet height and scrolls without
+ * moving the release grid.
+ */
+.library-browser--mobile
+  .library-browser__track-list {
+  flex: 1 1 180px;
+  min-height: 0;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+/*
+ * Prevent browser callouts and selection on the ALL/MULTI tile while
+ * preserving vertical scrolling elsewhere in the release grid.
+ */
+.library-browser--mobile
+  .library-browser__release-button[
+    data-multi-mode
+  ] {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+
+/* ---------------------------------------------------------
+   Mobile landscape library columns
+   --------------------------------------------------------- */
+
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  /*
+   * Release filters occupy the left column and tracks occupy the
+   * right column. Each column scrolls independently.
+   */
+  .library-browser--mobile {
+    display: grid;
+    grid-template-columns:
+      minmax(190px, 0.8fr)
+      minmax(260px, 1.35fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 12px;
+    height: 100%;
+    min-height: 0;
+  }
+
+  /*
+   * The release grid fills its column before becoming scrollable.
+   * It no longer reserves portrait-style space above the tracks.
+   */
+  .library-browser--mobile
+    .library-browser__release-strip {
+    grid-column: 1;
+    grid-row: 1;
+    align-content: start;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /*
+   * Tracks fill the complete right column and retain their own
+   * vertical scrolling.
+   */
+  .library-browser--mobile
+    .library-browser__track-list {
+    grid-column: 2;
+    grid-row: 1;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/*
+ * Very short landscape screens use a slightly narrower release rail
+ * so the track titles retain adequate room.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 950px) {
+  .library-browser--mobile {
+    grid-template-columns:
+      minmax(168px, 0.7fr)
+      minmax(250px, 1.4fr);
+    gap: 10px;
+  }
+}
+
+/* ---------------------------------------------------------
+   Library track artwork thumbnails
+   --------------------------------------------------------- */
+
+/*
+ * Track rows use release-level artwork as a separate square element.
+ * Playback remains a distinct circular control beside the artwork.
+ */
+.library-browser__track-artwork {
+  display: grid;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid #363636;
+  border-radius: 5px;
+  color: #777777;
+  background: #181818;
+}
+
+.library-browser__track-artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Undo the retired artwork-inside-play-button presentation. */
+.library-browser__track-play-button {
+  position: relative;
+  overflow: visible;
+}
+
+.library-browser__track-play-button::after {
+  content: none;
+}
+
+.library-browser__track-play-artwork,
+.library-browser__track-play-symbol {
+  all: unset;
+}
+
+/*
+ * Desktop rows now include artwork and transport as independent
+ * columns before track number and metadata.
+ */
+@media (min-width: 900px) {
+  .library-browser__track-header,
+  .library-browser__track-row {
+    grid-template-columns:
+      38px
+      32px
+      42px
+      minmax(220px, 2fr)
+      minmax(150px, 1fr)
+      minmax(170px, 1.2fr);
+    gap: 14px;
+  }
+
+  .library-browser__track-artwork {
+    grid-column: 1;
+  }
+
+  .library-browser__track-play-button {
+    grid-column: 2;
+  }
+
+  .library-browser__track-select-button {
+    grid-column: 3 / -1;
+    grid-template-columns:
+      42px
+      minmax(220px, 2fr)
+      minmax(150px, 1fr)
+      minmax(170px, 1.2fr);
+    gap: 14px;
+  }
+}
+
+/*
+ * Mobile rows retain a compact layout:
+ * artwork, transport, then the track-information button.
+ */
+@media (max-width: 899px) {
+  .library-browser--mobile
+    .library-browser__track-row {
+    display: grid;
+    grid-template-columns:
+      40px
+      34px
+      minmax(0, 1fr);
+    gap: 8px;
+    min-height: 56px;
+    padding: 8px 9px;
+  }
+
+  .library-browser--mobile
+    .library-browser__track-artwork {
+    grid-column: 1;
+    align-self: center;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+  }
+
+  .library-browser--mobile
+    .library-browser__track-play-button {
+    grid-column: 2;
+    align-self: center;
+  }
+
+  .library-browser--mobile
+    .library-browser__track-select-button {
+    grid-column: 3;
+  }
+}
+
+/* ---------------------------------------------------------
+   Portrait library placement
+   --------------------------------------------------------- */
+
+@media (
+  orientation: portrait
+) and (max-width: 899px) {
+  /*
+   * Leave approximately one library-header height above the dialog.
+   */
+  .library-sheet__backdrop {
+    place-items: start center;
+    padding-top:
+      max(
+        68px,
+        calc(env(safe-area-inset-top) + 56px)
+      );
+  }
+
+  .library-sheet {
+    max-height:
+      calc(
+        100dvh -
+        max(
+          76px,
+          calc(env(safe-area-inset-top) + 64px)
+        ) -
+        max(8px, env(safe-area-inset-bottom))
+      );
+  }
+}
+
+/* ---------------------------------------------------------
+   Larger waveform current time
+   --------------------------------------------------------- */
+
+.waveform-panel__current-time {
+  min-width: 54px;
+  padding: 5px 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+@media (max-width: 639px) {
+  .waveform-panel__current-time {
+    font-size: 0.88rem;
+  }
+}
+
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .waveform-panel__current-time {
+    padding: 4px 7px;
+    font-size: 0.84rem;
+  }
+}
+
+
+
+/* ---------------------------------------------------------
+   Library row artwork and vertical alignment repair
+   --------------------------------------------------------- */
+
+/*
+ * Center every direct row element against the square artwork and
+ * circular playback control.
+ */
+.library-browser__track-row {
+  align-items: center;
+}
+
+.library-browser__track-artwork,
+.library-browser__track-play-button,
+.library-browser__track-select-button {
+  align-self: center;
+}
+
+/*
+ * Ensure the square thumbnail has a real rendered box and cannot be
+ * collapsed by earlier generic span or image rules.
+ */
+.library-browser__track-artwork {
+  display: grid !important;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+}
+
+.library-browser__track-artwork > img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+/* Center the metadata grid within the complete row height. */
+.library-browser__track-select-button {
+  align-items: center;
+  margin: 0;
+}
+
+/*
+ * Mobile rows use a slightly larger square while preserving the same
+ * centered baseline across artwork, transport, and metadata.
+ */
+@media (max-width: 899px) {
+  .library-browser--mobile
+    .library-browser__track-row {
+    align-items: center;
+  }
+
+  .library-browser--mobile
+    .library-browser__track-artwork {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .library-browser--mobile
+    .library-browser__track-play-button,
+  .library-browser--mobile
+    .library-browser__track-select-button {
+    align-self: center;
+  }
+}
+
+/* ---------------------------------------------------------
+   Symmetrical portrait library spacing
+   --------------------------------------------------------- */
+
+@media (
+  orientation: portrait
+) and (max-width: 899px) {
+  /*
+   * Keep approximately one library-header height between the sheet
+   * and both the top and bottom device borders.
+   */
+  .library-sheet__backdrop {
+    place-items: start center;
+    padding-top:
+      max(
+        68px,
+        calc(env(safe-area-inset-top) + 56px)
+      );
+    padding-bottom:
+      max(
+        68px,
+        calc(env(safe-area-inset-bottom) + 56px)
+      );
+  }
+
+  .library-sheet {
+    max-height: 100%;
+  }
+}
+
+/* ---------------------------------------------------------
+   About card and hidden Developer control
+   --------------------------------------------------------- */
+
+.app-menu__about-button {
+  width: 100%;
+  min-height: 76px;
+  cursor: default;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.app-menu__about-button > span {
+  width: 100%;
+}
+
+.app-menu__about-button small {
+  display: block;
+}
+
+.app-menu__about-button small + small {
+  margin-top: 2px;
+  color: #a9a9a9;
+}
+

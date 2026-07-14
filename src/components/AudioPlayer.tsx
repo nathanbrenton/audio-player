@@ -168,6 +168,8 @@ function ArtworkTransportIcon({
   );
 }
 
+const APP_VERSION = '1.0.0';
+
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -194,6 +196,24 @@ export default function AudioPlayer() {
   const appMenuRef =
     useRef<HTMLDetailsElement | null>(null);
 
+  /*
+   * Developer Mode remains hidden until the About card is held.
+   * The timer and pointer origin distinguish a hold from scrolling.
+   */
+  const aboutHoldTimerRef =
+    useRef<number | null>(null);
+
+  const aboutHoldPointerRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+  } | null>(null);
+
+  const [
+    isDeveloperControlVisible,
+    setIsDeveloperControlVisible,
+  ] = useState(false);
+
   // Open the metadata viewer in its friendly listener-facing mode.
   const [isMetadataViewerOpen, setIsMetadataViewerOpen] =
     useState(false);
@@ -210,9 +230,14 @@ export default function AudioPlayer() {
   const [isDeveloperMode, setIsDeveloperMode] =
     useState(false);
 
-  // Resume only when adjacent-track navigation started during playback.
-  const resumePlaybackAfterTrackChangeRef =
-    useRef(false);
+  /*
+   * Track-loading actions update the audio element directly inside
+   * the originating click, double-click, or pointer gesture.
+   *
+   * This ref identifies the source already assigned imperatively so
+   * React effects do not reload it and abort a pending play request.
+   */
+  const loadedAudioTrackKeyRef = useRef("");
 
   // Track horizontal artwork drag gestures independently of playback.
   const artworkPointerIdRef = useRef<number | null>(null);
@@ -248,8 +273,17 @@ export default function AudioPlayer() {
   const [selectedTrackKey, setSelectedTrackKey] =
     useState("");
 
+  /*
+   * Library highlighting is independent from the loaded player
+   * track. A single click can inspect another row without stopping
+   * or replacing the track currently playing.
+   */
+  const [libraryTrackKey, setLibraryTrackKey] =
+    useState("");
+
   // Player state.
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isScrubbing, setIsScrubbing] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
 
   // Waveform data and loading state.
@@ -442,6 +476,15 @@ export default function AudioPlayer() {
   }, [isLibraryOpen]);
 
   /*
+   * Cancel an unfinished About-card hold when the player unmounts.
+   */
+  useEffect(() => {
+    return () => {
+      clearAboutHoldTimer();
+    };
+  }, []);
+
+  /*
    * Release Web Audio resources only when the complete player
    * component is removed, not when individual tracks change.
    */
@@ -504,32 +547,52 @@ export default function AudioPlayer() {
 
   // Select the first playable track after loading the catalog.
   useEffect(() => {
+    if (playableTracks.length === 0) {
+      return;
+    }
+
+    const firstTrackKey = playableTracks[0].key;
+
     if (
-      playableTracks.length > 0 &&
       !playableTracks.some(
         (entry) => entry.key === selectedTrackKey,
       )
     ) {
-      setSelectedTrackKey(playableTracks[0].key);
+      setSelectedTrackKey(firstTrackKey);
     }
-  }, [playableTracks, selectedTrackKey]);
+
+    if (
+      !playableTracks.some(
+        (entry) => entry.key === libraryTrackKey,
+      )
+    ) {
+      setLibraryTrackKey(firstTrackKey);
+    }
+  }, [
+    libraryTrackKey,
+    playableTracks,
+    selectedTrackKey,
+  ]);
 
   /*
-   * Reset playback and load the selected track's waveform whenever
-   * the user changes tracks.
+   * Whenever playback navigation genuinely loads another track,
+   * move the library highlight to that track as well. Library-only
+   * highlighting does not modify selectedTrackKey, so it remains
+   * independent until playback or navigation is requested.
    */
   useEffect(() => {
-    const audio = audioRef.current;
+    if (selectedTrackKey) {
+      setLibraryTrackKey(selectedTrackKey);
+    }
+  }, [selectedTrackKey]);
+
+  /*
+   * Load the selected track's waveform whenever the player changes
+   * tracks. Audio transport is handled separately by loadTrack().
+   */
+  useEffect(() => {
     const controller = new AbortController();
 
-    audio?.pause();
-
-    if (audio) {
-      audio.currentTime = 0;
-      audio.load();
-    }
-
-    setIsPlaying(false);
     setCurrentTime(0);
     setWaveform(null);
     setLoadError(null);
@@ -605,6 +668,34 @@ export default function AudioPlayer() {
         )
       : null;
 
+  /*
+   * Initialize the first catalog track and cover any future
+   * state-only track changes. Tracks already loaded by loadTrack()
+   * are deliberately left untouched.
+   */
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    if (
+      !audio ||
+      !audioSource ||
+      !selectedTrackKey ||
+      loadedAudioTrackKeyRef.current === selectedTrackKey
+    ) {
+      return;
+    }
+
+    loadedAudioTrackKeyRef.current = selectedTrackKey;
+
+    audio.pause();
+    audio.src = audioSource;
+    audio.currentTime = 0;
+    audio.load();
+
+    setIsPlaying(false);
+    setCurrentTime(0);
+  }, [audioSource, selectedTrackKey]);
+
   const artworkSource =
     catalog && selectedTrack
       ? getMediaUrl(
@@ -646,6 +737,71 @@ export default function AudioPlayer() {
       : null;
 
 
+  /*
+   * Change the media source synchronously inside the initiating user
+   * gesture. This preserves autoplay permission on mobile browsers
+   * and avoids a later React effect pausing the destination track.
+   */
+  function loadTrack(
+    trackKey: string,
+    autoplay: boolean,
+  ) {
+    if (!catalog) {
+      return;
+    }
+
+    const destination = playableTracks.find(
+      (entry) => entry.key === trackKey,
+    );
+
+    const audio = audioRef.current;
+
+    if (!destination || !audio) {
+      return;
+    }
+
+    const destinationAudioUrl = getMediaUrl(
+      catalog.mediaBaseUrl,
+      destination.track.assets.audioPlayback,
+    );
+
+    if (!destinationAudioUrl) {
+      return;
+    }
+
+    setLibraryTrackKey(trackKey);
+
+    /*
+     * Loading a different source always begins at zero. A deliberate
+     * non-autoplay selection remains paused.
+     */
+    audio.pause();
+
+    loadedAudioTrackKeyRef.current = trackKey;
+    audio.src = destinationAudioUrl;
+    audio.currentTime = 0;
+    audio.load();
+
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setSelectedTrackKey(trackKey);
+
+    if (autoplay) {
+      /*
+       * Begin both operations directly from the original gesture.
+       * Neither waits for React rendering or a later media event.
+       */
+      void ensureAudioAnalyser();
+
+      void audio.play().catch((error: unknown) => {
+        console.error(
+          "Unable to begin destination-track playback:",
+          error,
+        );
+      });
+    }
+  }
+
   function selectAdjacentTrack(direction: -1 | 1) {
     if (!selectedTrack || playableTracks.length < 2) {
       return;
@@ -653,8 +809,8 @@ export default function AudioPlayer() {
 
     const audio = audioRef.current;
 
-    resumePlaybackAfterTrackChangeRef.current =
-      Boolean(audio && !audio.paused);
+    const shouldAutoplay =
+      isPlaying || Boolean(audio && !audio.paused);
 
     const currentIndex = playableTracks.findIndex(
       (entry) => entry.key === selectedTrack.key,
@@ -669,7 +825,10 @@ export default function AudioPlayer() {
       (currentIndex + direction + playableTracks.length) %
       playableTracks.length;
 
-    setSelectedTrackKey(playableTracks[nextIndex].key);
+    loadTrack(
+      playableTracks[nextIndex].key,
+      shouldAutoplay,
+    );
   }
 
   function selectPreviousTrack() {
@@ -678,6 +837,15 @@ export default function AudioPlayer() {
 
   function selectNextTrack() {
     selectAdjacentTrack(1);
+  }
+
+  function selectArtworkTrack(trackKey: string) {
+    const audio = audioRef.current;
+
+    const shouldAutoplay =
+      isPlaying || Boolean(audio && !audio.paused);
+
+    loadTrack(trackKey, shouldAutoplay);
   }
 
   /*
@@ -1026,6 +1194,54 @@ export default function AudioPlayer() {
   }
 
   /*
+   * Double-clicking or double-tapping a row always requests playback.
+   */
+  async function playLibraryTrack(
+    trackKey: string,
+  ) {
+    setLibraryTrackKey(trackKey);
+
+    if (trackKey !== selectedTrackKey) {
+      loadTrack(trackKey, true);
+      return;
+    }
+
+    const audio = audioRef.current;
+
+    if (!audio || !audioSource) {
+      return;
+    }
+
+    /*
+     * A repeated play request from the library means restart, not
+     * merely resume. This applies to desktop double-click and mobile
+     * double-tap because both use playLibraryTrack().
+     */
+    audio.currentTime = 0;
+    setCurrentTime(0);
+
+    await audio.play();
+    await ensureAudioAnalyser();
+  }
+
+  /*
+   * Row transport buttons toggle the loaded track or immediately
+   * load and play a different row.
+   */
+  async function toggleLibraryTrackPlayback(
+    trackKey: string,
+  ) {
+    setLibraryTrackKey(trackKey);
+
+    if (trackKey !== selectedTrackKey) {
+      loadTrack(trackKey, true);
+      return;
+    }
+
+    await togglePlayback();
+  }
+
+  /*
    * Give the artwork handoff a forgiving visual dead zone.
    * The destination cover starts moving only after the initial drag,
    * then eases smoothly into the selected position.
@@ -1165,6 +1381,83 @@ export default function AudioPlayer() {
     setPixelsPerSecond(nextZoom);
   }
 
+  function clearAboutHoldTimer() {
+    if (aboutHoldTimerRef.current !== null) {
+      window.clearTimeout(aboutHoldTimerRef.current);
+      aboutHoldTimerRef.current = null;
+    }
+  }
+
+  function handleAboutPointerDown(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    clearAboutHoldTimer();
+
+    aboutHoldPointerRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+
+    aboutHoldTimerRef.current =
+      window.setTimeout(() => {
+        const heldPointer =
+          aboutHoldPointerRef.current;
+
+        if (
+          !heldPointer ||
+          heldPointer.pointerId !== event.pointerId
+        ) {
+          return;
+        }
+
+        setIsDeveloperControlVisible(
+          (isVisible) => !isVisible,
+        );
+
+        aboutHoldPointerRef.current = null;
+        clearAboutHoldTimer();
+      }, 650);
+  }
+
+  function handleAboutPointerMove(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    const heldPointer =
+      aboutHoldPointerRef.current;
+
+    if (
+      !heldPointer ||
+      heldPointer.pointerId !== event.pointerId
+    ) {
+      return;
+    }
+
+    const movedX =
+      Math.abs(event.clientX - heldPointer.startX);
+
+    const movedY =
+      Math.abs(event.clientY - heldPointer.startY);
+
+    if (movedX > 10 || movedY > 10) {
+      aboutHoldPointerRef.current = null;
+      clearAboutHoldTimer();
+    }
+  }
+
+  function finishAboutPointer(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    if (
+      aboutHoldPointerRef.current?.pointerId ===
+      event.pointerId
+    ) {
+      aboutHoldPointerRef.current = null;
+    }
+
+    clearAboutHoldTimer();
+  }
+
   return (
     <section
       className="audio-player"
@@ -1186,138 +1479,157 @@ export default function AudioPlayer() {
 
             <div className="app-menu__panel">
               <div className="app-menu__content">
-                <div className="app-menu__top-items">
-                  <label
-                    className="
-                      settings-toggle
-                      settings-toggle--audiophile
-                    "
-                  >
-                    <span>
-                      <strong>Audiophile Mode</strong>
-                      <small>
-                        Show technical audio and waveform metadata.
-                      </small>
-                    </span>
+              <label className="settings-control">
+                <span>Waveform Color</span>
 
-                    <input
-                      type="checkbox"
-                      checked={isAudiophileMode}
-                      onChange={(event) => {
-                        setIsAudiophileMode(
-                          event.currentTarget.checked,
-                        );
-                      }}
-                    />
-                  </label>
+                <select
+                  value={colorMode}
+                  onChange={(event) => {
+                    setColorMode(
+                      event.currentTarget
+                        .value as WaveformColorMode,
+                    );
+                  }}
+                >
+                  <option value="3band">3Band</option>
+                  <option value="rgb">RGB</option>
+                  <option value="blue">Blue</option>
+                  <option value="monochrome">
+                    Monochrome
+                  </option>
+                </select>
+              </label>
 
-                  <button
-                    type="button"
-                    className="app-menu__about-button"
-                    disabled
-                    aria-disabled="true"
-                    title="About information will be added later."
-                  >
-                    <span>
-                      <strong>About</strong>
-                      <small>Coming soon.</small>
-                    </span>
-                  </button>
-                </div>
+              <label className="settings-control">
+                <span>Waveform Zoom</span>
 
-                <label className="settings-control">
-                  <span>Waveform view</span>
+                <select
+                  value={pixelsPerSecond}
+                  onChange={(event) => {
+                    const nextZoom = Number(
+                      event.currentTarget.value,
+                    );
 
-                  <select
-                    value={waveformViewMode}
-                    onChange={(event) => {
-                      const nextMode =
-                        event.currentTarget
-                          .value as WaveformViewMode;
+                    lastWaveformZoomRef.current =
+                      nextZoom;
 
-                      if (nextMode === "oscilloscope") {
-                        lastWaveformZoomRef.current =
-                          pixelsPerSecond;
+                    setPixelsPerSecond(nextZoom);
+                    setWaveformViewMode("waveform");
+                  }}
+                >
+                  <option value={2}>2 px/s</option>
+                  <option value={3}>3 px/s</option>
+                  <option value={6}>6 px/s</option>
+                  <option value={12}>12 px/s</option>
+                  <option value={25}>25 px/s</option>
+                  <option value={50}>50 px/s</option>
+                  <option value={100}>100 px/s</option>
+                  <option value={200}>200 px/s</option>
+                  <option value={400}>400 px/s</option>
+                  <option value={800}>800 px/s</option>
+                  <option value={1600}>1600 px/s</option>
+                  <option value={2400}>2400 px/s</option>
+                  <option value={3200}>3200 px/s</option>
+                  <option value={4000}>4000 px/s</option>
+                  <option value={4800}>4800 px/s</option>
+                  <option value={5600}>5600 px/s</option>
+                  <option value={6400}>6400 px/s</option>
+                </select>
+              </label>
 
-                        setOscilloscopeSampleWindow(
-                          oscilloscopeSampleWindows[0],
-                        );
-                      } else {
-                        setPixelsPerSecond(
-                          lastWaveformZoomRef.current,
-                        );
-                      }
+              <label className="settings-control">
+                <span>Waveform View</span>
 
-                      setWaveformViewMode(nextMode);
-                    }}
-                  >
-                    <option value="waveform">
-                      Scrolling waveform
-                    </option>
-                    <option value="oscilloscope">
-                      Oscilloscope
-                    </option>
-                  </select>
-                </label>
+                <select
+                  value={waveformViewMode}
+                  onChange={(event) => {
+                    const nextMode =
+                      event.currentTarget
+                        .value as WaveformViewMode;
 
-                <label className="settings-control">
-                  <span>Waveform color</span>
-
-                  <select
-                    value={colorMode}
-                    onChange={(event) => {
-                      setColorMode(
-                        event.currentTarget
-                          .value as WaveformColorMode,
-                      );
-                    }}
-                  >
-                    <option value="3band">3Band</option>
-                    <option value="rgb">RGB</option>
-                    <option value="blue">Blue</option>
-                    <option value="monochrome">
-                      Monochrome
-                    </option>
-                  </select>
-                </label>
-
-                <label className="settings-control">
-                  <span>Waveform zoom</span>
-
-                  <select
-                    value={pixelsPerSecond}
-                    onChange={(event) => {
-                      const nextZoom = Number(
-                        event.currentTarget.value,
-                      );
-
+                    if (nextMode === "oscilloscope") {
                       lastWaveformZoomRef.current =
-                        nextZoom;
+                        pixelsPerSecond;
 
-                      setPixelsPerSecond(nextZoom);
-                      setWaveformViewMode("waveform");
-                    }}
-                  >
-                    <option value={2}>2 px/s</option>
-                    <option value={3}>3 px/s</option>
-                    <option value={6}>6 px/s</option>
-                    <option value={12}>12 px/s</option>
-                    <option value={25}>25 px/s</option>
-                    <option value={50}>50 px/s</option>
-                    <option value={100}>100 px/s</option>
-                    <option value={200}>200 px/s</option>
-                    <option value={400}>400 px/s</option>
-                    <option value={800}>800 px/s</option>
-                    <option value={1600}>1600 px/s</option>
-                    <option value={2400}>2400 px/s</option>
-                    <option value={3200}>3200 px/s</option>
-                    <option value={4000}>4000 px/s</option>
-                    <option value={4800}>4800 px/s</option>
-                    <option value={5600}>5600 px/s</option>
-                    <option value={6400}>6400 px/s</option>
-                  </select>
-                </label>
+                      setOscilloscopeSampleWindow(
+                        oscilloscopeSampleWindows[0],
+                      );
+                    } else {
+                      setPixelsPerSecond(
+                        lastWaveformZoomRef.current,
+                      );
+                    }
 
+                    setWaveformViewMode(nextMode);
+                  }}
+                >
+                  <option value="waveform">
+                    Scrolling waveform
+                  </option>
+
+                  <option value="oscilloscope">
+                    Oscilloscope
+                  </option>
+                </select>
+              </label>
+
+              <label
+                className="
+                  settings-toggle
+                  settings-toggle--audiophile
+                "
+              >
+                <span>
+                  <strong>Audiophile Mode</strong>
+
+                  <small>
+                    Show technical audio and waveform metadata.
+                  </small>
+                </span>
+
+                <input
+                  type="checkbox"
+                  checked={isAudiophileMode}
+                  onChange={(event) => {
+                    setIsAudiophileMode(
+                      event.currentTarget.checked,
+                    );
+                  }}
+                />
+              </label>
+
+              <button
+                type="button"
+                className="app-menu__about-button"
+                aria-label="About this audio player"
+                title="Press and hold to show or hide Developer Mode"
+                onPointerDown={handleAboutPointerDown}
+                onPointerMove={handleAboutPointerMove}
+                onPointerUp={finishAboutPointer}
+                onPointerCancel={finishAboutPointer}
+                onPointerLeave={(event) => {
+                  if (event.pointerType === "mouse") {
+                    finishAboutPointer(event);
+                  }
+                }}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                }}
+              >
+                <span>
+                  <strong>About</strong>
+
+                  <small>
+                    Audio Player version {APP_VERSION}
+                  </small>
+
+                  <small>
+                    Developer: nbrenton@gmail.com
+                  </small>
+                </span>
+              </button>
+
+              {isDeveloperControlVisible ? (
                 <label
                   className="
                     settings-toggle
@@ -1326,6 +1638,7 @@ export default function AudioPlayer() {
                 >
                   <span>
                     <strong>Developer Mode</strong>
+
                     <small>
                       Show source indicators and raw metadata.
                     </small>
@@ -1341,8 +1654,9 @@ export default function AudioPlayer() {
                     }}
                   />
                 </label>
-              </div>
+              ) : null}
             </div>
+          </div>
           </details>
         </div>
 
@@ -1414,7 +1728,7 @@ export default function AudioPlayer() {
                   artwork-stack__item--far-previous
                 "
                 onClick={() => {
-                  setSelectedTrackKey(
+                  selectArtworkTrack(
                     previousPreviousTrack.key,
                   );
                 }}
@@ -1483,11 +1797,17 @@ export default function AudioPlayer() {
                 handleArtworkLostPointerCapture
               }
               aria-label={
-                isPlaying ? "Pause track" : "Play track"
+                isPlaying && !isScrubbing
+                  ? "Pause track"
+                  : "Play track"
               }
-              aria-pressed={isPlaying}
+              aria-pressed={isPlaying && !isScrubbing}
               aria-disabled={!audioSource || !waveform}
-              title={isPlaying ? "Pause" : "Play"}
+              title={
+                isPlaying && !isScrubbing
+                  ? "Pause"
+                  : "Play"
+              }
             >
               {artworkSource ? (
                 <img
@@ -1503,7 +1823,11 @@ export default function AudioPlayer() {
               )}
 
               <ArtworkTransportIcon
-                name={isPlaying ? "pause" : "play"}
+                name={
+                  isPlaying && !isScrubbing
+                    ? "pause"
+                    : "play"
+                }
               />
             </button>
 
@@ -1536,7 +1860,7 @@ export default function AudioPlayer() {
                   artwork-stack__item--far-next
                 "
                 onClick={() => {
-                  setSelectedTrackKey(nextNextTrack.key);
+                  selectArtworkTrack(nextNextTrack.key);
                 }}
                 aria-label={`Later track: ${
                   nextNextTrack.track.title
@@ -1606,20 +1930,7 @@ export default function AudioPlayer() {
         <div className="player-layout__main">
       <audio
         ref={audioRef}
-        src={audioSource ?? undefined}
         preload="metadata"
-        onCanPlay={(event) => {
-          if (
-            !resumePlaybackAfterTrackChangeRef.current
-          ) {
-            return;
-          }
-
-          resumePlaybackAfterTrackChangeRef.current =
-            false;
-
-          void event.currentTarget.play();
-        }}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onTimeUpdate={(event) => {
@@ -1637,6 +1948,7 @@ export default function AudioPlayer() {
             aria-haspopup="dialog"
             aria-expanded={isLibraryOpen}
             onClick={() => {
+              setLibraryTrackKey(selectedTrackKey);
               setIsLibraryOpen(true);
             }}
           >
@@ -1670,9 +1982,10 @@ export default function AudioPlayer() {
               value={selectedTrackKey}
               disabled={!catalog || playableTracks.length === 0}
               onChange={(event) => {
-                setSelectedTrackKey(
-                  event.currentTarget.value,
-                );
+                const trackKey =
+                  event.currentTarget.value;
+
+                loadTrack(trackKey, false);
               }}
             >
               {catalog?.releases.map((release) => {
@@ -1734,10 +2047,17 @@ export default function AudioPlayer() {
         <div
           className="library-sheet__backdrop"
           role="presentation"
-          onPointerDown={(event) => {
+          onClick={(event) => {
             if (event.target !== event.currentTarget) {
               return;
             }
+
+            /*
+             * Consume the complete backdrop click before removing the
+             * overlay so it cannot activate the artwork underneath.
+             */
+            event.preventDefault();
+            event.stopPropagation();
 
             setIsLibraryOpen(false);
 
@@ -1785,14 +2105,26 @@ export default function AudioPlayer() {
               <LibraryBrowser
                 variant="mobile"
                 catalog={catalog}
-                selectedTrackKey={selectedTrackKey}
+                selectedTrackKey={libraryTrackKey}
+                playingTrackKey={
+                  isPlaying ? selectedTrackKey : null
+                }
                 onSelectTrack={(trackKey) => {
-                  setSelectedTrackKey(trackKey);
-                  setIsLibraryOpen(false);
-
-                  window.requestAnimationFrame(() => {
-                    libraryButtonRef.current?.focus();
-                  });
+                  setLibraryTrackKey(trackKey);
+                }}
+                onPlayTrack={(trackKey) => {
+                  /*
+                   * Keep browsing available while the requested track
+                   * loads and begins playback.
+                   */
+                  void playLibraryTrack(trackKey);
+                }}
+                onToggleTrackPlayback={(trackKey) => {
+                  /*
+                   * Pause, resume, or begin another track without
+                   * dismissing the mobile library.
+                   */
+                  void toggleLibraryTrackPlayback(trackKey);
                 }}
               />
             </div>
@@ -1839,6 +2171,7 @@ export default function AudioPlayer() {
                 colorMode={colorMode}
                 pixelsPerSecond={pixelsPerSecond}
                 peaksPerSecond={waveform.peaksPerSecond}
+                onScrubbingChange={setIsScrubbing}
               />
             )}
 
@@ -1943,9 +2276,18 @@ export default function AudioPlayer() {
 
         <LibraryBrowser
           catalog={catalog}
-          selectedTrackKey={selectedTrackKey}
+          selectedTrackKey={libraryTrackKey}
+          playingTrackKey={
+            isPlaying ? selectedTrackKey : null
+          }
           onSelectTrack={(trackKey) => {
-            setSelectedTrackKey(trackKey);
+            setLibraryTrackKey(trackKey);
+          }}
+          onPlayTrack={(trackKey) => {
+            void playLibraryTrack(trackKey);
+          }}
+          onToggleTrackPlayback={(trackKey) => {
+            void toggleLibraryTrackPlayback(trackKey);
           }}
         />
       </div>

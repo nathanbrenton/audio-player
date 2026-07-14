@@ -15,7 +15,10 @@ type LibraryTrack = {
 type LibraryBrowserProps = {
   catalog: MediaCatalog | null;
   selectedTrackKey: string;
+  playingTrackKey?: string | null;
   onSelectTrack: (trackKey: string) => void;
+  onPlayTrack?: (trackKey: string) => void;
+  onToggleTrackPlayback?: (trackKey: string) => void;
   variant?: "desktop" | "mobile";
 };
 
@@ -43,23 +46,34 @@ function getMediaUrl(
 }
 
 /*
- * Prefer artwork from the first playable track. Tracks already carry
- * either their own artwork or the inherited release artwork path.
+ * Accept both historical and current catalog artwork structures.
+ * Current generated catalogs store release artwork under `.path`.
  */
 function getReleaseArtworkPath(
   release: CatalogRelease,
 ): string | null {
-  return (
-    release.tracks.find((track) => {
-      return track.playable && track.artwork.path;
-    })?.artwork.path ?? null
-  );
+  const artwork = release.artwork as
+    | string
+    | {
+        source?: "release" | null;
+        path: string | null;
+      }
+    | null;
+
+  if (typeof artwork === "string") {
+    return artwork;
+  }
+
+  return artwork?.path ?? null;
 }
 
 export default function LibraryBrowser({
   catalog,
   selectedTrackKey,
+  playingTrackKey = null,
   onSelectTrack,
+  onPlayTrack,
+  onToggleTrackPlayback,
   variant = "desktop",
 }: LibraryBrowserProps) {
   const [selectedReleaseId, setSelectedReleaseId] =
@@ -114,7 +128,9 @@ export default function LibraryBrowser({
 
         <span className="library-browser__count">
           {visibleTracks.length}{" "}
-          {visibleTracks.length === 1 ? "track" : "tracks"}
+          {visibleTracks.length === 1
+            ? "track"
+            : "tracks"}
         </span>
       </div>
 
@@ -140,12 +156,13 @@ export default function LibraryBrowser({
         </button>
 
         {catalog.releases.map((release) => {
-          const artworkPath =
-            getReleaseArtworkPath(release);
-
+          /*
+           * Always use the catalog's release-level artwork. Do not
+           * infer release artwork from track one or another track.
+           */
           const artworkUrl = getMediaUrl(
             catalog.mediaBaseUrl,
-            artworkPath,
+            getReleaseArtworkPath(release),
           );
 
           return (
@@ -185,6 +202,8 @@ export default function LibraryBrowser({
           className="library-browser__track-header"
           aria-hidden="true"
         >
+          <span />
+          <span />
           <span>#</span>
           <span>Track</span>
           <span>Artist</span>
@@ -195,33 +214,96 @@ export default function LibraryBrowser({
           const isSelected =
             entry.key === selectedTrackKey;
 
+          const isPlaying =
+            entry.key === playingTrackKey;
+
+          const artist =
+            entry.track.artist ??
+            entry.track.metadata.resolved
+              .primaryArtist.name ??
+            "Unknown artist";
+
+          const artworkUrl = getMediaUrl(
+            catalog.mediaBaseUrl,
+            getReleaseArtworkPath(entry.release),
+          );
+
           return (
-            <button
+            <div
               key={entry.key}
-              type="button"
               className="library-browser__track-row"
-              aria-current={
-                isSelected ? "true" : undefined
+              data-selected={
+                isSelected ? "true" : "false"
               }
-              onClick={() => {
-                onSelectTrack(entry.key);
-              }}
+              data-playing={
+                isPlaying ? "true" : "false"
+              }
             >
-              <span className="library-browser__track-number">
-                {entry.track.trackNumber ?? "—"}
+              <span
+                className="
+                  library-browser__track-artwork
+                "
+                aria-hidden="true"
+              >
+                {artworkUrl ? (
+                  <img src={artworkUrl} alt="" />
+                ) : (
+                  <span>—</span>
+                )}
               </span>
 
-              <strong>{entry.track.title}</strong>
+              <button
+                type="button"
+                className="
+                  library-browser__track-play-button
+                "
+                aria-label={
+                  isPlaying
+                    ? `Pause ${entry.track.title}`
+                    : `Play ${entry.track.title}`
+                }
+                aria-pressed={isPlaying}
+                title={isPlaying ? "Pause" : "Play"}
+                onClick={() => {
+                  onToggleTrackPlayback?.(entry.key);
+                }}
+              >
+                <span aria-hidden="true">
+                  {isPlaying ? "Ⅱ" : "▶"}
+                </span>
+              </button>
 
-              <span>
-                {entry.track.artist ??
-                  entry.track.metadata.resolved
-                    .primaryArtist.name ??
-                  "Unknown artist"}
-              </span>
+              <button
+                type="button"
+                className="
+                  library-browser__track-select-button
+                "
+                aria-current={
+                  isSelected ? "true" : undefined
+                }
+                onClick={() => {
+                  onSelectTrack(entry.key);
+                }}
+                onDoubleClick={(event) => {
+                  event.preventDefault();
+                  onPlayTrack?.(entry.key);
+                }}
+              >
+                <span
+                  className="
+                    library-browser__track-number
+                  "
+                >
+                  {entry.track.trackNumber ?? "—"}
+                </span>
 
-              <span>{entry.release.title}</span>
-            </button>
+                <strong>{entry.track.title}</strong>
+
+                <span>{artist}</span>
+
+                <span>{entry.release.title}</span>
+              </button>
+            </div>
           );
         })}
       </div>
