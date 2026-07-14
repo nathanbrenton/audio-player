@@ -541,45 +541,6 @@ canvas {
   }
 }
 
-/* Compact transport controls shared by mobile and desktop layouts. */
-.player-controls__transport {
-  display: grid;
-  grid-template-columns: auto minmax(88px, 1fr) auto;
-  gap: 8px;
-  width: 100%;
-}
-
-.player-controls__track-button {
-  min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid #444444;
-  border-radius: 6px;
-  color: #f5f5f5;
-  background: #202020;
-  cursor: pointer;
-}
-
-.player-controls__track-button:hover {
-  background: #292929;
-}
-
-.player-controls__track-button:focus-visible {
-  outline: 2px solid #8fd3ff;
-  outline-offset: 2px;
-}
-
-.player-controls__track-button:disabled,
-.player-controls__play-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-@media (min-width: 640px) {
-  .player-controls__transport {
-    width: auto;
-  }
-}
-
 /* Previous/current/next artwork navigation stack. */
 .artwork-stack {
   position: relative;
@@ -611,6 +572,99 @@ canvas {
   border: 0;
   border-radius: inherit;
   object-fit: cover;
+}
+
+/*
+ * Transparent outlined transport icons preserve artwork visibility
+ * and never intercept pointer or touch gestures.
+ */
+.artwork-stack__transport-icon {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  color: rgb(255 255 255 / 68%);
+}
+
+.artwork-stack__transport-icon::before {
+  position: absolute;
+  width: clamp(42px, 24%, 72px);
+  aspect-ratio: 1;
+  border: 1px solid rgb(255 255 255 / 32%);
+  border-radius: 999px;
+  background: rgb(0 0 0 / 20%);
+  box-shadow: 0 2px 14px rgb(0 0 0 / 28%);
+  content: "";
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease;
+}
+
+.artwork-stack__transport-icon svg {
+  position: relative;
+  width: clamp(24px, 14%, 42px);
+  height: auto;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 3px rgb(0 0 0 / 65%));
+}
+
+/*
+ * Make the active play/pause control the dominant artwork action.
+ * These dimensions are approximately twice the shared icon size.
+ */
+.artwork-stack__item--current
+  .artwork-stack__transport-icon::before {
+  width: clamp(84px, 48%, 144px);
+  border-color: rgb(255 255 255 / 38%);
+  background: rgb(0 0 0 / 22%);
+}
+
+.artwork-stack__item--current
+  .artwork-stack__transport-icon svg {
+  width: clamp(48px, 28%, 84px);
+  stroke-width: 2.5;
+}
+
+.artwork-stack__item--previous
+  .artwork-stack__transport-icon,
+.artwork-stack__item--next
+  .artwork-stack__transport-icon {
+  color: rgb(255 255 255 / 68%);
+}
+
+.artwork-stack__item--previous
+  .artwork-stack__transport-icon::before,
+.artwork-stack__item--next
+  .artwork-stack__transport-icon::before {
+  border-color: rgb(255 255 255 / 38%);
+  background: rgb(0 0 0 / 28%);
+  box-shadow:
+    0 2px 14px rgb(0 0 0 / 34%),
+    inset 0 0 0 1px rgb(0 0 0 / 12%);
+}
+
+.artwork-stack__item--previous:hover
+  .artwork-stack__transport-icon,
+.artwork-stack__item--next:hover
+  .artwork-stack__transport-icon {
+  color: rgb(255 255 255 / 86%);
+}
+
+.artwork-stack__item--previous:hover
+  .artwork-stack__transport-icon::before,
+.artwork-stack__item--next:hover
+  .artwork-stack__transport-icon::before {
+  border-color: rgb(255 255 255 / 52%);
+  background: rgb(0 0 0 / 38%);
+  transform: scale(1.06);
 }
 
 .artwork-stack__item--current {
@@ -669,8 +723,9 @@ canvas {
 }
 
 .artwork-stack__item--previous:focus-visible,
+.artwork-stack__item--current:focus-visible,
 .artwork-stack__item--next:focus-visible {
-  z-index: 4;
+  z-index: 7;
   outline: 3px solid #8fd3ff;
   outline-offset: 3px;
   opacity: 1;
@@ -4001,3 +4056,330 @@ canvas {
   .metadata-viewer__tabs-label {
   display: none;
 }
+
+/* ---------------------------------------------------------
+   Independent artwork transport controls
+   --------------------------------------------------------- */
+
+/*
+ * The edge controls intentionally extend outside the carousel.
+ * `contain: paint` would clip them regardless of overflow settings.
+ */
+.artwork-panel,
+.artwork-stack {
+  overflow: visible;
+}
+
+.artwork-stack {
+  contain: none;
+}
+
+/*
+ * Previous and next controls are direct children of the artwork
+ * stack, so they remain stationary during artwork drag gestures.
+ */
+.artwork-stack__edge-control {
+  position: absolute;
+  top: 50%;
+  z-index: 50;
+  display: grid;
+  width: 104px;
+  min-width: 104px;
+  max-width: none;
+  height: 104px;
+  min-height: 104px;
+  padding: 0;
+  place-items: center;
+  overflow: visible;
+  border: 0;
+  border-radius: 50%;
+  color: rgb(255 255 255 / 68%);
+  background: transparent;
+  cursor: pointer;
+  opacity: 1;
+  transform: translateY(-50%);
+  filter: none;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * Move the controls outward without modifying any artwork geometry.
+ * Pixel offsets keep them visible and predictable across layouts.
+ */
+.artwork-stack__edge-control--previous {
+  right: 86%;
+  left: auto;
+}
+
+.artwork-stack__edge-control--next {
+  right: auto;
+  left: 86%;
+}
+
+/* The full visible circle is the actual clickable button surface. */
+.artwork-stack__edge-control
+  .artwork-stack__transport-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  overflow: visible;
+  color: inherit;
+  opacity: 1;
+  pointer-events: none;
+  transform: none;
+  filter: none;
+}
+
+.artwork-stack__edge-control
+  .artwork-stack__transport-icon::before {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0;
+  content: "";
+  transform: none;
+}
+
+.artwork-stack__edge-control
+  .artwork-stack__transport-icon svg {
+  position: relative;
+  z-index: 1;
+  width: 52%;
+  height: 52%;
+  overflow: visible;
+  opacity: 1;
+  stroke-width: 3;
+  transform: none;
+  filter:
+    drop-shadow(0 1px 3px rgb(0 0 0 / 65%));
+}
+
+/*
+ * Extend the forgiving hit target beyond the visible circle.
+ * The pseudo-element remains part of the button's clickable area.
+ */
+.artwork-stack__edge-control::after {
+  position: absolute;
+  border-radius: 50%;
+  content: "";
+}
+
+.artwork-stack__edge-control--previous::after {
+  inset: -18px 0 -18px -18px;
+}
+
+.artwork-stack__edge-control--next::after {
+  inset: -18px -18px -18px 0;
+}
+
+/* Keep the independent controls unchanged throughout swipe states. */
+.artwork-stack[data-swipe-direction]
+  .artwork-stack__edge-control {
+  top: 50%;
+  opacity: 1 !important;
+  transform: translateY(-50%) !important;
+  filter: none !important;
+}
+
+.artwork-stack[data-swipe-direction]
+  .artwork-stack__edge-control
+  .artwork-stack__transport-icon {
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+.artwork-stack__edge-control:hover,
+.artwork-stack__edge-control:focus-visible {
+  color: rgb(255 255 255 / 86%);
+}
+
+.artwork-stack__edge-control:hover
+  .artwork-stack__transport-icon::before,
+.artwork-stack__edge-control:focus-visible
+  .artwork-stack__transport-icon::before {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0;
+  transform: none;
+}
+
+.artwork-stack__edge-control:focus-visible {
+  outline: 3px solid #8fd3ff;
+  outline-offset: 4px;
+}
+
+/*
+ * Keep the larger center play/pause treatment on mobile, but restore
+ * its original size in desktop layouts.
+ */
+@media (min-width: 900px) {
+  .artwork-stack__item--current
+    .artwork-stack__transport-icon::before {
+    width: clamp(42px, 24%, 72px);
+  }
+
+  .artwork-stack__item--current
+    .artwork-stack__transport-icon svg {
+    width: clamp(24px, 14%, 42px);
+    stroke-width: 3;
+  }
+
+  .artwork-stack__edge-control {
+    width: 56px;
+    min-width: 56px;
+    height: 56px;
+    min-height: 56px;
+  }
+
+  .artwork-stack__edge-control--previous {
+    right: 88%;
+    left: auto;
+  }
+
+  .artwork-stack__edge-control--next {
+    right: auto;
+    left: 88%;
+  }
+
+  /*
+   * Desktop keeps a forgiving outward hit area while preventing
+   * either navigation button from covering the active artwork.
+   */
+  .artwork-stack__edge-control--previous::after {
+    inset: -14px 0 -14px -14px;
+  }
+
+  .artwork-stack__edge-control--next::after {
+    inset: -14px -14px -14px 0;
+  }
+}
+
+/* Keep controls comfortably inside very narrow portrait viewports. */
+@media (max-width: 380px) {
+  .artwork-stack__edge-control {
+    width: 92px;
+    min-width: 92px;
+    height: 92px;
+    min-height: 92px;
+  }
+
+  .artwork-stack__edge-control--previous {
+    right: 86%;
+    left: auto;
+  }
+
+  .artwork-stack__edge-control--next {
+    right: auto;
+    left: 86%;
+  }
+
+  .artwork-stack__edge-control--previous::after {
+    inset: -14px 0 -14px -14px;
+  }
+
+  .artwork-stack__edge-control--next::after {
+    inset: -14px -14px -14px 0;
+  }
+}
+
+/* ---------------------------------------------------------
+   Mobile landscape waveform refinement
+   --------------------------------------------------------- */
+
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  /*
+   * Restore the original artwork-column dimensions. Only the
+   * waveform panel becomes narrower in this layout.
+   */
+  .player-layout {
+    grid-template-columns:
+      minmax(155px, 30vw)
+      minmax(0, 1fr);
+  }
+
+  /*
+   * Reduce only the waveform display width. Controls and metadata
+   * continue using the full player column.
+   */
+  .waveform-panel {
+    width: 88%;
+    justify-self: end;
+  }
+
+  /*
+   * Keep navigation hit areas outside the active artwork boundary.
+   * The visible arrows move inward independently of those boundaries.
+   */
+  .artwork-stack__edge-control--previous {
+    right: 89%;
+    left: auto;
+  }
+
+  .artwork-stack__edge-control--next {
+    right: auto;
+    left: 89%;
+  }
+
+  .artwork-stack__edge-control--previous
+    .artwork-stack__transport-icon svg {
+    transform: translateX(18px);
+  }
+
+  .artwork-stack__edge-control--next
+    .artwork-stack__transport-icon svg {
+    transform: translateX(-18px);
+  }
+
+  /*
+   * Expand click tolerance only outward and vertically. No part of
+   * either navigation button overlaps the active artwork.
+   */
+  .artwork-stack__edge-control--previous::after {
+    inset: -14px 0 -14px -14px;
+  }
+
+  .artwork-stack__edge-control--next::after {
+    inset: -14px -14px -14px 0;
+  }
+}
+
+/*
+ * Extra-short landscape retains its original narrower artwork rail.
+ * The active artwork is 70% wide, giving safe boundaries at 85%.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 950px) {
+  .player-layout {
+    grid-template-columns:
+      minmax(135px, 26vw)
+      minmax(0, 1fr);
+  }
+
+  .waveform-panel {
+    width: 86%;
+    justify-self: end;
+  }
+
+  .artwork-stack__edge-control--previous {
+    right: 85%;
+  }
+
+  .artwork-stack__edge-control--next {
+    left: 85%;
+  }
+}
+

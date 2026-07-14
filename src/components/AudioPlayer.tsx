@@ -118,6 +118,50 @@ function getMediaUrl(
   return `${mediaBaseUrl.replace(/\/$/, "")}/${assetPath}`;
 }
 
+type ArtworkTransportIconName =
+  | "previous"
+  | "play"
+  | "pause"
+  | "next";
+
+/*
+ * Keep transport icons inline and SVG-based so they remain sharp at
+ * every responsive artwork size.
+ */
+function ArtworkTransportIcon({
+  name,
+}: {
+  name: ArtworkTransportIconName;
+}) {
+  return (
+    <span
+      className="artwork-stack__transport-icon"
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 48 48" focusable="false">
+        {name === "previous" ? (
+          <path d="M34 9 14 24l20 15Z" />
+        ) : null}
+
+        {name === "play" ? (
+          <path d="M16 9 37 24 16 39Z" />
+        ) : null}
+
+        {name === "pause" ? (
+          <>
+            <rect x="14" y="10" width="7" height="28" rx="2" />
+            <rect x="27" y="10" width="7" height="28" rx="2" />
+          </>
+        ) : null}
+
+        {name === "next" ? (
+          <path d="m14 9 20 15-20 15Z" />
+        ) : null}
+      </svg>
+    </span>
+  );
+}
+
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -154,6 +198,9 @@ export default function AudioPlayer() {
   const artworkGestureAxisRef =
     useRef<"horizontal" | "vertical" | null>(null);
   const artworkCommitPendingRef = useRef(false);
+
+  // Prevent pointer-generated clicks after horizontal artwork swipes.
+  const artworkSuppressClickRef = useRef(false);
 
   const [artworkDragOffset, setArtworkDragOffset] =
     useState(0);
@@ -571,7 +618,7 @@ export default function AudioPlayer() {
   }
 
   function handleArtworkPointerDown(
-    event: ReactPointerEvent<HTMLDivElement>,
+    event: ReactPointerEvent<HTMLButtonElement>,
   ) {
     if (playableTracks.length < 2) {
       return;
@@ -581,13 +628,14 @@ export default function AudioPlayer() {
     artworkStartXRef.current = event.clientX;
     artworkStartYRef.current = event.clientY;
     artworkGestureAxisRef.current = null;
+    artworkSuppressClickRef.current = false;
 
     event.currentTarget.setPointerCapture(event.pointerId);
     setIsDraggingArtwork(true);
   }
 
   function handleArtworkPointerMove(
-    event: ReactPointerEvent<HTMLDivElement>,
+    event: ReactPointerEvent<HTMLButtonElement>,
   ) {
     if (
       artworkPointerIdRef.current !== event.pointerId
@@ -618,6 +666,8 @@ export default function AudioPlayer() {
       if (
         artworkGestureAxisRef.current === "horizontal"
       ) {
+        artworkSuppressClickRef.current = true;
+
         setArtworkSwipeDirection(
           deltaX < 0 ? "next" : "previous",
         );
@@ -701,7 +751,7 @@ export default function AudioPlayer() {
   }
 
   function handleArtworkPointerEnd(
-    event: ReactPointerEvent<HTMLDivElement>,
+    event: ReactPointerEvent<HTMLButtonElement>,
   ) {
     if (
       artworkPointerIdRef.current !== event.pointerId
@@ -759,7 +809,7 @@ export default function AudioPlayer() {
   }
 
   function handleArtworkPointerCancel(
-    event: ReactPointerEvent<HTMLDivElement>,
+    event: ReactPointerEvent<HTMLButtonElement>,
   ) {
     if (
       artworkPointerIdRef.current !== event.pointerId
@@ -771,7 +821,7 @@ export default function AudioPlayer() {
   }
 
   function handleArtworkLostPointerCapture(
-    event: ReactPointerEvent<HTMLDivElement>,
+    event: ReactPointerEvent<HTMLButtonElement>,
   ) {
     if (artworkCommitPendingRef.current) {
       return;
@@ -1115,7 +1165,8 @@ export default function AudioPlayer() {
               </button>
             ) : null}
 
-            <div
+            <button
+              type="button"
               className={[
                 "artwork-stack__item",
                 "artwork-stack__item--current",
@@ -1125,6 +1176,14 @@ export default function AudioPlayer() {
               ]
                 .filter(Boolean)
                 .join(" ")}
+              onClick={() => {
+                if (artworkSuppressClickRef.current) {
+                  artworkSuppressClickRef.current = false;
+                  return;
+                }
+
+                void togglePlayback();
+              }}
               onPointerDown={handleArtworkPointerDown}
               onPointerMove={handleArtworkPointerMove}
               onPointerUp={handleArtworkPointerEnd}
@@ -1132,6 +1191,12 @@ export default function AudioPlayer() {
               onLostPointerCapture={
                 handleArtworkLostPointerCapture
               }
+              aria-label={
+                isPlaying ? "Pause track" : "Play track"
+              }
+              aria-pressed={isPlaying}
+              aria-disabled={!audioSource || !waveform}
+              title={isPlaying ? "Pause" : "Play"}
             >
               {artworkSource ? (
                 <img
@@ -1145,7 +1210,11 @@ export default function AudioPlayer() {
                   No artwork
                 </div>
               )}
-            </div>
+
+              <ArtworkTransportIcon
+                name={isPlaying ? "pause" : "play"}
+              />
+            </button>
 
             {nextTrack && nextArtworkSource ? (
               <button
@@ -1193,6 +1262,42 @@ export default function AudioPlayer() {
               </button>
             ) : null}
 
+            {previousTrack ? (
+              <button
+                type="button"
+                className="
+                  artwork-stack__edge-control
+                  artwork-stack__edge-control--previous
+                "
+                onClick={selectPreviousTrack}
+                aria-label={`Previous track: ${
+                  previousTrack.track.title
+                }`}
+                title={`Previous: ${
+                  previousTrack.track.title
+                }`}
+              >
+                <ArtworkTransportIcon name="previous" />
+              </button>
+            ) : null}
+
+            {nextTrack ? (
+              <button
+                type="button"
+                className="
+                  artwork-stack__edge-control
+                  artwork-stack__edge-control--next
+                "
+                onClick={selectNextTrack}
+                aria-label={`Next track: ${
+                  nextTrack.track.title
+                }`}
+                title={`Next: ${nextTrack.track.title}`}
+              >
+                <ArtworkTransportIcon name="next" />
+              </button>
+            ) : null}
+
             {committedArtworkSource ? (
               <div
                 className="artwork-stack__commit-overlay"
@@ -1232,42 +1337,6 @@ export default function AudioPlayer() {
       />
 
       <div className="player-controls">
-        <div
-          className="player-controls__transport"
-          aria-label="Playback controls"
-        >
-          <button
-            type="button"
-            className="player-controls__track-button"
-            onClick={selectPreviousTrack}
-            disabled={playableTracks.length < 2}
-            aria-label="Previous track"
-            title="Previous track"
-          >
-            Previous
-          </button>
-
-          <button
-            className="player-controls__play-button"
-            type="button"
-            onClick={togglePlayback}
-            disabled={!audioSource || !waveform}
-          >
-            {isPlaying ? "Pause" : "Play"}
-          </button>
-
-          <button
-            type="button"
-            className="player-controls__track-button"
-            onClick={selectNextTrack}
-            disabled={playableTracks.length < 2}
-            aria-label="Next track"
-            title="Next track"
-          >
-            Next
-          </button>
-        </div>
-
         <div className="player-controls__track-selector">
           <label className="player-controls__field">
             <span>Track</span>
