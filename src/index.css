@@ -3471,6 +3471,24 @@ canvas {
   min-width: 0;
 }
 
+/*
+ * Keep mobile selector placement consistent regardless of DOM order:
+ * Track dropdown on the left, information button on the right.
+ */
+@media (max-width: 899px) {
+  .player-controls__track-selector
+    .player-controls__field {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .player-controls__track-selector
+    .player-controls__metadata-button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
 /* Match the smaller control height used in short landscape layouts. */
 @media (
   orientation: landscape
@@ -4311,10 +4329,28 @@ canvas {
   }
 
   /*
-   * Reduce only the waveform display width. Controls and metadata
-   * continue using the full player column.
+   * Move the artwork rail inward without resizing the artwork or
+   * changing any carousel, pointer, or swipe geometry.
+   */
+  .artwork-panel {
+    transform: translateX(24px);
+  }
+
+  /*
+   * Keep the waveform narrow and aligned with the viewport's
+   * right edge, preserving clearance beside the next artwork.
    */
   .waveform-panel {
+    width: 88%;
+    justify-self: end;
+  }
+
+  /*
+   * Align Track and its information button with the waveform.
+   * The selector remains a single cohesive control group.
+   */
+  .player-controls__track-selector {
+    grid-column: 1 / -1;
     width: 88%;
     justify-self: end;
   }
@@ -4369,9 +4405,17 @@ canvas {
       minmax(0, 1fr);
   }
 
+  .artwork-panel {
+    transform: translateX(18px);
+  }
+
   .waveform-panel {
     width: 86%;
     justify-self: end;
+  }
+
+  .player-controls__track-selector {
+    width: 86%;
   }
 
   .artwork-stack__edge-control--previous {
