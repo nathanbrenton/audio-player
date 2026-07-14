@@ -107,6 +107,53 @@ sort_name = ""
     role = ""
     sort_name = ""
 
+# Release-wide contributor roles use the same UI hierarchy
+# as track-specific contributor roles.
+#
+# Production:
+# 1. "Producer"
+# 2. "Co-Producer"
+# 3. "Additional Producer"
+# 4. "Executive Producer"
+# 5. "Vocal Producer"
+# 6. "Associate Producer"
+#
+# Recording and Editing:
+# 1. "Recording Engineer"
+# 2. "Engineer"
+# 3. "Additional Recording Engineer"
+# 4. "Assistant Recording Engineer"
+# 5. "Assistant Engineer"
+# 6. "Editor"
+# 7. "Additional Editor"
+#
+# Mixing:
+# 1. "Mixer"
+# 2. "Mix Engineer"
+# 3. "Mixing Engineer"
+# 4. "Additional Mixer"
+# 5. "Assistant Mixer"
+# 6. "Mix Assistant"
+#
+# Mastering:
+# 1. "Mastering Engineer"
+# 2. "Additional Mastering Engineer"
+# 3. "Mastering Assistant"
+# 4. "Mastered By"
+#
+# Writing and Composition:
+# 1. "Written By"
+# 2. "Songwriter"
+# 3. "Composer"
+# 4. "Lyricist"
+# 5. "Music By"
+# 6. "Lyrics By"
+#
+# Specialized roles that contain Producer, Recording, Engineer,
+# Editor, Mix, Master, Writer, Composer, or Lyric are assigned to
+# the closest category. Fully unknown roles remain visible under
+# Other Contributors.
+
 [[release.credits.contributors]]
     name = ""
     role = ""
@@ -123,6 +170,17 @@ sort_name = ""
 [[release.credits.songwriters]]
     name = ""
     sort_name = ""
+
+# Arrangement roles are rendered in this order:
+# 1. "Arranged By"
+# 2. "Arranger"
+# 3. "Vocal Arranger"
+# 4. "String Arranger"
+# 5. "Horn Arranger"
+# 6. "Orchestral Arranger"
+# 7. "Additional Arranger"
+#
+# Leave role blank to display "Arranged By".
 
 [[release.credits.arrangers]]
     name = ""

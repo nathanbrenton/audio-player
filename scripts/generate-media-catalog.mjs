@@ -645,14 +645,22 @@ async function buildTrack(
   );
 
   /*
-   * Track-specific artwork lives beneath the track's artwork/
-   * directory.
+   * Prefer the current front-artwork layout while continuing
+   * to support the earlier flat artwork directory.
    */
-  const artworkFile = path.join(
-    trackPath,
-    "artwork",
-    "artwork.webp",
-  );
+  const artworkFiles = [
+    path.join(
+      trackPath,
+      "artwork",
+      "front",
+      "artwork.webp",
+    ),
+    path.join(
+      trackPath,
+      "artwork",
+      "artwork.webp",
+    ),
+  ];
   const audioMasterFile = path.join(
     trackPath,
     "audio-master.wav",
@@ -682,7 +690,7 @@ async function buildTrack(
   };
 
   const [
-    hasTrackArtwork,
+    trackArtworkMatches,
     hasAudioMaster,
     hasAudioPlayback,
     hasWaveform,
@@ -691,7 +699,12 @@ async function buildTrack(
     hasTrackProductionNotes,
     hasTrackAnalysis,
   ] = await Promise.all([
-    pathExists(artworkFile),
+    Promise.all(
+      artworkFiles.map(async (artworkPath) => ({
+        artworkPath,
+        exists: await pathExists(artworkPath),
+      })),
+    ),
     pathExists(audioMasterFile),
     pathExists(audioPlaybackFile),
     pathExists(waveformFile),
@@ -700,6 +713,14 @@ async function buildTrack(
     pathExists(trackMetadataFiles.productionNotes),
     pathExists(trackMetadataFiles.analysis),
   ]);
+
+  const artworkFile =
+    trackArtworkMatches.find(
+      ({ exists }) => exists,
+    )?.artworkPath ?? null;
+
+  const hasTrackArtwork =
+    artworkFile !== null;
 
   const metadataDiagnostics = await Promise.all([
     readMetadataFile(
@@ -772,9 +793,10 @@ async function buildTrack(
     "track.dates.release",
   );
 
-  const artworkPath = hasTrackArtwork
-    ? toMediaPath(libraryRoot, artworkFile)
-    : releaseArtworkPath;
+  const artworkPath =
+    artworkFile
+      ? toMediaPath(libraryRoot, artworkFile)
+      : releaseArtworkPath;
 
   return {
     id: trackDirectory,

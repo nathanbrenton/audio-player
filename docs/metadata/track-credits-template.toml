@@ -86,12 +86,56 @@ sort_name = ""
 # Add at least one contributor block when a technical or creative
 # contribution applies. Add one block for each distinct person and role.
 #
-# The practical core set represented here is:
-# producer, recording engineer, mix engineer, mastering engineer,
-# editor, sound designer, programmer, and vocal producer.
+# Contributor roles are grouped and rendered in this order:
 #
-# Vocal producer is omitted from this instrumental track because
-# no vocal-production credit applies.
+# Production:
+# 1. "Producer"
+# 2. "Co-Producer"
+# 3. "Additional Producer"
+# 4. "Executive Producer"
+# 5. "Vocal Producer"
+# 6. "Associate Producer"
+# 7. Other roles containing "Producer"
+#
+# Recording and Editing:
+# 1. "Recording Engineer"
+# 2. "Engineer"
+# 3. "Additional Recording Engineer"
+# 4. "Assistant Recording Engineer"
+# 5. "Assistant Engineer"
+# 6. "Editor"
+# 7. "Additional Editor"
+# 8. Other recording, engineering, or editing roles
+#
+# Mixing:
+# 1. "Mixer"
+# 2. "Mix Engineer"
+# 3. "Mixing Engineer"
+# 4. "Additional Mixer"
+# 5. "Assistant Mixer"
+# 6. "Mix Assistant"
+# 7. Other roles containing "Mix"
+#
+# Mastering:
+# 1. "Mastering Engineer"
+# 2. "Additional Mastering Engineer"
+# 3. "Mastering Assistant"
+# 4. "Mastered By"
+# 5. Other roles containing "Master"
+#
+# Writing and Composition roles may also be entered here when
+# they do not fit the dedicated composer, songwriter, or lyricist
+# arrays:
+# 1. "Written By"
+# 2. "Songwriter"
+# 3. "Composer"
+# 4. "Lyricist"
+# 5. "Music By"
+# 6. "Lyrics By"
+#
+# Unknown roles remain visible in the UI. The renderer places
+# recognizable roles in the closest matching category and places
+# fully unrecognized roles under Other Contributors.
 
 [[track.contributors]]
     name = ""
@@ -170,14 +214,17 @@ sort_name = ""
     name = ""
     sort_name = ""
 
-    # Role may specify the type of arrangement.
+    # Arrangement roles are rendered in this order:
+    # 1. "Arranged By"
+    # 2. "Arranger"
+    # 3. "Vocal Arranger"
+    # 4. "String Arranger"
+    # 5. "Horn Arranger"
+    # 6. "Orchestral Arranger"
+    # 7. "Additional Arranger"
+    # 8. Other roles containing "Arranger"
     #
-    # Common examples:
-    # ""
-    # "string arranger"
-    # "vocal arranger"
-    # "horn arranger"
-    # "orchestral arranger"
+    # Leave blank to display the default role "Arranged By".
     role = ""
 
     ipi_name_number = ""

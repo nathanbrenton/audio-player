@@ -7,7 +7,9 @@ import type {
 export type MetadataVerbosity =
   | "summary"
   | "credits"
+  | "track-info"
   | "detailed"
+  | "d33p"
   | "files"
   | "waveforms"
   | "raw";

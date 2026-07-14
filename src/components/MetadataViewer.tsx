@@ -462,6 +462,7 @@ type CreditEntry = {
   name: string;
   role: string | null;
   sources: MetadataProvenance[];
+  detail?: string | null;
 };
 
 function getCreditEntries(
@@ -520,14 +521,294 @@ function getCreditEntries(
   });
 }
 
+function getReleaseCreditEntries(
+  value: unknown,
+): CreditEntry[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!isRecord(entry)) {
+      return [];
+    }
+
+    const name =
+      typeof entry.name === "string"
+        ? entry.name.trim()
+        : "";
+
+    if (!name) {
+      return [];
+    }
+
+    const role =
+      typeof entry.role === "string"
+        ? entry.role.trim() || null
+        : null;
+
+    return [{
+      name,
+      role,
+      sources: [{
+        method: "manual" as const,
+        scope: "release" as const,
+      }],
+    }];
+  });
+}
+
+type CreditGroupKey =
+  | "production"
+  | "arrangement"
+  | "recording"
+  | "mixing"
+  | "mastering"
+  | "writing"
+  | "other";
+
+type CreditRoleRule = {
+  role: string;
+  aliases?: string[];
+};
+
+const creditRoleHierarchy: Record<
+  Exclude<CreditGroupKey, "other">,
+  CreditRoleRule[]
+> = {
+  production: [
+    { role: "Producer" },
+    { role: "Co-Producer" },
+    { role: "Additional Producer" },
+    { role: "Executive Producer" },
+    { role: "Vocal Producer" },
+    { role: "Associate Producer" },
+  ],
+  arrangement: [
+    {
+      role: "Arranged By",
+      aliases: ["Arranger"],
+    },
+    { role: "Vocal Arranger" },
+    { role: "String Arranger" },
+    { role: "Horn Arranger" },
+    { role: "Orchestral Arranger" },
+    { role: "Additional Arranger" },
+  ],
+  recording: [
+    { role: "Recording Engineer" },
+    { role: "Engineer" },
+    { role: "Additional Recording Engineer" },
+    { role: "Assistant Recording Engineer" },
+    { role: "Assistant Engineer" },
+    { role: "Editor" },
+    { role: "Additional Editor" },
+  ],
+  mixing: [
+    {
+      role: "Mixer",
+      aliases: [
+        "Mix Engineer",
+        "Mixing Engineer",
+      ],
+    },
+    { role: "Additional Mixer" },
+    { role: "Assistant Mixer" },
+    { role: "Mix Assistant" },
+  ],
+  mastering: [
+    { role: "Mastering Engineer" },
+    { role: "Additional Mastering Engineer" },
+    { role: "Mastering Assistant" },
+    { role: "Mastered By" },
+  ],
+  writing: [
+    { role: "Written By" },
+    { role: "Songwriter" },
+    { role: "Composer" },
+    { role: "Lyricist" },
+    { role: "Music By" },
+    { role: "Lyrics By" },
+  ],
+};
+
+function normalizeCreditRole(role: string | null): string {
+  return (role ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function getRoleAliases(
+  rule: CreditRoleRule,
+): string[] {
+  return [
+    rule.role,
+    ...(rule.aliases ?? []),
+  ].map(normalizeCreditRole);
+}
+
+function matchesRoleRule(
+  normalizedRole: string,
+  rule: CreditRoleRule,
+): boolean {
+  return getRoleAliases(rule).includes(
+    normalizedRole,
+  );
+}
+
+function classifyCreditRole(
+  role: string | null,
+): CreditGroupKey {
+  const normalizedRole = normalizeCreditRole(role);
+
+  if (!normalizedRole) {
+    return "other";
+  }
+
+  for (
+    const [group, rules]
+    of Object.entries(creditRoleHierarchy)
+  ) {
+    if (
+      rules.some((rule) =>
+        matchesRoleRule(normalizedRole, rule),
+      )
+    ) {
+      return group as Exclude<
+        CreditGroupKey,
+        "other"
+      >;
+    }
+  }
+
+  /*
+   * Unknown specialized roles remain visible in the
+   * closest matching family.
+   */
+  if (normalizedRole.includes("producer")) {
+    return "production";
+  }
+
+  if (
+    normalizedRole.includes("arrang") ||
+    normalizedRole.includes("orchestrat")
+  ) {
+    return "arrangement";
+  }
+
+  if (
+    normalizedRole.includes("master")
+  ) {
+    return "mastering";
+  }
+
+  if (
+    normalizedRole.includes("mix")
+  ) {
+    return "mixing";
+  }
+
+  if (
+    normalizedRole.includes("record") ||
+    normalizedRole.includes("engineer") ||
+    normalizedRole.includes("editor")
+  ) {
+    return "recording";
+  }
+
+  if (
+    normalizedRole.includes("writ") ||
+    normalizedRole.includes("compos") ||
+    normalizedRole.includes("lyric")
+  ) {
+    return "writing";
+  }
+
+  return "other";
+}
+
+function getCreditRolePriority(
+  entry: CreditEntry,
+  group: Exclude<CreditGroupKey, "other">,
+): number {
+  const normalizedRole = normalizeCreditRole(
+    entry.role,
+  );
+
+  const index = creditRoleHierarchy[group]
+    .findIndex((rule) =>
+      matchesRoleRule(normalizedRole, rule),
+    );
+
+  return index === -1
+    ? creditRoleHierarchy[group].length
+    : index;
+}
+
+function sortCreditEntries(
+  entries: CreditEntry[],
+  group: Exclude<CreditGroupKey, "other">,
+): CreditEntry[] {
+  return [...entries].sort((left, right) => {
+    const priorityDifference =
+      getCreditRolePriority(left, group) -
+      getCreditRolePriority(right, group);
+
+    if (priorityDifference !== 0) {
+      return priorityDifference;
+    }
+
+    const roleDifference =
+      (left.role ?? "").localeCompare(
+        right.role ?? "",
+      );
+
+    if (roleDifference !== 0) {
+      return roleDifference;
+    }
+
+    return left.name.localeCompare(right.name);
+  });
+}
+
+function appendGroupDetail(
+  entries: CreditEntry[],
+  detail: string,
+): CreditEntry[] {
+  if (!detail) {
+    return entries;
+  }
+
+  if (entries.length === 0) {
+    return [{
+      name: detail,
+      role: null,
+      sources: [],
+    }];
+  }
+
+  return entries.map((entry, index) =>
+    index === entries.length - 1
+      ? {
+          ...entry,
+          detail,
+        }
+      : entry,
+  );
+}
+
 function CreditGroup({
   label,
   entries,
   roleFirst = false,
+  showSources = false,
 }: {
   label: string;
   entries: CreditEntry[];
   roleFirst?: boolean;
+  showSources?: boolean;
 }) {
   if (entries.length === 0) {
     return null;
@@ -559,9 +840,17 @@ function CreditGroup({
               {entry.name}
             </span>
 
-            <MetadataSourceList
-              sources={entry.sources}
-            />
+            {showSources ? (
+              <MetadataSourceList
+                sources={entry.sources}
+              />
+            ) : null}
+
+            {entry.detail ? (
+              <span className="metadata-viewer__credit-role">
+                {entry.detail}
+              </span>
+            ) : null}
 
             {!roleFirst && entry.role ? (
               <span className="metadata-viewer__credit-role">
@@ -633,41 +922,183 @@ function CreditsMetadataView({
     ? track.metadata.resolved.credits
     : {};
 
+  const releaseMetadata = isRecord(
+    release?.metadata.resolved.release,
+  )
+    ? release.metadata.resolved.release
+    : {};
+
+  const releaseCredits = isRecord(
+    releaseMetadata.credits,
+  )
+    ? releaseMetadata.credits
+    : {};
+
+  const production = isRecord(
+    track.metadata.resolved.production,
+  )
+    ? track.metadata.resolved.production
+    : {};
+
+  const recording = isRecord(production.recording)
+    ? production.recording
+    : {};
+
+  const mix = isRecord(production.mix)
+    ? production.mix
+    : {};
+
+  const mastering = isRecord(production.mastering)
+    ? production.mastering
+    : {};
+
   const performers = getCreditEntries(
     credits.performers,
   );
-  const contributors = getCreditEntries(
-    credits.contributors,
-  );
-  const composers = getCreditEntries(
-    credits.composers,
-  );
-  const lyricists = getCreditEntries(
-    credits.lyricists,
-  );
-  const songwriters = getCreditEntries(
-    credits.songwriters,
-  );
+
+  const contributors = [
+    ...getReleaseCreditEntries(
+      releaseCredits.contributors,
+    ),
+    ...getCreditEntries(
+      credits.contributors,
+    ),
+  ];
+
   const arrangers = getCreditEntries(
     credits.arrangers,
+  ).map((entry) => ({
+    ...entry,
+    role: entry.role ?? "Arranged By",
+  }));
+
+  const composers = getCreditEntries(
+    credits.composers,
+  ).map((entry) => ({
+    ...entry,
+    role: entry.role ?? "Composer",
+  }));
+
+  const songwriters = getCreditEntries(
+    credits.songwriters,
+  ).map((entry) => ({
+    ...entry,
+    role: entry.role ?? "Songwriter",
+  }));
+
+  const lyricists = getCreditEntries(
+    credits.lyricists,
+  ).map((entry) => ({
+    ...entry,
+    role: entry.role ?? "Lyricist",
+  }));
+
+  const productionEntries = sortCreditEntries(
+    contributors.filter(
+      (entry) =>
+        classifyCreditRole(entry.role) ===
+        "production",
+    ),
+    "production",
   );
+
+  const arrangementEntries = sortCreditEntries(
+    [
+      ...arrangers,
+      ...contributors.filter(
+        (entry) =>
+          classifyCreditRole(entry.role) ===
+          "arrangement",
+      ),
+    ],
+    "arrangement",
+  );
+
+  const recordingEntries = appendGroupDetail(
+    sortCreditEntries(
+      contributors.filter(
+        (entry) =>
+          classifyCreditRole(entry.role) ===
+          "recording",
+      ),
+      "recording",
+    ),
+    typeof recording.location === "string" &&
+    recording.location.trim()
+      ? `Recording location: ${
+          recording.location.trim()
+        }`
+      : "",
+  );
+
+  const mixingEntries = appendGroupDetail(
+    sortCreditEntries(
+      contributors.filter(
+        (entry) =>
+          classifyCreditRole(entry.role) ===
+          "mixing",
+      ),
+      "mixing",
+    ),
+    typeof mix.location === "string" &&
+    mix.location.trim()
+      ? `Mixing location: ${
+          mix.location.trim()
+        }`
+      : "",
+  );
+
+  const masteringEntries = appendGroupDetail(
+    sortCreditEntries(
+      contributors.filter(
+        (entry) =>
+          classifyCreditRole(entry.role) ===
+          "mastering",
+      ),
+      "mastering",
+    ),
+    typeof mastering.location === "string" &&
+    mastering.location.trim()
+      ? `Mastering location: ${
+          mastering.location.trim()
+        }`
+      : "",
+  );
+
+  const writingEntries = sortCreditEntries(
+    [
+      ...songwriters,
+      ...composers,
+      ...lyricists,
+      ...contributors.filter(
+        (entry) =>
+          classifyCreditRole(entry.role) ===
+          "writing",
+      ),
+    ],
+    "writing",
+  );
+
+  const otherContributors = contributors
+    .filter(
+      (entry) =>
+        classifyCreditRole(entry.role) ===
+        "other",
+    )
+    .sort((left, right) =>
+      (left.role ?? "").localeCompare(
+        right.role ?? "",
+      ) ||
+      left.name.localeCompare(right.name),
+    );
+
   const remixers = getCreditEntries(
     credits.remixers,
   );
+
   const featuredArtists = getCreditEntries(
     credits.featuredArtists,
   );
-
-  const hasCredits = [
-    performers,
-    contributors,
-    composers,
-    lyricists,
-    songwriters,
-    arrangers,
-    remixers,
-    featuredArtists,
-  ].some((entries) => entries.length > 0);
 
   const publishingRows = flattenMetadata(
     credits.publishing,
@@ -680,6 +1111,19 @@ function CreditsMetadataView({
         "credits",
       )
     : [];
+
+  const hasCredits = [
+    performers,
+    productionEntries,
+    arrangementEntries,
+    recordingEntries,
+    mixingEntries,
+    masteringEntries,
+    writingEntries,
+    otherContributors,
+    remixers,
+    featuredArtists,
+  ].some((entries) => entries.length > 0);
 
   return (
     <div className="metadata-viewer__detailed">
@@ -699,35 +1143,68 @@ function CreditsMetadataView({
               label="Performers"
               entries={performers}
               roleFirst
+              showSources={showSources}
             />
+
             <CreditGroup
-              label="Contributors"
-              entries={contributors}
+              label="Production"
+              entries={productionEntries}
               roleFirst
+              showSources={showSources}
             />
+
             <CreditGroup
-              label="Composers"
-              entries={composers}
+              label="Arrangement"
+              entries={arrangementEntries}
+              roleFirst
+              showSources={showSources}
             />
+
             <CreditGroup
-              label="Songwriters"
-              entries={songwriters}
+              label="Recording and Editing"
+              entries={recordingEntries}
+              roleFirst
+              showSources={showSources}
             />
+
             <CreditGroup
-              label="Lyricists"
-              entries={lyricists}
+              label="Mixing"
+              entries={mixingEntries}
+              roleFirst
+              showSources={showSources}
             />
+
             <CreditGroup
-              label="Arrangers"
-              entries={arrangers}
+              label="Mastering"
+              entries={masteringEntries}
+              roleFirst
+              showSources={showSources}
             />
+
+            <CreditGroup
+              label="Writing and Composition"
+              entries={writingEntries}
+              roleFirst
+              showSources={showSources}
+            />
+
+            <CreditGroup
+              label="Other Contributors"
+              entries={otherContributors}
+              roleFirst
+              showSources={showSources}
+            />
+
             <CreditGroup
               label="Remixers"
               entries={remixers}
+              showSources={showSources}
             />
+
             <CreditGroup
-              label="Featured artists"
+              label="Featured Artists"
               entries={featuredArtists}
+              showSources={showSources}
             />
           </div>
         ) : (
@@ -740,6 +1217,7 @@ function CreditsMetadataView({
           <div className="metadata-viewer__subsection">
             <div className="metadata-viewer__subsection-heading">
               <h4>Publishing</h4>
+
               <MetadataSourceList
                 sources={creditSources}
               />
@@ -776,29 +1254,35 @@ function DetailedMetadataView({
 
   const productionRows = flattenMetadata(
     track.metadata.resolved.production,
-  );
+  ).filter((row) => ![
+    "Location",
+    "Room",
+    "City",
+    "Region",
+    "Country",
+    "Recording · Location",
+    "Mix · Location",
+    "Mastering · Location",
+  ].includes(row.label));
 
-  const analysis = isRecord(
-    track.metadata.resolved.analysis,
-  )
-    ? track.metadata.resolved.analysis
-    : {};
+  const waveformTechnicalRows =
+    findMetadataRowsByKeys(
+      track.metadata.resolved.waveform,
+      [
+        "sampleRate",
+        "sourceChannels",
+        "bitsPerSample",
+      ],
+    );
 
-  /*
-   * Details exposes listener-facing musical analysis.
-   * File paths and generation diagnostics live in Files.
-   */
-  const technicalRows = findMetadataRowsByKeys(
-    analysis,
-    [
-      "bpm",
-      "tempo",
-      "tempo_bpm",
-      "key",
-      "musical_key",
-      "initial_key",
-    ],
-  );
+  const waveformSources: MetadataProvenance[] =
+    showSources &&
+    track.metadata.generated.waveform
+      ? [{
+          method: "generated",
+          scope: "track",
+        }]
+      : [];
 
   const productionSources = showSources
     ? getAuthoredSectionSources(
@@ -807,15 +1291,6 @@ function DetailedMetadataView({
         "production",
       )
     : [];
-
-  const analysisSources: MetadataProvenance[] =
-    showSources &&
-    track.metadata.generated.analysis
-      ? [{
-          method: "generated",
-          scope: "track",
-        }]
-      : [];
 
   return (
     <div className="metadata-viewer__detailed">
@@ -842,25 +1317,243 @@ function DetailedMetadataView({
 
       <section
         className="metadata-viewer__section"
-        aria-labelledby="metadata-technical-title"
+        aria-labelledby="metadata-source-audio-title"
       >
         <div className="metadata-viewer__section-heading">
-          <h3 id="metadata-technical-title">
-            Audio Analysis
+          <h3 id="metadata-source-audio-title">
+            Source audio
           </h3>
 
           <MetadataSourceList
-            sources={analysisSources}
+            sources={waveformSources}
           />
         </div>
 
         <MetadataRows
-          rows={technicalRows}
-          sources={analysisSources}
-          emptyLabel="No BPM or musical-key analysis is available."
+          rows={waveformTechnicalRows}
+          sources={waveformSources}
+          emptyLabel="No source-audio properties are available."
         />
       </section>
+    </div>
+  );
+}
 
+function TrackInformationView({
+  track,
+  showSources,
+}: {
+  track: CatalogTrack | null;
+  showSources: boolean;
+}) {
+  if (!track) {
+    return (
+      <p className="metadata-viewer__empty-state">
+        No track information is available.
+      </p>
+    );
+  }
+
+  const resolved = track.metadata.resolved;
+  const authoredTrack = isRecord(resolved.track)
+    ? resolved.track
+    : {};
+  const authoredAudio = isRecord(authoredTrack.audio)
+    ? authoredTrack.audio
+    : {};
+
+  const manualTrackProvenance: MetadataProvenance = {
+    method: "manual",
+    scope: "track",
+  };
+
+  function displayValue(value: unknown) {
+    return hasDisplayValue(value)
+      ? formatMetadataValue(value)
+      : null;
+  }
+
+  const bpm = displayValue(authoredAudio.bpm);
+  const musicalKey = displayValue(authoredAudio.key);
+  const camelotKey = displayValue(
+    authoredAudio.camelot_key,
+  );
+  const timeSignature = displayValue(
+    authoredAudio.time_signature,
+  );
+  const tuning = displayValue(
+    authoredAudio.tuning_hz,
+  );
+
+  return (
+    <div className="metadata-viewer__basic">
+      <section
+        className="metadata-viewer__section"
+        aria-labelledby="metadata-track-information-title"
+      >
+        <div className="metadata-viewer__section-heading">
+          <h3 id="metadata-track-information-title">
+            Track information
+          </h3>
+        </div>
+
+        <dl className="metadata-viewer__field-grid">
+          <div className="metadata-viewer__field">
+            <MetadataFieldLabel
+              label="BPM"
+              provenance={manualTrackProvenance}
+              showSource={showSources}
+            />
+            <dd>
+              {bpm ?? (
+                <span className="metadata-viewer__empty">
+                  Not provided
+                </span>
+              )}
+            </dd>
+          </div>
+
+          <div className="metadata-viewer__field">
+            <MetadataFieldLabel
+              label="Time Signature"
+              provenance={manualTrackProvenance}
+              showSource={showSources}
+            />
+            <dd>
+              {timeSignature ?? (
+                <span className="metadata-viewer__empty">
+                  Not provided
+                </span>
+              )}
+            </dd>
+          </div>
+
+          <div className="metadata-viewer__field">
+            <MetadataFieldLabel
+              label="Key"
+              provenance={manualTrackProvenance}
+              showSource={showSources}
+            />
+            <dd>
+              {musicalKey ?? (
+                <span className="metadata-viewer__empty">
+                  Not provided
+                </span>
+              )}
+            </dd>
+          </div>
+
+          <div className="metadata-viewer__field">
+            <MetadataFieldLabel
+              label="Camelot Key"
+              provenance={manualTrackProvenance}
+              showSource={showSources}
+            />
+            <dd>
+              {camelotKey ?? (
+                <span className="metadata-viewer__empty">
+                  Not provided
+                </span>
+              )}
+            </dd>
+          </div>
+
+          <div className="metadata-viewer__field">
+            <MetadataFieldLabel
+              label="Tuning"
+              provenance={manualTrackProvenance}
+              showSource={showSources}
+            />
+            <dd>
+              {tuning ? `${tuning} Hz` : (
+                <span className="metadata-viewer__empty">
+                  Not provided
+                </span>
+              )}
+            </dd>
+          </div>
+
+          <div className="metadata-viewer__field">
+            <MetadataFieldLabel
+              label="Language"
+              source={resolved.language.source}
+              showSource={showSources}
+            />
+            <dd>
+              {resolved.language.value ?? (
+                <span className="metadata-viewer__empty">
+                  Not provided
+                </span>
+              )}
+            </dd>
+          </div>
+        </dl>
+      </section>
+    </div>
+  );
+}
+
+function DeepMetadataView({
+  track,
+  showSources,
+}: {
+  track: CatalogTrack | null;
+  showSources: boolean;
+}) {
+  if (!track) {
+    return (
+      <p className="metadata-viewer__empty-state">
+        No deep metadata is available.
+      </p>
+    );
+  }
+
+  const resolvedTrack = isRecord(
+    track.metadata.resolved.track,
+  )
+    ? track.metadata.resolved.track
+    : {};
+
+  const script =
+    typeof resolvedTrack.script === "string" &&
+    resolvedTrack.script.trim()
+      ? resolvedTrack.script.trim()
+      : null;
+
+  const manualTrackProvenance: MetadataProvenance = {
+    method: "manual",
+    scope: "track",
+  };
+
+  return (
+    <div className="metadata-viewer__basic">
+      <section
+        className="metadata-viewer__section"
+        aria-labelledby="metadata-deep-title"
+      >
+        <div className="metadata-viewer__section-heading">
+          <h3 id="metadata-deep-title">
+            D33P metadata
+          </h3>
+        </div>
+
+        <dl className="metadata-viewer__field-grid">
+          <div className="metadata-viewer__field">
+            <MetadataFieldLabel
+              label="Script"
+              provenance={manualTrackProvenance}
+              showSource={showSources}
+            />
+            <dd>
+              {script ?? (
+                <span className="metadata-viewer__empty">
+                  Not provided
+                </span>
+              )}
+            </dd>
+          </div>
+        </dl>
+      </section>
     </div>
   );
 }
@@ -957,7 +1650,11 @@ function WaveformMetadataView({
 
   const waveformRows = flattenMetadata(
     track.metadata.resolved.waveform,
-  );
+  ).filter((row) => ![
+    "Sample Rate",
+    "Source Channels",
+    "Bits Per Sample",
+  ].includes(row.label));
 
   const waveformSources: MetadataProvenance[] =
     showSources &&
@@ -1096,23 +1793,6 @@ function BasicMetadataView({
             </dd>
           </div>
 
-          <div className="metadata-viewer__field">
-            <MetadataFieldLabel
-              label="Language"
-              source={resolved.language.source}
-              showSource={showSources}
-            />
-            <dd>
-              <span>
-                {resolved.language.value ?? (
-                  <span className="metadata-viewer__empty">
-                    Not provided
-                  </span>
-                )}
-              </span>
-
-            </dd>
-          </div>
         </dl>
       </section>
 
@@ -1268,6 +1948,11 @@ export default function MetadataViewer({
       label: "Credits",
       theme: "default",
     },
+    {
+      value: "track-info",
+      label: "Tab3",
+      theme: "default",
+    },
     ...(audiophileMode
       ? [{
           value: "detailed" as const,
@@ -1281,13 +1966,18 @@ export default function MetadataViewer({
     developerMode
       ? [
           {
-            value: "files",
-            label: "Files",
+            value: "waveforms",
+            label: "Waveforms",
             theme: "developer",
           },
           {
-            value: "waveforms",
-            label: "Waveforms",
+            value: "d33p",
+            label: "D33P",
+            theme: "developer",
+          },
+          {
+            value: "files",
+            label: "Files",
             theme: "developer",
           },
           {
@@ -1606,6 +2296,11 @@ export default function MetadataViewer({
             <pre className="metadata-viewer__json">
               {JSON.stringify(rawMetadata, null, 2)}
             </pre>
+          ) : verbosity === "d33p" ? (
+            <DeepMetadataView
+              track={track}
+              showSources={developerMode}
+            />
           ) : verbosity === "files" ? (
             <FilesMetadataView
               track={track}
@@ -1619,6 +2314,11 @@ export default function MetadataViewer({
           ) : verbosity === "credits" ? (
             <CreditsMetadataView
               release={release}
+              track={track}
+              showSources={developerMode}
+            />
+          ) : verbosity === "track-info" ? (
+            <TrackInformationView
               track={track}
               showSources={developerMode}
             />
