@@ -1621,69 +1621,81 @@ canvas {
   position: relative;
   z-index: 20;
   display: grid;
-  gap: 6px;
-  margin-bottom: 14px;
-}
-
-.audio-player__brand-row {
-  display: flex;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "brand spacer menu"
+    "summary summary summary";
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 4px 10px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #292929;
 }
 
+/* Compact label mark; the SVG includes its own rounded frame. */
 .audio-player__brand {
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #a9a9a9;
+  grid-area: brand;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.audio-player__brand-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .audio-player__track-summary {
+  grid-area: summary;
   min-width: 0;
 }
 
-.audio-player__track-line {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-
-.audio-player__track-line strong {
-  min-width: 0;
-  overflow: hidden;
-  font-size: clamp(1.05rem, 5vw, 1.35rem);
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.audio-player__duration {
-  flex: 0 0 auto;
-  font-variant-numeric: tabular-nums;
-  color: #aaaaaa;
-}
-
-.audio-player__duration::before {
-  content: "·";
-  margin-right: 8px;
-}
-
-.audio-player__release {
+.audio-player__track-title {
   display: block;
+  min-width: 0;
   overflow: hidden;
-  margin-top: 3px;
-  color: #999999;
-  font-size: 0.85rem;
+  color: #f5f5f5;
+  font-size: clamp(1.05rem, 5vw, 1.3rem);
+  line-height: 1.18;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.audio-player__track-context {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 2px;
+  color: #999999;
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+/* Artist and release truncate independently on narrow screens. */
+.audio-player__track-context span:not([aria-hidden]) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audio-player__track-context span:first-child {
+  flex: 0 1 auto;
+}
+
+.audio-player__track-context span:last-child {
+  flex: 1 1 auto;
 }
 
 /* Native disclosure styled as a compact hamburger menu. */
 .app-menu {
   position: relative;
+  grid-area: menu;
   flex: 0 0 auto;
 }
 
@@ -1829,22 +1841,13 @@ canvas {
 
 @media (min-width: 640px) {
   .audio-player__header {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
+    grid-template-areas: "brand summary menu";
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
   }
 
-  .audio-player__brand-row {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .audio-player__brand {
-    display: none;
-  }
-
-  .audio-player__track-summary {
-    grid-column: 1;
-    grid-row: 1;
+  .audio-player__track-title {
+    font-size: 1.15rem;
   }
 
   .settings-diagnostics__content {
@@ -2397,12 +2400,9 @@ canvas {
     margin-bottom: 8px;
   }
 
-  .audio-player__brand-row {
-    min-height: 36px;
-  }
-
   .audio-player__brand {
-    font-size: 0.7rem;
+    width: 36px;
+    height: 36px;
   }
 
   .app-menu > summary {
@@ -2411,21 +2411,8 @@ canvas {
     min-height: 40px;
   }
 
-  .audio-player__track-line {
-    gap: 6px;
-  }
-
-  .audio-player__track-line strong {
+  .audio-player__track-title {
     font-size: 1.05rem;
-  }
-
-  .audio-player__duration {
-    font-size: 0.82rem;
-  }
-
-  .audio-player__release {
-    margin-top: 1px;
-    font-size: 0.78rem;
   }
 
   .player-layout {
@@ -2530,33 +2517,25 @@ canvas {
    * mobile portrait-style block.
    */
   .audio-player__header {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
+    grid-template-areas: "brand summary menu";
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 8px;
     margin-bottom: 6px;
-  }
-
-  .audio-player__track-summary {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .audio-player__brand-row {
-    grid-column: 2;
-    grid-row: 1;
-    min-height: 0;
+    padding-bottom: 5px;
   }
 
   .audio-player__brand {
-    display: none;
+    width: 32px;
+    height: 32px;
   }
 
-  .audio-player__track-line strong {
+  .audio-player__track-title {
     font-size: 0.98rem;
   }
 
-  .audio-player__release {
-    font-size: 0.72rem;
+  .audio-player__track-context {
+    margin-top: 1px;
+    font-size: 0.7rem;
   }
 
   .app-menu > summary {
@@ -2733,19 +2712,7 @@ canvas {
   cursor: not-allowed;
 }
 
-/*
- * The application title already appears outside this component.
- * Hide the secondary portrait label to avoid duplicate branding.
- */
 @media (max-width: 639px) {
-  .audio-player__brand {
-    display: none;
-  }
-
-  .audio-player__brand-row {
-    justify-content: flex-end;
-  }
-
   .waveform-panel__zoom-button {
     right: 6px;
     width: 36px;
@@ -4812,12 +4779,6 @@ canvas {
   #root {
     padding-top: 18px;
     padding-bottom: 18px;
-  }
-
-  main > h1 {
-    margin: 0 0 8px;
-    font-size: 1.35rem;
-    line-height: 1.15;
   }
 
   .audio-player__header {

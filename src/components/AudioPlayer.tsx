@@ -23,6 +23,8 @@ import type {
   MediaCatalog,
 } from "../types/MediaCatalog";
 
+import hlLogo from "../assets/hl-logo-graphite.svg";
+
 type WaveformData = {
   version: number;
   durationSeconds: number;
@@ -1464,15 +1466,18 @@ export default function AudioPlayer() {
       aria-label="Audio player"
     >
       <header className="audio-player__header">
-        <div className="audio-player__brand-row">
-          <span className="audio-player__brand">
-            Audio Player
-          </span>
+        <span className="audio-player__brand">
+          <img
+            src={hlLogo}
+            alt="HL record label"
+            className="audio-player__brand-logo"
+          />
+        </span>
 
-          <details
-            ref={appMenuRef}
-            className="app-menu"
-          >
+        <details
+          ref={appMenuRef}
+          className="app-menu"
+        >
             <summary aria-label="Open player menu">
               <span aria-hidden="true">☰</span>
             </summary>
@@ -1657,25 +1662,25 @@ export default function AudioPlayer() {
               ) : null}
             </div>
           </div>
-          </details>
-        </div>
+        </details>
 
         {selectedTrack ? (
           <div className="audio-player__track-summary">
-            <div className="audio-player__track-line">
-              <strong>
-                {selectedTrack.track.title}
-              </strong>
+            <strong className="audio-player__track-title">
+              {selectedTrack.track.title}
+            </strong>
 
-              {waveform ? (
-                <span className="audio-player__duration">
-                  {formatTime(waveform.durationSeconds)}
-                </span>
-              ) : null}
-            </div>
+            <span className="audio-player__track-context">
+              <span>
+                {selectedTrack.track.metadata.resolved
+                  .primaryArtist.name ??
+                  selectedTrack.track.artist ??
+                  "Unknown artist"}
+              </span>
 
-            <span className="audio-player__release">
-              {selectedTrack.release.title}
+              <span aria-hidden="true">·</span>
+
+              <span>{selectedTrack.release.title}</span>
             </span>
           </div>
         ) : null}

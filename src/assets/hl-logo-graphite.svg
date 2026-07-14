@@ -1,0 +1,73 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 512 512"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">HL record label logo</title>
+  <desc id="desc">
+    Rounded square HL logo with a play symbol inside the lowercase h
+    and a volume slider along the bottom.
+  </desc>
+
+  <!-- Transparent background; graphite-friendly white foreground. -->
+  <g
+    fill="none"
+    stroke="#F2F2F2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <!-- Rounded outer frame. -->
+    <rect
+      x="48"
+      y="48"
+      width="416"
+      height="416"
+      rx="92"
+      stroke-width="22"
+    />
+
+    <!-- Lowercase h stem and shoulder. -->
+    <path
+      d="M166 154 V344"
+      stroke-width="34"
+    />
+    <path
+      d="M166 272
+         C166 226 194 206 226 206
+         C265 206 286 234 286 276
+         V344"
+      stroke-width="34"
+    />
+
+    <!-- Lowercase l. -->
+    <path
+      d="M338 154 V344"
+      stroke-width="34"
+    />
+
+    <!-- Bottom slider rail. -->
+    <path
+      d="M126 390 H386"
+      stroke-width="12"
+    />
+
+    <!-- Slider control. -->
+    <circle
+      cx="330"
+      cy="390"
+      r="24"
+      fill="#2A2A2A"
+      stroke-width="12"
+    />
+  </g>
+
+  <!-- Play triangle nested inside the h bowl. -->
+  <path
+    d="M202 244
+       L202 314
+       L254 279
+       Z"
+    fill="#F2F2F2"
+  />
+</svg>
