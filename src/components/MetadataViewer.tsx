@@ -2166,7 +2166,7 @@ export default function MetadataViewer({
         className="metadata-viewer"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="metadata-viewer-title"
+        aria-label="Track metadata"
         tabIndex={-1}
         onKeyDown={handleKeyDown}
       >
@@ -2176,9 +2176,7 @@ export default function MetadataViewer({
               Track metadata
             </span>
 
-            <h2 id="metadata-viewer-title">
-              {track?.title ?? "Metadata diagnostics"}
-            </h2>
+            
           </div>
 
           <button

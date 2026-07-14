@@ -31,6 +31,32 @@ textarea {
   font: inherit;
 }
 
+/*
+ * Preserve ordinary panning and pinch zoom while preventing the
+ * browser's double-tap-to-zoom gesture throughout the interface.
+ */
+html,
+body,
+#root,
+.audio-player,
+button,
+summary,
+select,
+input,
+label,
+canvas {
+  touch-action: manipulation;
+}
+
+/*
+ * Disable native long-press callouts throughout the application.
+ * Custom hold interactions continue to use pointer events.
+ */
+#root,
+#root * {
+  -webkit-touch-callout: none;
+}
+
 /* Keep the application centered while allowing narrow-screen padding. */
 #root {
   width: 100%;
@@ -1726,6 +1752,22 @@ canvas {
   font-size: 1.25rem;
 }
 
+/*
+ * Keep the native disclosure recognizable in hover, keyboard-focus,
+ * and open states without adding custom menu state to React.
+ */
+.app-menu > summary:hover {
+  border-color: #505050;
+  background: #222222;
+}
+
+.app-menu[open] > summary {
+  border-color: #607987;
+  color: #e7f6ff;
+  background: #20313a;
+}
+
+
 .app-menu > summary::-webkit-details-marker,
 .settings-menu > summary::-webkit-details-marker,
 .settings-diagnostics > summary::-webkit-details-marker {
@@ -1734,11 +1776,35 @@ canvas {
 
 .app-menu > summary:focus-visible {
   outline: 2px solid #8fd3ff;
-  outline-offset: 2px;
+  outline-offset: 3px;
+}
+
+/*
+ * The settings backdrop matches the library overlay while the menu's
+ * internal transport keeps playback accessible.
+ */
+.app-menu__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: rgb(0 0 0 / 68%);
+  cursor: default;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.app-menu > summary {
+  position: relative;
+  z-index: 3;
 }
 
 .app-menu__panel {
   position: absolute;
+  z-index: 4;
   top: calc(100% + 8px);
   right: 0;
   width: min(88vw, 420px);
@@ -1801,6 +1867,109 @@ canvas {
 
 .settings-control select {
   width: 100%;
+  min-height: 40px;
+  padding:
+    8px
+    34px
+    8px
+    10px;
+  border: 1px solid #454545;
+  border-radius: 7px;
+  color: #eeeeee;
+  background-color: #202020;
+  background-image:
+    linear-gradient(
+      45deg,
+      transparent 50%,
+      #9b9b9b 50%
+    ),
+    linear-gradient(
+      135deg,
+      #9b9b9b 50%,
+      transparent 50%
+    );
+  background-position:
+    calc(100% - 15px) 50%,
+    calc(100% - 10px) 50%;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  color-scheme: dark;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.settings-control select:hover {
+  border-color: #5b5b5b;
+  background-color: #252525;
+}
+
+.settings-control select:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+.settings-control select option {
+  color: #eeeeee;
+  background: #202020;
+}
+
+/*
+ * Passive compact waveforms use the same generated peaks as the main
+ * player. Canvas drawing occurs only when data, color, or size changes.
+ */
+.compact-waveform {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #303030;
+  border-radius: 6px;
+  background:
+    linear-gradient(
+      180deg,
+      #171717,
+      #101010
+    );
+}
+
+.compact-waveform canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.compact-waveform__playhead {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left:
+    calc(
+      var(--compact-waveform-progress, 0) *
+      100%
+    );
+  z-index: 2;
+  width: 1px;
+  background: rgb(255 255 255 / 88%);
+  box-shadow:
+    0 0 5px rgb(255 255 255 / 40%);
+  pointer-events: none;
+  transform: translateX(-0.5px);
+}
+
+.settings-control__waveform-preview {
+  width: 100%;
+  height: 64px;
+}
+
+.metadata-viewer__transport-waveform {
+  display: none;
+}
+
+.library-sheet__header-waveform {
+  display: block;
+  width: 100%;
+  height: 40px;
 }
 
 .settings-diagnostics {
@@ -2503,11 +2672,24 @@ canvas {
 
   .app-menu__panel {
     position: fixed;
-    top: 58px;
-    right: 10px;
-    left: 10px;
+    top:
+      max(
+        58px,
+        calc(env(safe-area-inset-top) + 48px)
+      );
+    right: max(10px, env(safe-area-inset-right));
+    left: max(10px, env(safe-area-inset-left));
     width: auto;
-    max-height: calc(100dvh - 74px);
+    max-height:
+      calc(
+        100dvh -
+        max(
+          74px,
+          calc(env(safe-area-inset-top) + 64px)
+        ) -
+        max(10px, env(safe-area-inset-bottom))
+      );
+    overscroll-behavior: contain;
   }
 }
 
@@ -2665,11 +2847,24 @@ canvas {
 
   .app-menu__panel {
     position: fixed;
-    top: 48px;
-    right: 10px;
+    top:
+      max(
+        48px,
+        calc(env(safe-area-inset-top) + 40px)
+      );
+    right: max(10px, env(safe-area-inset-right));
     left: auto;
     width: min(72vw, 430px);
-    max-height: calc(100dvh - 58px);
+    max-height:
+      calc(
+        100dvh -
+        max(
+          58px,
+          calc(env(safe-area-inset-top) + 50px)
+        ) -
+        max(8px, env(safe-area-inset-bottom))
+      );
+    overscroll-behavior: contain;
   }
 }
 
@@ -2892,6 +3087,226 @@ canvas {
 .player-controls__metadata-button:disabled {
   opacity: 0.42;
   cursor: not-allowed;
+}
+
+/*
+ * Metadata playback stays fixed near the top on compact layouts.
+ * The modal begins beneath it and no longer recenters between tabs.
+ */
+.metadata-viewer__persistent-transport {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .metadata-viewer__persistent-transport {
+    position: fixed;
+    top:
+      max(
+        8px,
+        env(safe-area-inset-top)
+      );
+    left: 50%;
+    z-index: 1002;
+    display: grid;
+    grid-template-columns:
+      36px
+      42px
+      36px
+      minmax(0, 1fr);
+    align-items: center;
+    gap: 7px;
+    width:
+      min(
+        calc(
+          100% -
+          max(16px, env(safe-area-inset-left)) -
+          max(16px, env(safe-area-inset-right))
+        ),
+        720px
+      );
+    min-height: 50px;
+    padding: 6px 8px;
+    border: 1px solid #424242;
+    border-radius: 10px;
+    background: rgb(24 24 24 / 96%);
+    box-shadow: 0 12px 32px rgb(0 0 0 / 48%);
+    transform: translateX(-50%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .metadata-viewer__persistent-transport > button,
+  .library-sheet__transport > button {
+    position: relative;
+    display: grid;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+    place-items: center;
+    border: 1px solid #444444;
+    border-radius: 50%;
+    color: #d7d7d7;
+    background: #202020;
+    cursor: pointer;
+  }
+
+  .metadata-viewer__persistent-transport
+    > .metadata-viewer__persistent-play,
+  .library-sheet__transport
+    > .library-sheet__transport-play {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    min-height: 42px;
+    border-color: #607987;
+    color: #f4fbff;
+    background: #263c48;
+  }
+
+  .metadata-viewer__persistent-transport
+    > button:hover:not(:disabled),
+  .library-sheet__transport
+    > button:hover:not(:disabled) {
+    border-color: #7893a1;
+    background: #2b414c;
+  }
+
+  .metadata-viewer__persistent-transport
+    > button:focus-visible,
+  .library-sheet__transport
+    > button:focus-visible {
+    outline: 2px solid #8fd3ff;
+    outline-offset: 2px;
+  }
+
+  .metadata-viewer__persistent-transport
+    > button:disabled,
+  .library-sheet__transport
+    > button:disabled {
+    opacity: 0.34;
+    cursor: not-allowed;
+  }
+
+  .metadata-viewer__persistent-transport
+    .artwork-stack__transport-icon,
+  .library-sheet__transport
+    .artwork-stack__transport-icon {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: inherit;
+  }
+
+  .metadata-viewer__persistent-transport
+    .artwork-stack__transport-icon::before,
+  .library-sheet__transport
+    .artwork-stack__transport-icon::before {
+    content: none;
+  }
+
+  .metadata-viewer__persistent-transport
+    .artwork-stack__transport-icon svg,
+  .library-sheet__transport
+    .artwork-stack__transport-icon svg {
+    width: 19px;
+    height: 19px;
+    stroke-width: 3;
+    filter: none;
+  }
+
+  .metadata-viewer__persistent-play
+    .artwork-stack__transport-icon svg,
+  .library-sheet__transport-play
+    .artwork-stack__transport-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .metadata-viewer__persistent-track {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+    margin-left: 2px;
+  }
+
+  .metadata-viewer__persistent-track strong,
+  .metadata-viewer__persistent-track span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .metadata-viewer__persistent-track strong {
+    color: #e7e7e7;
+    font-size: 0.74rem;
+  }
+
+  .metadata-viewer__persistent-track span {
+    color: #858585;
+    font-size: 0.64rem;
+  }
+}
+
+/*
+ * Landscape has enough horizontal room for a passive waveform beside
+ * the persistent transport. Portrait keeps the compact title block.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 899px) {
+  .metadata-viewer__persistent-transport {
+    top:
+      max(
+        6px,
+        env(safe-area-inset-top)
+      );
+    grid-template-columns:
+      34px
+      40px
+      34px
+      minmax(110px, 0.72fr)
+      minmax(160px, 1.28fr);
+    gap: 6px;
+    width:
+      min(
+        calc(
+          100% -
+          max(16px, env(safe-area-inset-left)) -
+          max(16px, env(safe-area-inset-right))
+        ),
+        820px
+      );
+    min-height: 54px;
+  }
+
+  .metadata-viewer__persistent-transport > button {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .metadata-viewer__persistent-transport
+    > .metadata-viewer__persistent-play {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .metadata-viewer__transport-waveform {
+    display: block;
+    width: 100%;
+    height: 42px;
+  }
+
+  .library-sheet__header-waveform {
+    height: 42px;
+  }
 }
 
 /* Cover the application while leaving the dialog independently scrollable. */
@@ -3378,19 +3793,27 @@ canvas {
 
   .metadata-viewer__backdrop {
     padding:
-      max(8px, env(safe-area-inset-top))
+      max(
+        66px,
+        calc(env(safe-area-inset-top) + 58px)
+      )
       max(8px, env(safe-area-inset-right))
       max(8px, env(safe-area-inset-bottom))
       max(8px, env(safe-area-inset-left));
+    place-items: start center;
   }
 
   .metadata-viewer {
     width: 100%;
-    max-height: calc(
-      100dvh -
-      max(16px, env(safe-area-inset-top)) -
-      max(16px, env(safe-area-inset-bottom))
-    );
+    max-height:
+      calc(
+        100dvh -
+        max(
+          74px,
+          calc(env(safe-area-inset-top) + 66px)
+        ) -
+        max(8px, env(safe-area-inset-bottom))
+      );
     border-radius: 10px;
   }
 
@@ -3436,12 +3859,32 @@ canvas {
     min-height: 38px;
   }
 
+  /*
+   * Leave a clear gutter beneath the fixed transport so it never
+   * overlaps the metadata dialog header.
+   */
   .metadata-viewer__backdrop {
-    padding: 8px;
+    padding:
+      max(
+        70px,
+        calc(env(safe-area-inset-top) + 62px)
+      )
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+    place-items: start center;
   }
 
   .metadata-viewer {
-    max-height: calc(100dvh - 16px);
+    max-height:
+      calc(
+        100dvh -
+        max(
+          78px,
+          calc(env(safe-area-inset-top) + 70px)
+        ) -
+        max(8px, env(safe-area-inset-bottom))
+      );
   }
 
   .metadata-viewer__header {
@@ -3463,6 +3906,16 @@ canvas {
 @media (prefers-reduced-motion: reduce) {
   .metadata-viewer__backdrop {
     backdrop-filter: none;
+  }
+
+  .app-menu > summary {
+    transition: none;
+  }
+
+  .app-menu__backdrop,
+  .app-menu__transport {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }
 
@@ -5183,6 +5636,29 @@ canvas {
   background: #191919;
 }
 
+/*
+ * Keep transport and close actions visible while either library
+ * column scrolls independently.
+ */
+.library-sheet__header-actions {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns:
+    auto
+    minmax(90px, 1fr)
+    auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.library-sheet__transport {
+  display: grid;
+  grid-template-columns: 36px 42px 36px;
+  align-items: center;
+  gap: 6px;
+}
+
 .library-sheet__eyebrow {
   display: block;
   margin-bottom: 3px;
@@ -5480,6 +5956,124 @@ canvas {
 .app-menu__content {
   display: grid;
   gap: 10px;
+}
+
+/*
+ * Playback remains available inside every settings view. The row
+ * stays visible while the settings cards beneath it are scrolled.
+ */
+.app-menu__transport {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 38px 44px 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  margin: -2px -2px 2px;
+  padding: 8px;
+  border: 1px solid #3b3b3b;
+  border-radius: 9px;
+  background: rgb(20 20 20 / 96%);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 34%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.app-menu__transport > button {
+  position: relative;
+  display: grid;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #414141;
+  border-radius: 50%;
+  color: #d3d3d3;
+  background: #202020;
+  cursor: pointer;
+}
+
+.app-menu__transport
+  > .app-menu__transport-play {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  border-color: #587484;
+  color: #f4fbff;
+  background: #263c48;
+}
+
+.app-menu__transport > button:hover:not(:disabled) {
+  border-color: #708b99;
+  background: #2b414c;
+}
+
+.app-menu__transport > button:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+.app-menu__transport > button:disabled {
+  opacity: 0.34;
+  cursor: not-allowed;
+}
+
+.app-menu__transport
+  .artwork-stack__transport-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: inherit;
+}
+
+.app-menu__transport
+  .artwork-stack__transport-icon::before {
+  content: none;
+}
+
+.app-menu__transport
+  .artwork-stack__transport-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 3;
+  filter: none;
+}
+
+.app-menu__transport-play
+  .artwork-stack__transport-icon svg {
+  width: 23px;
+  height: 23px;
+}
+
+.app-menu__transport-track {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  margin-left: 3px;
+}
+
+.app-menu__transport-track strong,
+.app-menu__transport-track span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-menu__transport-track strong {
+  color: #e7e7e7;
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.app-menu__transport-track span {
+  color: #858585;
+  font-size: 0.66rem;
 }
 
 /* Keep Audiophile and About prominent at the top of the menu. */
@@ -6004,6 +6598,72 @@ canvas {
 @media (
   orientation: portrait
 ) and (max-width: 899px) {
+  .library-sheet__header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .library-sheet__header-actions {
+    width: 100%;
+  }
+
+  .library-sheet__header > div:first-child {
+    min-width: 0;
+  }
+
+  .library-sheet__header h2 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 430px) {
+    .library-sheet__header {
+      gap: 8px;
+      padding-inline: 10px;
+    }
+
+    .library-sheet__header h2 {
+      font-size: 0.88rem;
+    }
+
+    .library-sheet__eyebrow {
+      display: none;
+    }
+
+    .library-sheet__header-actions {
+      gap: 7px;
+    }
+
+    .library-sheet__transport {
+      grid-template-columns: 32px 38px 32px;
+      gap: 4px;
+    }
+
+    .library-sheet__transport > button {
+      width: 32px;
+      min-width: 32px;
+      height: 32px;
+      min-height: 32px;
+    }
+
+    .library-sheet__transport
+      > .library-sheet__transport-play {
+      width: 38px;
+      min-width: 38px;
+      height: 38px;
+      min-height: 38px;
+    }
+
+    .library-sheet__close-button {
+      width: 36px;
+      min-width: 36px;
+      height: 36px;
+      min-height: 36px;
+    }
+  }
+
   /*
    * Leave approximately one library-header height above the dialog.
    */
@@ -6188,3 +6848,2542 @@ canvas {
   color: #a9a9a9;
 }
 
+
+
+/* ---------------------------------------------------------
+   Compact waveform interaction, mobile balance, and footer
+   --------------------------------------------------------- */
+
+/*
+ * Compact waveform taps seek once on release. Vertical page and modal
+ * scrolling remain available because no drag-scrubbing is captured.
+ */
+.compact-waveform--interactive {
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.compact-waveform--interactive:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+/*
+ * Give the settings preview enough height for all modes to share the
+ * same apparent waveform scale.
+ */
+.settings-control__waveform-preview {
+  height: 72px;
+}
+
+/* Subtle product information without creating another visual header. */
+.audio-player__footer {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #242424;
+  color: #656565;
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+/*
+ * Portrait gains a small visual breathing space between its compact
+ * header and the primary artwork/waveform region.
+ */
+@media (orientation: portrait) and (max-width: 899px) {
+  .player-layout {
+    margin-top: 8px;
+  }
+
+  .audio-player__footer {
+    margin-top: 12px;
+  }
+}
+
+/*
+ * Shift both landscape columns together so artwork and waveform sit
+ * slightly below the viewport centerline rather than crowding the
+ * compact header.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .artwork-panel,
+  .player-layout__main {
+    transform: translateY(7px);
+  }
+
+  /*
+   * Preserve the existing horizontal artwork adjustment while adding
+   * the new shared vertical offset.
+   */
+  .artwork-panel {
+    transform:
+      translateX(24px)
+      translateY(7px);
+  }
+
+  .audio-player__footer {
+    margin-top: 10px;
+    padding-top: 7px;
+  }
+
+  /*
+   * Outline the actual selected square artwork instead of the complete
+   * rectangular release tile and its text label.
+   */
+  .library-browser--mobile
+    .library-browser__release-button[
+      aria-pressed="true"
+    ] {
+    border-color: transparent;
+  }
+
+  .library-browser--mobile
+    .library-browser__release-button[
+      aria-pressed="true"
+    ]
+    .library-browser__release-artwork,
+  .library-browser--mobile
+    .library-browser__release-button[
+      aria-pressed="true"
+    ]
+    .library-browser__all-artwork {
+    border-color: #6e9ab2;
+    box-shadow:
+      0 0 0 2px rgba(110, 154, 178, 0.72);
+  }
+}
+
+/* Retain the established smaller horizontal shift on extra-short screens. */
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 950px) {
+  .artwork-panel {
+    transform:
+      translateX(18px)
+      translateY(5px);
+  }
+
+  .player-layout__main {
+    transform: translateY(5px);
+  }
+}
+
+
+/* ---------------------------------------------------------
+   Final compact-player balance refinements
+   --------------------------------------------------------- */
+
+/*
+ * Let the player fill the available viewport height so the footer can
+ * remain at the bottom even when the current content is short.
+ */
+#root {
+  display: flex;
+  min-height: 100dvh;
+}
+
+.audio-player {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.player-layout {
+  flex: 0 0 auto;
+}
+
+/* Auto margin consumes all unused height above the footer. */
+.audio-player__footer {
+  flex: 0 0 auto;
+  margin-top: auto;
+}
+
+/*
+ * Compact waveform dragging previews the destination position but
+ * does not update the audio element until pointer release.
+ */
+.compact-waveform--interactive {
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.compact-waveform--dragging {
+  cursor: ew-resize;
+}
+
+.compact-waveform--dragging
+  .compact-waveform__playhead {
+  width: 2px;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 3px rgb(255 255 255 / 10%),
+    0 0 8px rgb(255 255 255 / 58%);
+}
+
+/*
+ * Move the primary mobile content farther below the compact header.
+ * The amount remains modest so short screens retain usable controls.
+ */
+@media (orientation: portrait) and (max-width: 899px) {
+  .player-layout {
+    margin-top: 16px;
+  }
+}
+
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .artwork-panel {
+    transform:
+      translateX(24px)
+      translateY(14px);
+  }
+
+  .player-layout__main {
+    transform: translateY(14px);
+  }
+
+  /*
+   * Add row spacing inside the independently scrolling release grid.
+   * Column spacing was already visually correct.
+   */
+  .library-browser--mobile
+    .library-browser__release-strip {
+    row-gap: 14px;
+  }
+}
+
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 950px) {
+  .artwork-panel {
+    transform:
+      translateX(18px)
+      translateY(10px);
+  }
+
+  .player-layout__main {
+    transform: translateY(10px);
+  }
+
+  .library-browser--mobile
+    .library-browser__release-strip {
+    row-gap: 12px;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   Audiophile zoom readout and landscape width repair
+   --------------------------------------------------------- */
+
+/*
+ * Prevent selects, labels, and surrounding text from receiving native
+ * selection highlighting while a compact playhead is being dragged.
+ */
+html.compact-waveform-drag-active,
+html.compact-waveform-drag-active body,
+html.compact-waveform-drag-active #root,
+html.compact-waveform-drag-active #root * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+html.compact-waveform-drag-active select,
+html.compact-waveform-drag-active option {
+  pointer-events: none;
+}
+
+/*
+ * Audiophile Mode exposes the technical zoom value beside the main
+ * waveform controls without making the readout interactive.
+ */
+.waveform-panel__zoom-value {
+  position: absolute;
+  top: 8px;
+  right: 54px;
+  display: grid;
+  min-height: 38px;
+  padding: 0 10px;
+  place-items: center;
+  border: 1px solid #74452f;
+  border-radius: 7px;
+  color: #f1ad75;
+  background:
+    linear-gradient(
+      135deg,
+      rgb(104 48 27 / 82%),
+      rgb(62 39 23 / 82%)
+    );
+  box-shadow: 0 4px 14px rgb(0 0 0 / 30%);
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+@media (max-width: 639px) {
+  .waveform-panel__zoom-value {
+    top: 6px;
+    right: 48px;
+    min-height: 36px;
+    padding-inline: 8px;
+    font-size: 0.66rem;
+  }
+}
+
+/*
+ * Use the full available landscape viewport width. Earlier refinements
+ * intentionally narrowed these controls, leaving unused viewport area.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .player-layout__main {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .waveform-panel,
+  .player-controls__track-selector {
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  /*
+   * Treat the hamburger as a centered overlay rather than a side rail.
+   * The underlying player retains its full-width layout.
+   */
+  .app-menu__panel {
+    right: max(10px, env(safe-area-inset-right));
+    left: max(10px, env(safe-area-inset-left));
+    width: auto;
+    max-width: 620px;
+    margin-inline: auto;
+  }
+
+  .waveform-panel__zoom-value {
+    top: 5px;
+    right: 45px;
+    min-height: 34px;
+  }
+}
+
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 950px) {
+  .waveform-panel,
+  .player-controls__track-selector {
+    width: 100%;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   Viewport width and overlay containment repair
+   --------------------------------------------------------- */
+
+/*
+ * Keep the application centered on desktop. The player remains a
+ * vertical flex container so its footer can consume leftover height,
+ * but it must not grow wider than its established desktop measure.
+ */
+#root {
+  display: block;
+  width: 100%;
+  min-height: 100dvh;
+}
+
+.audio-player {
+  width: min(100%, 1000px);
+  max-width: 1000px;
+  min-height:
+    calc(
+      100dvh -
+      64px
+    );
+  margin-inline: auto;
+  flex: none;
+}
+
+/*
+ * Compact waveform gestures must not visually or functionally alter
+ * the neighboring select while the playhead is being positioned.
+ */
+.settings-control__waveform-preview {
+  position: relative;
+  z-index: 1;
+}
+
+.settings-control__waveform-preview:active,
+.settings-control__waveform-preview:focus,
+.settings-control__waveform-preview:focus-visible {
+  border-color: #303030;
+}
+
+html.compact-waveform-drag-active
+  .settings-control:has(
+    .settings-control__waveform-preview
+  )
+  select {
+  border-color: #454545;
+  outline: 0;
+  box-shadow: none;
+}
+
+/*
+ * Restore the complete mobile-landscape viewport to the application.
+ * Earlier percentage widths and visual translations narrowed the main
+ * column and left unused viewport area on the right.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  #root {
+    width: 100%;
+    padding-right:
+      max(10px, env(safe-area-inset-right));
+    padding-left:
+      max(10px, env(safe-area-inset-left));
+  }
+
+  .audio-player {
+    width: 100%;
+    max-width: none;
+    min-height:
+      calc(
+        100dvh -
+        max(16px, env(safe-area-inset-top)) -
+        max(16px, env(safe-area-inset-bottom))
+      );
+    margin-inline: 0;
+  }
+
+  .player-layout {
+    width: 100%;
+    max-width: none;
+    grid-template-columns:
+      minmax(155px, 30vw)
+      minmax(0, 1fr);
+  }
+
+  .player-layout__main {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    justify-self: stretch;
+  }
+
+  .player-controls,
+  .player-controls__track-selector,
+  .waveform-panel {
+    width: 100%;
+    max-width: none;
+    justify-self: stretch;
+  }
+
+  /*
+   * Keep the visual downward balance without shifting the main column
+   * horizontally or changing the grid's calculated width.
+   */
+  .artwork-panel {
+    transform:
+      translateX(18px)
+      translateY(14px);
+  }
+
+  .player-layout__main {
+    transform: translateY(14px);
+  }
+
+  /*
+   * Constrain the library overlay to the safe viewport rectangle.
+   * Its sheet is centered independently from the player grid beneath.
+   */
+  .library-sheet__backdrop {
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+    place-items: center;
+    overflow: hidden;
+  }
+
+  .library-sheet {
+    width:
+      min(
+        calc(
+          100vw -
+          max(16px, env(safe-area-inset-left)) -
+          max(16px, env(safe-area-inset-right))
+        ),
+        760px
+      );
+    max-width: 100%;
+    max-height:
+      calc(
+        100dvh -
+        max(16px, env(safe-area-inset-top)) -
+        max(16px, env(safe-area-inset-bottom))
+      );
+    margin: 0;
+  }
+
+  .library-sheet__header,
+  .library-sheet__content,
+  .library-sheet__header-actions,
+  .library-browser--mobile {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .library-sheet__header {
+    overflow: hidden;
+  }
+
+  .library-sheet__header-actions {
+    grid-template-columns:
+      auto
+      minmax(80px, 1fr)
+      auto;
+  }
+
+  .library-browser--mobile {
+    width: 100%;
+    grid-template-columns:
+      minmax(180px, 0.78fr)
+      minmax(0, 1.35fr);
+  }
+}
+
+/* Extra-short landscape keeps the same full-width containment. */
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 950px) {
+  .player-layout {
+    width: 100%;
+    grid-template-columns:
+      minmax(135px, 26vw)
+      minmax(0, 1fr);
+  }
+
+  .artwork-panel {
+    transform:
+      translateX(14px)
+      translateY(10px);
+  }
+
+  .library-browser--mobile {
+    grid-template-columns:
+      minmax(160px, 0.7fr)
+      minmax(0, 1.4fr);
+  }
+}
+
+/* Account for the smaller desktop root padding already used later. */
+@media (min-width: 900px) {
+  .audio-player {
+    min-height:
+      calc(
+        100dvh -
+        36px
+      );
+  }
+}
+
+
+/* ---------------------------------------------------------
+   Final overlay and library state corrections
+   --------------------------------------------------------- */
+
+/*
+ * Distinguish library selection from actual playback:
+ * - selected only: neutral gray
+ * - playing only: restrained blue
+ * - selected and playing: brighter blue
+ */
+.library-browser__track-row[
+  data-selected="true"
+][data-playing="false"] {
+  color: #d6d6d6;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(145, 145, 145, 0.16),
+      rgba(80, 80, 80, 0.05)
+    );
+}
+
+.library-browser__track-row[
+  data-playing="true"
+][data-selected="false"] {
+  color: #b8ced9;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(55, 105, 130, 0.16),
+      rgba(30, 53, 65, 0.06)
+    );
+}
+
+.library-browser__track-row[
+  data-playing="true"
+][data-selected="false"]
+  .library-browser__track-play-button {
+  border-color: #567b8f;
+  color: #d5edf8;
+  background: #203f4f;
+  box-shadow: none;
+}
+
+.library-browser__track-row[
+  data-playing="true"
+][data-selected="true"] {
+  color: #eefaff;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(64, 129, 161, 0.3),
+      rgba(34, 61, 75, 0.12)
+    );
+}
+
+/*
+ * Use real layout spacing instead of vertical transforms. Transforms
+ * previously moved the columns visually without reserving space,
+ * allowing the waveform/browser column to overlap the artwork area.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .player-layout {
+    padding-top: 14px;
+  }
+
+  .artwork-panel {
+    transform: translateX(18px);
+  }
+
+  .player-layout__main {
+    transform: none;
+  }
+}
+
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 950px) {
+  .player-layout {
+    padding-top: 10px;
+  }
+
+  .artwork-panel {
+    transform: translateX(14px);
+  }
+
+  .player-layout__main {
+    transform: none;
+  }
+}
+
+/*
+ * Keep the settings transport pinned to the actual panel top. Panel
+ * contents receive their own padding below it, preventing overlap.
+ */
+.app-menu__panel {
+  padding: 0;
+}
+
+.app-menu__content {
+  padding: 10px;
+}
+
+.app-menu__transport {
+  top: 0;
+  margin:
+    -10px
+    -10px
+    10px;
+  padding: 9px 10px;
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  border-radius: 0;
+}
+
+/*
+ * Replace the text glyph with a consistently centered icon. The same
+ * touch target remains in place while the open state becomes an X.
+ */
+.app-menu > summary {
+  position: relative;
+  font-size: 0;
+}
+
+.app-menu > summary > span {
+  display: none;
+}
+
+.app-menu > summary::before {
+  display: block;
+  color: currentColor;
+  content: "☰";
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.app-menu[open] > summary::before {
+  content: "×";
+  font-size: 1.8rem;
+  font-weight: 500;
+  transform: translateY(-1px);
+}
+
+/*
+ * Keep the Audiophile readout text strong while allowing more of the
+ * waveform underneath to remain visible.
+ */
+.waveform-panel__zoom-value {
+  background:
+    linear-gradient(
+      135deg,
+      rgb(104 48 27 / 46%),
+      rgb(62 39 23 / 42%)
+    );
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+/*
+ * The library sheet uses the padded backdrop itself as its containing
+ * rectangle. Width and height therefore cannot exceed the safe area.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .library-sheet__backdrop {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    width: auto;
+    height: auto;
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+    place-items: center;
+    overflow: hidden;
+  }
+
+  .library-sheet {
+    width: min(100%, 760px);
+    max-width: 100%;
+    height: auto;
+    max-height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .library-sheet__content {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .library-browser--mobile {
+    min-height: 0;
+    max-height: 100%;
+  }
+}
+
+/*
+ * Freeze the complete select presentation during compact-waveform
+ * dragging. This overrides hover, focus, active, and label activation.
+ */
+html.compact-waveform-drag-active
+  .settings-control:has(
+    .settings-control__waveform-preview
+  )
+  select,
+html.compact-waveform-drag-active
+  .settings-control:has(
+    .settings-control__waveform-preview
+  )
+  select:hover,
+html.compact-waveform-drag-active
+  .settings-control:has(
+    .settings-control__waveform-preview
+  )
+  select:focus,
+html.compact-waveform-drag-active
+  .settings-control:has(
+    .settings-control__waveform-preview
+  )
+  select:active {
+  border-color: #454545 !important;
+  outline: 0 !important;
+  background-color: #202020 !important;
+  color: #eeeeee !important;
+  box-shadow: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* Footer links remain intentionally quiet until interaction. */
+.audio-player__footer a {
+  color: #747474;
+  text-decoration: none;
+}
+
+.audio-player__footer a:hover {
+  color: #a7a7a7;
+  text-decoration: underline;
+}
+
+.audio-player__footer a:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 3px;
+  color: #c8c8c8;
+}
+
+
+/* ---------------------------------------------------------
+   Library spacing and settings polish
+   --------------------------------------------------------- */
+
+/*
+ * Each landscape release tile owns a complete intrinsic grid row.
+ * Explicit row sizing prevents artwork and labels from intruding into
+ * the tiles immediately above or below them.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .library-browser--mobile
+    .library-browser__release-strip {
+    align-content: start;
+    grid-auto-flow: row;
+    grid-auto-rows: max-content;
+    row-gap: 16px;
+  }
+
+  .library-browser--mobile
+    .library-browser__release-button {
+    align-self: start;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+  }
+
+  .library-browser--mobile
+    .library-browser__release-artwork,
+  .library-browser--mobile
+    .library-browser__all-artwork {
+    position: relative;
+    display: grid;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
+
+  .library-browser--mobile
+    .library-browser__release-label {
+    display: block;
+    min-height: 1.25em;
+    margin-top: 1px;
+  }
+}
+
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 950px) {
+  .library-browser--mobile
+    .library-browser__release-strip {
+    row-gap: 14px;
+  }
+}
+
+/*
+ * Center the generated hamburger and close glyphs geometrically
+ * inside the unchanged square button.
+ */
+.app-menu > summary {
+  display: grid;
+  padding: 0;
+  place-items: center;
+}
+
+.app-menu > summary::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  width: 1em;
+  height: 1em;
+  margin: 0;
+  line-height: 1;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.app-menu[open] > summary::before {
+  transform: translate(-50%, -52%);
+}
+
+/*
+ * Keep the Audiophile readout legible while making both its outline
+ * and fill substantially more transparent.
+ */
+.waveform-panel__zoom-value {
+  border-color: rgb(241 173 117 / 24%);
+  background:
+    linear-gradient(
+      135deg,
+      rgb(104 48 27 / 20%),
+      rgb(62 39 23 / 16%)
+    );
+  box-shadow:
+    0 3px 10px rgb(0 0 0 / 18%);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+/*
+ * The Waveform Color card itself remains visually static. Hover
+ * feedback belongs exclusively to the select bubble.
+ */
+.settings-control:has(
+  .settings-control__waveform-preview
+),
+.settings-control:has(
+  .settings-control__waveform-preview
+):hover,
+.settings-control:has(
+  .settings-control__waveform-preview
+):focus-within {
+  border-color: #303030;
+  background: #181818;
+  box-shadow: none;
+}
+
+/* Only the actual dropdown receives hover feedback. */
+.settings-control:has(
+  .settings-control__waveform-preview
+) select {
+  border-color: #454545;
+  background-color: #202020;
+}
+
+.settings-control:has(
+  .settings-control__waveform-preview
+) select:hover {
+  border-color: #5b5b5b;
+  background-color: #252525;
+}
+
+/*
+ * Waveform dragging keeps the select in its normal non-hover state,
+ * regardless of where the captured pointer moves.
+ */
+html.compact-waveform-drag-active
+  .settings-control:has(
+    .settings-control__waveform-preview
+  ),
+html.compact-waveform-drag-active
+  .settings-control:has(
+    .settings-control__waveform-preview
+  ):hover,
+html.compact-waveform-drag-active
+  .settings-control:has(
+    .settings-control__waveform-preview
+  ):focus-within {
+  border-color: #303030 !important;
+  background: #181818 !important;
+  box-shadow: none !important;
+}
+
+html.compact-waveform-drag-active
+  .settings-control:has(
+    .settings-control__waveform-preview
+  )
+  select,
+html.compact-waveform-drag-active
+  .settings-control:has(
+    .settings-control__waveform-preview
+  )
+  select:hover {
+  border-color: #454545 !important;
+  background-color: #202020 !important;
+  color: #eeeeee !important;
+  box-shadow: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+
+/* ---------------------------------------------------------
+   Exact menu icon and landscape column separation
+   --------------------------------------------------------- */
+
+/*
+ * Draw the hamburger instead of relying on a font glyph. The middle
+ * line sits exactly on the button's vertical centerline.
+ */
+.app-menu > summary::before,
+.app-menu > summary::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  margin: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.app-menu > summary::before {
+  width: 22px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow:
+    0 -7px 0 currentColor,
+    0 7px 0 currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.app-menu > summary::after {
+  display: none;
+}
+
+/*
+ * The open-state X uses two centered bars. Its intersection sits on
+ * the same geometric centerline as the hamburger's middle bar.
+ */
+.app-menu[open] > summary::before,
+.app-menu[open] > summary::after {
+  display: block;
+  width: 22px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: none;
+}
+
+.app-menu[open] > summary::before {
+  transform:
+    translate(-50%, -50%)
+    rotate(45deg);
+}
+
+.app-menu[open] > summary::after {
+  transform:
+    translate(-50%, -50%)
+    rotate(-45deg);
+}
+
+/*
+ * The card is no longer a label. Only the dedicated text label and
+ * select participate in the dropdown's hover/focus relationship.
+ */
+.settings-control--waveform-color > label {
+  color: #cfcfcf;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: default;
+}
+
+.settings-control--waveform-color,
+.settings-control--waveform-color:hover,
+.settings-control--waveform-color:focus-within {
+  border-color: #303030;
+  background: #181818;
+  box-shadow: none;
+}
+
+.settings-control--waveform-color select {
+  border-color: #454545;
+  background-color: #202020;
+}
+
+.settings-control--waveform-color select:hover {
+  border-color: #5b5b5b;
+  background-color: #252525;
+}
+
+/*
+ * During playhead positioning, keep the dropdown completely neutral.
+ */
+html.compact-waveform-drag-active
+  .settings-control--waveform-color select,
+html.compact-waveform-drag-active
+  .settings-control--waveform-color select:hover,
+html.compact-waveform-drag-active
+  .settings-control--waveform-color select:focus,
+html.compact-waveform-drag-active
+  .settings-control--waveform-color select:active {
+  border-color: #454545 !important;
+  outline: 0 !important;
+  background-color: #202020 !important;
+  color: #eeeeee !important;
+  box-shadow: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/*
+ * Reserve real grid space between the artwork carousel and the main
+ * waveform/browser column. Avoid visual transforms that allow their
+ * painted areas to overlap despite separate grid columns.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .player-layout {
+    grid-template-columns:
+      minmax(175px, 34vw)
+      minmax(0, 1fr);
+    column-gap: 22px;
+    padding-top: 14px;
+    padding-left:
+      max(12px, env(safe-area-inset-left));
+  }
+
+  .artwork-panel {
+    width: 100%;
+    margin: 0;
+    transform: none;
+  }
+
+  /*
+   * Slightly narrow and right-align the waveform/browser column,
+   * creating visible clearance beside the artwork and its controls.
+   */
+  .player-layout__main {
+    width: 94%;
+    min-width: 0;
+    justify-self: end;
+    transform: none;
+  }
+
+  .player-controls,
+  .player-controls__track-selector,
+  .waveform-panel {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 950px) {
+  .player-layout {
+    grid-template-columns:
+      minmax(155px, 31vw)
+      minmax(0, 1fr);
+    column-gap: 18px;
+    padding-left:
+      max(10px, env(safe-area-inset-left));
+  }
+
+  .artwork-panel {
+    transform: none;
+  }
+
+  .player-layout__main {
+    width: 93%;
+    transform: none;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   Hamburger tail and landscape artwork containment
+   --------------------------------------------------------- */
+
+/* Hide the browser's native details disclosure marker. */
+.app-menu > summary {
+  list-style: none;
+}
+
+.app-menu > summary::marker {
+  content: "";
+}
+
+.app-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+/*
+ * Reserve actual space at the mobile-landscape left edge without
+ * shifting the artwork outside its grid column.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .player-layout {
+    box-sizing: border-box;
+    padding-left:
+      max(
+        18px,
+        calc(env(safe-area-inset-left) + 10px)
+      );
+    padding-right:
+      max(
+        10px,
+        env(safe-area-inset-right)
+      );
+  }
+
+  .artwork-panel {
+    box-sizing: border-box;
+    width: calc(100% - 8px);
+    min-width: 0;
+    margin-left: 8px;
+    transform: none;
+  }
+
+  .player-layout__main {
+    min-width: 0;
+  }
+}
+
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 950px) {
+  .player-layout {
+    padding-left:
+      max(
+        15px,
+        calc(env(safe-area-inset-left) + 8px)
+      );
+  }
+
+  .artwork-panel {
+    width: calc(100% - 6px);
+    margin-left: 6px;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   Header status, Now Playing, and open-menu isolation
+   --------------------------------------------------------- */
+
+/*
+ * The literal + belongs to the underlying main-waveform zoom control.
+ * Hide the complete zoom layer while the hamburger is open so it
+ * cannot bleed through or appear beside the menu.
+ */
+.audio-player[data-menu-open="true"]
+  .waveform-panel__zoom-controls {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Ensure only the custom hamburger/X drawing is rendered. */
+.app-menu > summary > span {
+  display: none !important;
+}
+
+.app-menu > summary::marker {
+  content: "" !important;
+  font-size: 0 !important;
+}
+
+.app-menu > summary::-webkit-details-marker {
+  display: none !important;
+}
+
+/*
+ * The header now communicates global player state instead of
+ * duplicating track metadata.
+ */
+.audio-player__header-status {
+  grid-area: summary;
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 2px;
+}
+
+.audio-player__header-status > span {
+  color: #6f6f6f;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.audio-player__header-status > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #cfcfcf;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Audiophile output status inherits the established warm palette. */
+.audio-player:has(
+  .settings-toggle--audiophile input:checked
+)
+  .audio-player__header-status > strong {
+  color: #f1ad75;
+}
+
+/*
+ * The library trigger is now a concise action rather than a second
+ * Now Playing display.
+ */
+.player-controls__library-button {
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto
+    auto;
+  grid-template-rows: auto;
+}
+
+.player-controls__library-label {
+  grid-column: 1;
+}
+
+.player-controls__library-count {
+  grid-column: 2;
+  color: #777777;
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+.player-controls__library-chevron {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+/*
+ * Dynamic track metadata has one dedicated home immediately above
+ * the stable application footer.
+ */
+.audio-player__now-playing {
+  display: grid;
+  grid-template-columns:
+    auto
+    minmax(0, 1fr)
+    auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 11px 13px;
+  border: 1px solid #2d2d2d;
+  border-radius: 9px;
+  background:
+    linear-gradient(
+      135deg,
+      rgb(255 255 255 / 2.4%),
+      rgb(255 255 255 / 0.7%)
+    );
+}
+
+.audio-player__now-playing-index {
+  display: grid;
+  min-width: 45px;
+  gap: 3px;
+  padding-right: 12px;
+  border-right: 1px solid #303030;
+}
+
+.audio-player__now-playing-index > span,
+.audio-player__now-playing-eyebrow {
+  color: #6f6f6f;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.audio-player__now-playing-index > strong {
+  color: #bdbdbd;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.audio-player__now-playing-index small {
+  margin-left: 2px;
+  color: #616161;
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.audio-player__now-playing-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.audio-player__now-playing-title {
+  min-width: 0;
+  overflow: hidden;
+  color: #eeeeee;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audio-player__now-playing-context {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+  color: #898989;
+  font-size: 0.7rem;
+}
+
+.audio-player__now-playing-context
+  span:not([aria-hidden]) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audio-player__now-playing-context
+  span:first-child {
+  color: #adadad;
+}
+
+.audio-player__now-playing-context
+  span[aria-hidden] {
+  flex: 0 0 auto;
+  color: #555555;
+}
+
+.audio-player__now-playing-state {
+  min-width: 60px;
+  padding: 5px 8px;
+  border: 1px solid #363636;
+  border-radius: 999px;
+  color: #858585;
+  background: #191919;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.audio-player__now-playing-state[
+  data-playing="true"
+] {
+  border-color: #45697b;
+  color: #cdeeff;
+  background: rgb(40 91 117 / 26%);
+}
+
+/*
+ * The footer remains the final stable row. Its auto margin still
+ * anchors the combined Now Playing/footer area on short pages.
+ */
+.audio-player__now-playing
+  + .audio-player__footer {
+  margin-top: 8px;
+}
+
+@media (max-width: 639px) {
+  .audio-player__header-status > span {
+    font-size: 0.56rem;
+  }
+
+  .audio-player__header-status > strong {
+    font-size: 0.7rem;
+  }
+
+  .audio-player__now-playing {
+    grid-template-columns:
+      auto
+      minmax(0, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+    padding: 10px;
+  }
+
+  .audio-player__now-playing-state {
+    grid-column: 2;
+    justify-self: start;
+    min-width: 54px;
+    padding-block: 4px;
+  }
+}
+
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .audio-player__now-playing {
+    margin-top: 10px;
+    padding-block: 8px;
+  }
+
+  .audio-player__now-playing-state {
+    padding-block: 4px;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   Playback-state and compact landscape repair
+   --------------------------------------------------------- */
+
+/*
+ * Remove all text and native marker rendering from the summary. The
+ * centered hamburger/X remains supplied by its CSS bars.
+ */
+.app-menu > summary {
+  overflow: hidden;
+  color: #f5f5f5;
+  font-size: 0;
+  text-indent: -9999px;
+  list-style-type: none !important;
+}
+
+.app-menu > summary::marker {
+  display: none;
+  width: 0;
+  height: 0;
+  color: transparent;
+  content: "" !important;
+  font-size: 0;
+}
+
+.app-menu > summary::-webkit-details-marker {
+  display: none !important;
+}
+
+/*
+ * Use native details state as the definitive open-menu selector.
+ * This works even if React's mirrored state is one render behind.
+ */
+body:has(.app-menu[open])
+  .waveform-panel__zoom-controls,
+body:has(.app-menu[open])
+  .waveform-panel__zoom-button {
+  display: none !important;
+}
+
+/*
+ * Prevent other generic details/summary pseudo-elements from drawing
+ * disclosure symbols inside the application menu.
+ */
+.app-menu summary:not(.app-menu > summary)::before,
+.app-menu summary:not(.app-menu > summary)::after {
+  content: none;
+}
+
+/*
+ * Keep the current hamburger and X drawing box visible after hiding
+ * all textual and native summary content.
+ */
+.app-menu > summary::before,
+.app-menu > summary::after {
+  text-indent: 0;
+}
+
+/*
+ * The Now Playing region and footer are regular semantic regions.
+ * On short landscape screens they become one compact bottom stack so
+ * the complete player can remain visible without page scrolling.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .audio-player {
+    min-height:
+      calc(
+        100dvh -
+        max(16px, env(safe-area-inset-top)) -
+        max(16px, env(safe-area-inset-bottom))
+      );
+  }
+
+  .player-layout {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-top: 6px;
+  }
+
+  .audio-player__now-playing {
+    grid-template-columns:
+      auto
+      minmax(0, 1fr)
+      auto;
+    gap: 8px;
+    min-height: 0;
+    margin-top: 4px;
+    padding: 5px 8px;
+    border-radius: 7px;
+  }
+
+  .audio-player__now-playing-index {
+    min-width: 38px;
+    gap: 1px;
+    padding-right: 8px;
+  }
+
+  .audio-player__now-playing-index > span,
+  .audio-player__now-playing-eyebrow {
+    font-size: 0.5rem;
+  }
+
+  .audio-player__now-playing-index > strong {
+    font-size: 0.72rem;
+  }
+
+  .audio-player__now-playing-title {
+    font-size: 0.76rem;
+    line-height: 1.12;
+  }
+
+  .audio-player__now-playing-context {
+    gap: 4px;
+    font-size: 0.58rem;
+    line-height: 1.1;
+  }
+
+  .audio-player__now-playing-state {
+    min-width: 48px;
+    padding: 3px 6px;
+    font-size: 0.54rem;
+  }
+
+  .audio-player__footer,
+  .audio-player__now-playing
+    + .audio-player__footer {
+    gap: 5px;
+    margin-top: 2px;
+    padding-top: 3px;
+    border-top-color: #202020;
+    font-size: 0.53rem;
+    line-height: 1.15;
+  }
+}
+
+/*
+ * Extra-short landscape removes secondary Now Playing labels while
+ * retaining the actual track, artist, release, and footer information.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 950px) {
+  .audio-player__now-playing {
+    margin-top: 2px;
+    padding-block: 4px;
+  }
+
+  .audio-player__now-playing-eyebrow,
+  .audio-player__now-playing-index > span {
+    display: none;
+  }
+
+  .audio-player__now-playing-copy {
+    gap: 1px;
+  }
+
+  .audio-player__footer {
+    padding-top: 2px;
+  }
+}
+
+/*
+ * On desktop and portrait, the Now Playing region consumes remaining
+ * space above the footer rather than forcing the footer downward.
+ */
+@media (
+  orientation: portrait
+) and (max-width: 899px),
+(min-width: 900px) {
+  .audio-player__now-playing {
+    margin-top: auto;
+  }
+
+  .audio-player__now-playing
+    + .audio-player__footer {
+    margin-top: 8px;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   Controlled menu and compact player actions
+   --------------------------------------------------------- */
+
+/*
+ * A regular button replaces details/summary, removing every native
+ * disclosure marker and its unexplained open-state plus glyph.
+ */
+.app-menu__trigger {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #383838;
+  border-radius: 8px;
+  color: #f5f5f5;
+  background: #191919;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-menu__trigger:hover {
+  border-color: #505050;
+  background: #222222;
+}
+
+.app-menu[data-open="true"]
+  .app-menu__trigger {
+  border-color: #607987;
+  color: #e7f6ff;
+  background: #20313a;
+}
+
+.app-menu__trigger:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 3px;
+}
+
+/* Center the middle hamburger bar on the button centerline. */
+.app-menu__trigger::before,
+.app-menu__trigger::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  width: 22px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+  pointer-events: none;
+}
+
+.app-menu__trigger::before {
+  box-shadow:
+    0 -7px 0 currentColor,
+    0 7px 0 currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.app-menu__trigger::after {
+  display: none;
+}
+
+.app-menu[data-open="true"]
+  .app-menu__trigger::before,
+.app-menu[data-open="true"]
+  .app-menu__trigger::after {
+  display: block;
+  box-shadow: none;
+}
+
+.app-menu[data-open="true"]
+  .app-menu__trigger::before {
+  transform:
+    translate(-50%, -50%)
+    rotate(45deg);
+}
+
+.app-menu[data-open="true"]
+  .app-menu__trigger::after {
+  transform:
+    translate(-50%, -50%)
+    rotate(-45deg);
+}
+
+/*
+ * Undo the earlier temporary hiding rule. Zoom controls retain their
+ * previous appearance while the menu is open.
+ */
+.audio-player[data-menu-open="true"]
+  .waveform-panel__zoom-controls,
+.audio-player[data-menu-open="true"]
+  .waveform-panel__zoom-button {
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* Add Browse Library as a compact mobile-header action. */
+.audio-player__header {
+  grid-template-areas:
+    "brand summary library menu";
+  grid-template-columns:
+    auto
+    minmax(0, 1fr)
+    auto
+    auto;
+}
+
+.audio-player__header-library-button {
+  grid-area: library;
+  display: none;
+  width: auto;
+  min-width: 0;
+  min-height: 38px;
+  padding: 6px 9px;
+}
+
+/* Place track information beside the waveform current-time readout. */
+.waveform-panel__metadata-button {
+  position: absolute;
+  bottom: 7px;
+  left: 66px;
+  z-index: 5;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  border-color: rgb(255 255 255 / 16%);
+  background: rgb(0 0 0 / 58%);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.waveform-panel__metadata-button:hover:not(:disabled) {
+  background: rgb(36 36 36 / 82%);
+}
+
+@media (max-width: 899px) {
+  .audio-player__header-library-button {
+    display: grid;
+  }
+
+  /*
+   * The two mobile actions have moved into the header and waveform.
+   * Remove the now-empty mobile selector row from document flow.
+   */
+  .player-controls,
+  .player-controls__track-selector {
+    display: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .app-menu__trigger {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
+  }
+
+  .audio-player__header {
+    gap: 6px;
+  }
+
+  .audio-player__header-library-button {
+    min-height: 36px;
+    padding-inline: 8px;
+  }
+
+  .audio-player__header-library-button
+    .player-controls__library-count {
+    display: none;
+  }
+
+  .waveform-panel__metadata-button {
+    bottom: 6px;
+    left: 61px;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+  }
+}
+
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 899px) {
+  .audio-player__header-library-button {
+    min-height: 34px;
+    padding-block: 4px;
+  }
+
+  .player-layout {
+    padding-top: 3px;
+  }
+
+  .audio-player__now-playing {
+    margin-top: 2px;
+  }
+
+  .waveform-panel__metadata-button {
+    bottom: 5px;
+    left: 58px;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
+    font-size: 0.86rem;
+  }
+}
+
+/* Desktop keeps the native selector and full library browser. */
+@media (min-width: 900px) {
+  .audio-player__header {
+    grid-template-areas:
+      "brand summary menu";
+    grid-template-columns:
+      auto
+      minmax(0, 1fr)
+      auto;
+  }
+
+  .audio-player__header-library-button {
+    display: none;
+  }
+
+  .player-controls {
+    display: flex;
+  }
+
+  .player-controls__track-selector {
+    display: grid;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   Stable scrub status and centered landscape player
+   --------------------------------------------------------- */
+
+/*
+ * Metadata is a global track action, so place it in the header after
+ * the Player/Audio Output status rather than inside the waveform.
+ */
+.audio-player__header {
+  grid-template-areas:
+    "brand summary metadata library menu";
+  grid-template-columns:
+    auto
+    minmax(0, 1fr)
+    auto
+    auto
+    auto;
+}
+
+.audio-player__header-metadata-button {
+  grid-area: metadata;
+  align-self: center;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  border-color: #3f3f3f;
+  background: #1b1b1b;
+}
+
+.audio-player__header-metadata-button:hover:not(:disabled) {
+  border-color: #607987;
+  background: #20313a;
+}
+
+/* The old waveform-overlay positioning must no longer apply. */
+.audio-player__header
+  .audio-player__header-metadata-button {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+@media (max-width: 639px) {
+  .audio-player__header-metadata-button {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+  }
+}
+
+/*
+ * Align the centerlines of the artwork carousel and waveform region.
+ * Both columns now center themselves on the same horizontal axis.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 899px) {
+  #root {
+    padding-top:
+      max(4px, env(safe-area-inset-top));
+    padding-bottom:
+      max(4px, env(safe-area-inset-bottom));
+  }
+
+  .audio-player__header {
+    grid-template-areas:
+      "brand summary metadata library menu";
+    grid-template-columns:
+      auto
+      minmax(0, 1fr)
+      auto
+      auto
+      auto;
+    margin-bottom: 2px;
+    padding-bottom: 3px;
+  }
+
+  .audio-player__brand,
+  .app-menu__trigger,
+  .audio-player__header-metadata-button,
+  .audio-player__header-library-button {
+    align-self: center;
+  }
+
+  .player-layout {
+    align-items: center;
+    min-height: 0;
+    padding-top: 0;
+    row-gap: 2px;
+  }
+
+  /*
+   * Restore a predictable compact artwork size rather than filling
+   * the complete landscape grid column.
+   */
+  .artwork-panel {
+    position: static;
+    align-self: center;
+    justify-self: center;
+    width: min(82%, 168px);
+    max-width: 168px;
+    margin: 0;
+    transform: none;
+  }
+
+  .player-layout__main {
+    align-self: center;
+    width: 100%;
+    min-height: 0;
+  }
+
+  .waveform-panel {
+    align-self: center;
+    justify-self: end;
+    width: 88%;
+    margin: 0;
+    --waveform-canvas-height: 132px;
+  }
+
+  .audio-player__now-playing {
+    margin-top: 2px;
+    padding-block: 4px;
+  }
+
+  .audio-player__footer,
+  .audio-player__now-playing
+    + .audio-player__footer {
+    margin-top: 1px;
+    padding-top: 2px;
+  }
+}
+
+/* Extra-short landscape uses an even smaller shared centerline. */
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 899px) {
+  .artwork-panel {
+    width: min(78%, 148px);
+    max-width: 148px;
+  }
+
+  .waveform-panel {
+    width: 86%;
+    --waveform-canvas-height: 116px;
+  }
+
+  .audio-player__now-playing {
+    padding-block: 3px;
+  }
+}
+
+/* Desktop retains a compact metadata action beside Player status. */
+@media (min-width: 900px) {
+  .audio-player__header {
+    grid-template-areas:
+      "brand summary metadata menu";
+    grid-template-columns:
+      auto
+      minmax(0, 1fr)
+      auto
+      auto;
+  }
+
+  .audio-player__header-metadata-button {
+    display: grid;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   Now Playing metadata action and landscape balance
+   --------------------------------------------------------- */
+
+/*
+ * Metadata moved out of the header. The remaining mobile header
+ * contains brand, player status, library, and menu.
+ */
+.audio-player__header {
+  grid-template-areas:
+    "brand summary library menu";
+  grid-template-columns:
+    auto
+    minmax(0, 1fr)
+    minmax(116px, auto)
+    auto;
+  column-gap: 12px;
+}
+
+/*
+ * Center Browse Library in its own allocated column and preserve a
+ * visible gutter before the hamburger trigger.
+ */
+.audio-player__header-library-button {
+  grid-area: library;
+  justify-self: center;
+  margin-inline: 8px 12px;
+}
+
+/*
+ * The metadata action replaces the former provenance/state bubble in
+ * the Now Playing region.
+ */
+.audio-player__now-playing-metadata-button {
+  position: static;
+  grid-column: 3;
+  justify-self: end;
+  align-self: center;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-color: #414141;
+  background: #1b1b1b;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.audio-player__now-playing-metadata-button:hover:not(:disabled) {
+  border-color: #607987;
+  background: #20313a;
+}
+
+/* Retire the former state-bubble layout completely. */
+.audio-player__now-playing-state {
+  display: none;
+}
+
+/*
+ * The eyebrow alone identifies the metadata dialog. Removing the
+ * duplicate track title makes the modal header shorter.
+ */
+.metadata-viewer__header {
+  align-items: center;
+}
+
+.metadata-viewer__header > div {
+  display: flex;
+  align-items: center;
+}
+
+.metadata-viewer__eyebrow {
+  margin-bottom: 0;
+}
+
+/*
+ * Increase landscape artwork halfway between the recently reduced
+ * size and its earlier oversized version. Portrait remains untouched.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 899px) {
+  .audio-player__header {
+    grid-template-areas:
+      "brand summary library menu";
+    grid-template-columns:
+      auto
+      minmax(0, 1fr)
+      minmax(112px, auto)
+      auto;
+    column-gap: 10px;
+  }
+
+  .audio-player__header-library-button {
+    margin-inline: 8px 14px;
+  }
+
+  .artwork-panel {
+    width: min(86%, 180px);
+    max-width: 180px;
+  }
+
+  .audio-player__now-playing-metadata-button {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+  }
+}
+
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 899px) {
+  .artwork-panel {
+    width: min(82%, 158px);
+    max-width: 158px;
+  }
+}
+
+/* Narrow portrait keeps the validated portrait geometry. */
+@media (max-width: 420px) {
+  .audio-player__header {
+    grid-template-columns:
+      auto
+      minmax(0, 1fr)
+      auto
+      auto;
+    column-gap: 7px;
+  }
+
+  .audio-player__header-library-button {
+    margin-inline: 3px 7px;
+  }
+}
+
+/* Desktop can retain its established deferred layout behavior. */
+@media (min-width: 900px) {
+  .audio-player__header {
+    grid-template-areas:
+      "brand summary menu";
+    grid-template-columns:
+      auto
+      minmax(0, 1fr)
+      auto;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   Pre-milestone responsive player balance
+   --------------------------------------------------------- */
+
+/*
+ * Mobile portrait keeps its validated artwork dimensions while making
+ * the waveform approximately ten percent shallower.
+ */
+@media (
+  orientation: portrait
+) and (max-width: 899px) {
+  .waveform-panel {
+    --waveform-canvas-height: 90%;
+  }
+}
+
+/*
+ * Some waveform implementations expect a concrete length rather than
+ * a percentage custom property. Use a viewport-aware cap as the final
+ * portrait value while retaining enough room for zoom and time overlays.
+ */
+@media (
+  orientation: portrait
+) and (max-width: 639px) {
+  .waveform-panel {
+    --waveform-canvas-height:
+      clamp(
+        144px,
+        28dvh,
+        198px
+      );
+  }
+}
+
+@media (
+  orientation: portrait
+) and (min-width: 640px) and (max-width: 899px) {
+  .waveform-panel {
+    --waveform-canvas-height:
+      clamp(
+        162px,
+        27dvh,
+        216px
+      );
+  }
+}
+
+/*
+ * In mobile landscape, size the artwork from the available column
+ * rather than applying another visual translation.
+ *
+ * Responsive inline cushions:
+ * - prevent the side artwork and controls from touching the viewport
+ * - preserve the validated gap beside the waveform
+ * - allow the center artwork to grow when sufficient room exists
+ *
+ * The maximum width prevents the carousel from consuming the vertical
+ * room reserved for Now Playing and the footer.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 899px) {
+  .artwork-panel {
+    width:
+      min(
+        calc(
+          100% -
+          clamp(10px, 3vw, 22px) -
+          clamp(6px, 1.5vw, 14px)
+        ),
+        204px
+      );
+    max-width: 204px;
+    margin-left:
+      clamp(10px, 3vw, 22px);
+    margin-right:
+      clamp(6px, 1.5vw, 14px);
+  }
+
+  /*
+   * The artwork stack remains square. Raising this cap increases the
+   * complete artwork/slider region without changing swipe geometry.
+   */
+  .artwork-stack {
+    width: 100%;
+    max-width: 204px;
+  }
+}
+
+/*
+ * Very short landscape screens receive a smaller cap so the artwork
+ * can grow relative to the previous build without forcing the footer
+ * below the viewport.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 899px) {
+  .artwork-panel {
+    width:
+      min(
+        calc(
+          100% -
+          clamp(9px, 2.5vw, 18px) -
+          clamp(5px, 1vw, 10px)
+        ),
+        178px
+      );
+    max-width: 178px;
+    margin-left:
+      clamp(9px, 2.5vw, 18px);
+    margin-right:
+      clamp(5px, 1vw, 10px);
+  }
+
+  .artwork-stack {
+    max-width: 178px;
+  }
+}
+
+/*
+ * Restore breathing room to the Now Playing region without returning
+ * to the original tall layout.
+ */
+.audio-player__now-playing {
+  gap: 14px;
+  margin-top: 18px;
+  padding: 13px 15px;
+}
+
+.audio-player__now-playing-index {
+  min-width: 48px;
+  gap: 4px;
+  padding-right: 14px;
+}
+
+.audio-player__now-playing-index > span,
+.audio-player__now-playing-eyebrow {
+  font-size: 0.62rem;
+}
+
+.audio-player__now-playing-index > strong {
+  font-size: 0.94rem;
+}
+
+.audio-player__now-playing-title {
+  font-size: 0.98rem;
+  line-height: 1.28;
+}
+
+.audio-player__now-playing-context {
+  gap: 7px;
+  margin-top: 1px;
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.audio-player__now-playing-metadata-button {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+}
+
+/*
+ * Separate dynamic Now Playing information from the stable application
+ * footer so the two regions do not read as one compressed block.
+ */
+.audio-player__now-playing
+  + .audio-player__footer {
+  margin-top: 14px;
+  padding-top: 9px;
+}
+
+/* Portrait gets slightly more breathing room than before. */
+@media (
+  orientation: portrait
+) and (max-width: 899px) {
+  .audio-player__now-playing {
+    gap: 12px;
+    margin-top: 16px;
+    padding: 12px 13px;
+  }
+
+  .audio-player__now-playing-title {
+    font-size: 0.94rem;
+  }
+
+  .audio-player__now-playing-context {
+    font-size: 0.71rem;
+  }
+
+  .audio-player__now-playing
+    + .audio-player__footer {
+    margin-top: 13px;
+  }
+}
+
+/*
+ * Landscape stays compact enough for the viewport, but no longer uses
+ * the highly compressed typography from the prior refinement.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 899px) {
+  .audio-player__now-playing {
+    grid-template-columns:
+      auto
+      minmax(0, 1fr)
+      auto;
+    gap: 10px;
+    margin-top: 7px;
+    padding: 7px 10px;
+  }
+
+  .audio-player__now-playing-index {
+    min-width: 42px;
+    gap: 2px;
+    padding-right: 9px;
+  }
+
+  .audio-player__now-playing-index > span,
+  .audio-player__now-playing-eyebrow {
+    display: block;
+    font-size: 0.53rem;
+  }
+
+  .audio-player__now-playing-index > strong {
+    font-size: 0.78rem;
+  }
+
+  .audio-player__now-playing-title {
+    font-size: 0.82rem;
+    line-height: 1.18;
+  }
+
+  .audio-player__now-playing-context {
+    gap: 5px;
+    font-size: 0.62rem;
+    line-height: 1.16;
+  }
+
+  .audio-player__now-playing-metadata-button {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .audio-player__now-playing
+    + .audio-player__footer {
+    margin-top: 7px;
+    padding-top: 5px;
+  }
+}
+
+/*
+ * Extra-short landscape keeps the content readable but trims only the
+ * least important spacing.
+ */
+@media (
+  orientation: landscape
+) and (max-height: 390px) and (max-width: 899px) {
+  .audio-player__now-playing {
+    gap: 8px;
+    margin-top: 5px;
+    padding: 6px 8px;
+  }
+
+  .audio-player__now-playing-index {
+    min-width: 38px;
+    padding-right: 7px;
+  }
+
+  .audio-player__now-playing-title {
+    font-size: 0.76rem;
+  }
+
+  .audio-player__now-playing-context {
+    font-size: 0.58rem;
+  }
+
+  .audio-player__now-playing
+    + .audio-player__footer {
+    margin-top: 5px;
+    padding-top: 4px;
+  }
+}

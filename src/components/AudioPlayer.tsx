@@ -8,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
+import CompactWaveformCanvas from "./CompactWaveformCanvas";
 import LibraryBrowser from "./LibraryBrowser";
 import MetadataViewer, {
   type MetadataVerbosity,
@@ -24,6 +25,7 @@ import type {
 } from "../types/MediaCatalog";
 
 import hlLogo from "../assets/hl-logo-graphite.svg";
+import packageJsonSource from "../../package.json?raw";
 
 type WaveformData = {
   version: number;
@@ -170,10 +172,20 @@ function ArtworkTransportIcon({
   );
 }
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = (
+  JSON.parse(packageJsonSource) as {
+    version: string;
+  }
+).version;
 
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  /*
+   * Preserve the pre-scrub playback indication while the pointer is
+   * moving. The real media state is reconciled after release.
+   */
+  const scrubDisplayPlayingRef = useRef(false);
 
   /*
    * A MediaElementAudioSourceNode can only be created once for an
@@ -196,7 +208,14 @@ export default function AudioPlayer() {
 
   // Close the hamburger menu when interaction moves elsewhere.
   const appMenuRef =
-    useRef<HTMLDetailsElement | null>(null);
+    useRef<HTMLDivElement | null>(null);
+
+  /*
+   * Mirror the native details state so underlying waveform controls
+   * can be hidden while the application menu is open.
+   */
+  const [isAppMenuOpen, setIsAppMenuOpen] =
+    useState(false);
 
   /*
    * Developer Mode remains hidden until the About card is held.
@@ -286,6 +305,8 @@ export default function AudioPlayer() {
   // Player state.
   const [isPlaying, setIsPlaying] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
+  const [hasPlaybackEnded, setHasPlaybackEnded] =
+    useState(false);
   const [currentTime, setCurrentTime] = useState(0);
 
   // Waveform data and loading state.
@@ -362,11 +383,101 @@ export default function AudioPlayer() {
     );
   }, [playableTracks, selectedTrackKey]);
 
+  /*
+   * Compact previews reuse the loaded waveform data rather than
+   * creating another canvas, analyser, or animation loop.
+   */
+  /*
+   * Compact waveform playheads reuse the existing player-time state.
+   * Their canvases redraw only when data, color, or dimensions change.
+   */
+  const compactWaveformProgress =
+    waveform && waveform.durationSeconds > 0
+      ? Math.max(
+          0,
+          Math.min(
+            1,
+            currentTime / waveform.durationSeconds,
+          ),
+        )
+      : 0;
+
   const selectedTrackIndex = selectedTrack
     ? playableTracks.findIndex(
         (entry) => entry.key === selectedTrack.key,
       )
     : -1;
+
+  const selectedArtist =
+    selectedTrack?.track.metadata.resolved
+      .primaryArtist.name ??
+    selectedTrack?.track.artist ??
+    "Unknown artist";
+
+  const selectedReleaseTitle =
+    selectedTrack?.release.title ??
+    "Unknown release";
+
+  const displayedTrackNumber =
+    selectedTrack?.track.trackNumber ??
+    (selectedTrackIndex >= 0
+      ? selectedTrackIndex + 1
+      : null);
+
+  const audioChannelLabel =
+    waveform?.sourceChannels === 1
+      ? "Mono"
+      : waveform?.sourceChannels === 2
+        ? "Stereo"
+        : waveform
+          ? `${waveform.sourceChannels} channels`
+          : "";
+
+  const audiophileHeaderStatus = waveform
+    ? `${(waveform.sampleRate / 1000).toFixed(
+        waveform.sampleRate % 1000 === 0 ? 0 : 1,
+      )} kHz · ${waveform.bitsPerSample}-bit · ${
+        audioChannelLabel
+      }`
+    : "Loading audio data";
+
+  const playbackHeaderStatus = loadError
+    ? "Unavailable"
+    : !catalog
+      ? "Loading library"
+      : !selectedTrack
+        ? "No playable tracks"
+        : !waveform
+          ? "Loading track"
+          : hasPlaybackEnded
+            ? "Stopped"
+            : isPlaying
+              ? "Playing"
+              : currentTime > 0
+                ? "Paused"
+                : "Ready";
+
+  const displayedIsPlaying = isScrubbing
+    ? scrubDisplayPlayingRef.current
+    : isPlaying;
+
+  const headerStatus = isAudiophileMode
+    ? audiophileHeaderStatus
+    : loadError
+      ? "Unavailable"
+      : !catalog
+        ? "Loading library"
+        : !selectedTrack
+          ? "No playable tracks"
+          : !waveform
+            ? "Loading track"
+            : hasPlaybackEnded
+              ? "Stopped"
+              : displayedIsPlaying
+                ? "Playing"
+                : currentTime > 0
+                  ? "Paused"
+                  : "Ready";
 
   const previousTrack =
     selectedTrackIndex >= 0 && playableTracks.length > 1
@@ -405,6 +516,31 @@ export default function AudioPlayer() {
       : null;
 
   /*
+   * Suppress browser context menus and mobile touch callouts across
+   * the app. Explicit application hold gestures, including About,
+   * continue to use their own pointer-event handlers.
+   */
+  useEffect(() => {
+    function suppressContextMenu(
+      event: MouseEvent,
+    ) {
+      event.preventDefault();
+    }
+
+    document.addEventListener(
+      "contextmenu",
+      suppressContextMenu,
+    );
+
+    return () => {
+      document.removeEventListener(
+        "contextmenu",
+        suppressContextMenu,
+      );
+    };
+  }, []);
+
+  /*
    * Native details elements do not close when users click elsewhere.
    * Close the application menu whenever a pointer press occurs
    * outside the complete hamburger menu and its panel.
@@ -418,14 +554,14 @@ export default function AudioPlayer() {
 
       if (
         !menu ||
-        !menu.open ||
+        !isAppMenuOpen ||
         !(target instanceof Node) ||
         menu.contains(target)
       ) {
         return;
       }
 
-      menu.open = false;
+      setIsAppMenuOpen(false);
     }
 
     document.addEventListener(
@@ -439,7 +575,7 @@ export default function AudioPlayer() {
         handleOutsidePointerDown,
       );
     };
-  }, []);
+  }, [isAppMenuOpen]);
 
   /*
    * Focus the mobile library sheet when opened, close it with Escape,
@@ -596,6 +732,7 @@ export default function AudioPlayer() {
     const controller = new AbortController();
 
     setCurrentTime(0);
+    setHasPlaybackEnded(false);
     setWaveform(null);
     setLoadError(null);
 
@@ -785,6 +922,7 @@ export default function AudioPlayer() {
     audio.load();
 
     setIsPlaying(false);
+    setHasPlaybackEnded(false);
     setCurrentTime(0);
     setSelectedTrackKey(trackKey);
 
@@ -1180,6 +1318,79 @@ export default function AudioPlayer() {
     return analyser;
   }
 
+  /*
+   * Compact overlay waveforms seek the existing audio element
+   * directly without introducing a second playback state.
+   */
+  function seekCompactWaveform(progress: number) {
+    const audio = audioRef.current;
+
+    if (
+      !audio ||
+      !waveform ||
+      waveform.durationSeconds <= 0
+    ) {
+      return;
+    }
+
+    const nextTime =
+      Math.max(0, Math.min(1, progress)) *
+      waveform.durationSeconds;
+
+    audio.currentTime = nextTime;
+
+    setHasPlaybackEnded(
+      nextTime >=
+        waveform.durationSeconds - 0.05,
+    );
+
+    setCurrentTime(nextTime);
+  }
+
+  function handleScrubbingChange(
+    nextIsScrubbing: boolean,
+  ) {
+    const audio = audioRef.current;
+
+    if (nextIsScrubbing) {
+      /*
+       * Freeze the status indicators at their pre-gesture state.
+       * Rapid back-and-forth seeks may emit transient media events.
+       */
+      scrubDisplayPlayingRef.current =
+        Boolean(
+          audio &&
+          !audio.paused &&
+          !audio.ended,
+        ) || isPlaying;
+
+      setIsScrubbing(true);
+      return;
+    }
+
+    setIsScrubbing(false);
+
+    /*
+     * Reconcile once the complete pointer gesture has ended. Waiting
+     * one frame lets the final seeked/playing events settle first.
+     */
+    window.requestAnimationFrame(() => {
+      const settledAudio = audioRef.current;
+
+      if (!settledAudio) {
+        setIsPlaying(false);
+        return;
+      }
+
+      setIsPlaying(
+        !settledAudio.paused &&
+        !settledAudio.ended &&
+        settledAudio.readyState >=
+          HTMLMediaElement.HAVE_CURRENT_DATA,
+      );
+    });
+  }
+
   async function togglePlayback() {
     const audio = audioRef.current;
 
@@ -1187,12 +1398,38 @@ export default function AudioPlayer() {
       return;
     }
 
-    if (audio.paused) {
-      await ensureAudioAnalyser();
-      await audio.play();
-    } else {
-      audio.pause();
+    /*
+     * The HTML audio element is the source of truth. React state can
+     * briefly lag after seeking, buffering, or reaching a boundary.
+     */
+    if (audio.paused || audio.ended) {
+      if (
+        audio.ended ||
+        (
+          Number.isFinite(audio.duration) &&
+          audio.currentTime >= audio.duration - 0.05
+        )
+      ) {
+        audio.currentTime = 0;
+        setCurrentTime(0);
+      }
+
+      try {
+        await ensureAudioAnalyser();
+        await audio.play();
+      } catch (error) {
+        setIsPlaying(false);
+
+        console.error(
+          "Unable to resume audio playback:",
+          error,
+        );
+      }
+
+      return;
     }
+
+    audio.pause();
   }
 
   /*
@@ -1464,6 +1701,9 @@ export default function AudioPlayer() {
     <section
       className="audio-player"
       aria-label="Audio player"
+      data-menu-open={
+        isAppMenuOpen ? "true" : "false"
+      }
     >
       <header className="audio-player__header">
         <span className="audio-player__brand">
@@ -1474,20 +1714,60 @@ export default function AudioPlayer() {
           />
         </span>
 
-        <details
+        <div
           ref={appMenuRef}
           className="app-menu"
+          data-open={
+            isAppMenuOpen ? "true" : "false"
+          }
         >
-            <summary aria-label="Open player menu">
-              <span aria-hidden="true">☰</span>
-            </summary>
+          <button
+            type="button"
+            className="app-menu__trigger"
+            aria-label={
+              isAppMenuOpen
+                ? "Close player menu"
+                : "Open player menu"
+            }
+            aria-expanded={isAppMenuOpen}
+            aria-controls="app-menu-panel"
+            onClick={() => {
+              setIsAppMenuOpen(
+                (isOpen) => !isOpen,
+              );
+            }}
+          />
 
-            <div className="app-menu__panel">
+            
+
+            <div
+              id="app-menu-panel"
+              className="app-menu__panel"
+              hidden={!isAppMenuOpen}
+            >
               <div className="app-menu__content">
-              <label className="settings-control">
-                <span>Waveform Color</span>
+              <div
+                className="
+                  settings-control
+                  settings-control--waveform-color
+                "
+              >
+                <label htmlFor="waveform-color-select">
+                  Waveform Color
+                </label>
+
+                <CompactWaveformCanvas
+                  peaks={waveform?.peaks ?? []}
+                  colorMode={colorMode}
+                  progress={compactWaveformProgress}
+                  onSeek={seekCompactWaveform}
+                  className="
+                    settings-control__waveform-preview
+                  "
+                />
 
                 <select
+                  id="waveform-color-select"
                   value={colorMode}
                   onChange={(event) => {
                     setColorMode(
@@ -1503,81 +1783,10 @@ export default function AudioPlayer() {
                     Monochrome
                   </option>
                 </select>
-              </label>
+              </div>
 
-              <label className="settings-control">
-                <span>Waveform Zoom</span>
-
-                <select
-                  value={pixelsPerSecond}
-                  onChange={(event) => {
-                    const nextZoom = Number(
-                      event.currentTarget.value,
-                    );
-
-                    lastWaveformZoomRef.current =
-                      nextZoom;
-
-                    setPixelsPerSecond(nextZoom);
-                    setWaveformViewMode("waveform");
-                  }}
-                >
-                  <option value={2}>2 px/s</option>
-                  <option value={3}>3 px/s</option>
-                  <option value={6}>6 px/s</option>
-                  <option value={12}>12 px/s</option>
-                  <option value={25}>25 px/s</option>
-                  <option value={50}>50 px/s</option>
-                  <option value={100}>100 px/s</option>
-                  <option value={200}>200 px/s</option>
-                  <option value={400}>400 px/s</option>
-                  <option value={800}>800 px/s</option>
-                  <option value={1600}>1600 px/s</option>
-                  <option value={2400}>2400 px/s</option>
-                  <option value={3200}>3200 px/s</option>
-                  <option value={4000}>4000 px/s</option>
-                  <option value={4800}>4800 px/s</option>
-                  <option value={5600}>5600 px/s</option>
-                  <option value={6400}>6400 px/s</option>
-                </select>
-              </label>
-
-              <label className="settings-control">
-                <span>Waveform View</span>
-
-                <select
-                  value={waveformViewMode}
-                  onChange={(event) => {
-                    const nextMode =
-                      event.currentTarget
-                        .value as WaveformViewMode;
-
-                    if (nextMode === "oscilloscope") {
-                      lastWaveformZoomRef.current =
-                        pixelsPerSecond;
-
-                      setOscilloscopeSampleWindow(
-                        oscilloscopeSampleWindows[0],
-                      );
-                    } else {
-                      setPixelsPerSecond(
-                        lastWaveformZoomRef.current,
-                      );
-                    }
-
-                    setWaveformViewMode(nextMode);
-                  }}
-                >
-                  <option value="waveform">
-                    Scrolling waveform
-                  </option>
-
-                  <option value="oscilloscope">
-                    Oscilloscope
-                  </option>
-                </select>
-              </label>
-
+              
+              
               <label
                 className="
                   settings-toggle
@@ -1662,28 +1871,55 @@ export default function AudioPlayer() {
               ) : null}
             </div>
           </div>
-        </details>
+        </div>
 
-        {selectedTrack ? (
-          <div className="audio-player__track-summary">
-            <strong className="audio-player__track-title">
-              {selectedTrack.track.title}
-            </strong>
+        <div
+          className="audio-player__header-status"
+          aria-live="polite"
+        >
+          <span>
+            {isAudiophileMode
+              ? "Audio Output"
+              : "Player"}
+          </span>
 
-            <span className="audio-player__track-context">
-              <span>
-                {selectedTrack.track.metadata.resolved
-                  .primaryArtist.name ??
-                  selectedTrack.track.artist ??
-                  "Unknown artist"}
-              </span>
+          <strong>{headerStatus}</strong>
+        </div>
 
-              <span aria-hidden="true">·</span>
 
-              <span>{selectedTrack.release.title}</span>
+      
+          <button
+            ref={libraryButtonRef}
+            type="button"
+            className="
+              player-controls__library-button
+              audio-player__header-library-button
+            "
+            disabled={!catalog || playableTracks.length === 0}
+            aria-haspopup="dialog"
+            aria-expanded={isLibraryOpen}
+            onClick={() => {
+              setLibraryTrackKey(selectedTrackKey);
+              setIsLibraryOpen(true);
+            }}
+          >
+            <span className="player-controls__library-label">
+              Browse Library
             </span>
-          </div>
-        ) : null}
+
+            <span className="player-controls__library-count">
+              {playableTracks.length === 1
+                ? "1 track"
+                : `${playableTracks.length} tracks`}
+            </span>
+
+            <span
+              className="player-controls__library-chevron"
+              aria-hidden="true"
+            >
+              ▾
+            </span>
+          </button>
       </header>
 
       <div className="player-layout">
@@ -1936,46 +2172,91 @@ export default function AudioPlayer() {
       <audio
         ref={audioRef}
         preload="metadata"
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
+        onPlay={() => {
+          setHasPlaybackEnded(false);
+        }}
+        onPlaying={() => {
+          setHasPlaybackEnded(false);
+          setIsPlaying(true);
+        }}
+        onPause={(event) => {
+          const audio = event.currentTarget;
+
+          setIsPlaying(false);
+
+          if (
+            audio.ended ||
+            (
+              Number.isFinite(audio.duration) &&
+              audio.duration > 0 &&
+              audio.currentTime >=
+                audio.duration - 0.05
+            )
+          ) {
+            setHasPlaybackEnded(true);
+          }
+        }}
+        onEnded={(event) => {
+          setIsPlaying(false);
+          setHasPlaybackEnded(true);
+          setCurrentTime(
+            event.currentTarget.duration,
+          );
+        }}
+        onSeeking={() => {
+          /*
+           * Seeking can emit transient pause-like media states.
+           * The visible state remains frozen until pointer release.
+           */
+        }}
+        onSeeked={(event) => {
+          const audio = event.currentTarget;
+
+          window.requestAnimationFrame(() => {
+            const isAtEnd =
+              audio.ended ||
+              (
+                Number.isFinite(audio.duration) &&
+                audio.duration > 0 &&
+                audio.currentTime >=
+                  audio.duration - 0.05
+              );
+
+            setHasPlaybackEnded(isAtEnd);
+
+            setIsPlaying(
+              !audio.paused &&
+              !audio.ended &&
+              audio.readyState >=
+                HTMLMediaElement.HAVE_CURRENT_DATA,
+            );
+          });
+        }}
+        onEmptied={() => {
+          setIsPlaying(false);
+          setHasPlaybackEnded(false);
+          setCurrentTime(0);
+        }}
+        onAbort={() => {
+          setIsPlaying(false);
+        }}
+        onError={() => {
+          setIsPlaying(false);
+        }}
         onTimeUpdate={(event) => {
-          setCurrentTime(event.currentTarget.currentTime);
+          const audio = event.currentTarget;
+
+          setCurrentTime(audio.currentTime);
+
+          if (audio.paused || audio.ended) {
+            setIsPlaying(false);
+          }
         }}
       />
 
       <div className="player-controls">
         <div className="player-controls__track-selector">
-          <button
-            ref={libraryButtonRef}
-            type="button"
-            className="player-controls__library-button"
-            disabled={!catalog || playableTracks.length === 0}
-            aria-haspopup="dialog"
-            aria-expanded={isLibraryOpen}
-            onClick={() => {
-              setLibraryTrackKey(selectedTrackKey);
-              setIsLibraryOpen(true);
-            }}
-          >
-            <span className="player-controls__library-label">
-              Browse Library
-            </span>
 
-            <span className="player-controls__library-summary">
-              {selectedTrack
-                ? `${selectedTrack.track.title} · ${
-                    selectedTrack.release.title
-                  }`
-                : "Choose a track"}
-            </span>
-
-            <span
-              className="player-controls__library-chevron"
-              aria-hidden="true"
-            >
-              ▾
-            </span>
-          </button>
 
           <label className="
             player-controls__field
@@ -2032,19 +2313,7 @@ export default function AudioPlayer() {
             </select>
           </label>
 
-          <button
-            ref={metadataButtonRef}
-            type="button"
-            className="player-controls__metadata-button"
-            aria-label="View selected track metadata"
-            title="Track information"
-            disabled={!selectedTrack}
-            onClick={() => {
-              setIsMetadataViewerOpen(true);
-            }}
-          >
-            <span aria-hidden="true">i</span>
-          </button>
+
         </div>
       </div>
 
@@ -2090,10 +2359,69 @@ export default function AudioPlayer() {
                 </h2>
               </div>
 
-              <button
-                type="button"
-                className="library-sheet__close-button"
-                aria-label="Close music library"
+              <div className="library-sheet__header-actions">
+                <div
+                  className="library-sheet__transport"
+                  aria-label="Playback controls"
+                >
+                  <button
+                    type="button"
+                    disabled={!previousTrack}
+                    aria-label="Previous track"
+                    onClick={selectPreviousTrack}
+                  >
+                    <ArtworkTransportIcon name="previous" />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="library-sheet__transport-play"
+                    disabled={!audioSource || !waveform}
+                    aria-label={
+                      isPlaying && !isScrubbing
+                        ? "Pause track"
+                        : "Play track"
+                    }
+                    aria-pressed={
+                      isPlaying && !isScrubbing
+                    }
+                    onClick={() => {
+                      void togglePlayback();
+                    }}
+                  >
+                    <ArtworkTransportIcon
+                      name={
+                        isPlaying && !isScrubbing
+                          ? "pause"
+                          : "play"
+                      }
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!nextTrack}
+                    aria-label="Next track"
+                    onClick={selectNextTrack}
+                  >
+                    <ArtworkTransportIcon name="next" />
+                  </button>
+                </div>
+
+                <CompactWaveformCanvas
+                  peaks={waveform?.peaks ?? []}
+                  colorMode={colorMode}
+                  progress={compactWaveformProgress}
+                  onSeek={seekCompactWaveform}
+                  className="
+                    library-sheet__header-waveform
+                  "
+                />
+
+                <button
+                  type="button"
+                  className="library-sheet__close-button"
+                  aria-label="Close music library"
                 onClick={() => {
                   setIsLibraryOpen(false);
 
@@ -2101,9 +2429,10 @@ export default function AudioPlayer() {
                     libraryButtonRef.current?.focus();
                   });
                 }}
-              >
-                ×
-              </button>
+                >
+                  ×
+                </button>
+              </div>
             </header>
 
             <div className="library-sheet__content">
@@ -2134,6 +2463,85 @@ export default function AudioPlayer() {
               />
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {isMetadataViewerOpen && selectedTrack ? (
+        <div
+          className="metadata-viewer__persistent-transport"
+          aria-label="Playback controls"
+        >
+          <button
+            type="button"
+            disabled={!previousTrack}
+            aria-label="Previous track"
+            onClick={selectPreviousTrack}
+          >
+            <ArtworkTransportIcon name="previous" />
+          </button>
+
+          <button
+            type="button"
+            className="
+              metadata-viewer__persistent-play
+            "
+            disabled={!audioSource || !waveform}
+            aria-label={
+              isPlaying && !isScrubbing
+                ? "Pause track"
+                : "Play track"
+            }
+            aria-pressed={
+              isPlaying && !isScrubbing
+            }
+            onClick={() => {
+              void togglePlayback();
+            }}
+          >
+            <ArtworkTransportIcon
+              name={
+                isPlaying && !isScrubbing
+                  ? "pause"
+                  : "play"
+              }
+            />
+          </button>
+
+          <button
+            type="button"
+            disabled={!nextTrack}
+            aria-label="Next track"
+            onClick={selectNextTrack}
+          >
+            <ArtworkTransportIcon name="next" />
+          </button>
+
+          <span
+            className="
+              metadata-viewer__persistent-track
+            "
+          >
+            <strong>
+              {selectedTrack.track.title}
+            </strong>
+
+            <span>
+              {selectedTrack.track.metadata.resolved
+                .primaryArtist.name ??
+                selectedTrack.track.artist ??
+                "Unknown artist"}
+            </span>
+          </span>
+
+          <CompactWaveformCanvas
+            peaks={waveform?.peaks ?? []}
+            colorMode={colorMode}
+            progress={compactWaveformProgress}
+                  onSeek={seekCompactWaveform}
+            className="
+              metadata-viewer__transport-waveform
+            "
+          />
         </div>
       ) : null}
 
@@ -2176,7 +2584,9 @@ export default function AudioPlayer() {
                 colorMode={colorMode}
                 pixelsPerSecond={pixelsPerSecond}
                 peaksPerSecond={waveform.peaksPerSecond}
-                onScrubbingChange={setIsScrubbing}
+                onScrubbingChange={
+                  handleScrubbingChange
+                }
               />
             )}
 
@@ -2187,10 +2597,23 @@ export default function AudioPlayer() {
               {formatTime(currentTime)}
             </output>
 
+          
+
             <div
               className="waveform-panel__zoom-controls"
               aria-label="Waveform zoom controls"
             >
+              {isAudiophileMode ? (
+                <output
+                  className="waveform-panel__zoom-value"
+                  aria-label="Current waveform zoom"
+                >
+                  {waveformViewMode === "oscilloscope"
+                    ? `${oscilloscopeSampleWindow} samples`
+                    : `${pixelsPerSecond} px/s`}
+                </output>
+              ) : null}
+
               <button
                 type="button"
                 className="
@@ -2296,6 +2719,83 @@ export default function AudioPlayer() {
           }}
         />
       </div>
+      {selectedTrack ? (
+        <section
+          className="audio-player__now-playing"
+          aria-labelledby="now-playing-heading"
+        >
+          <div className="audio-player__now-playing-index">
+            <span>Track</span>
+
+            <strong>
+              {displayedTrackNumber !== null
+                ? displayedTrackNumber
+                    .toString()
+                    .padStart(2, "0")
+                : "—"}
+              <small>
+                /{playableTracks.length
+                  .toString()
+                  .padStart(2, "0")}
+              </small>
+            </strong>
+          </div>
+
+          <div className="audio-player__now-playing-copy">
+            <span
+              id="now-playing-heading"
+              className="audio-player__now-playing-eyebrow"
+            >
+              Now Playing
+            </span>
+
+            <strong className="audio-player__now-playing-title">
+              {selectedTrack.track.title}
+            </strong>
+
+            <span className="audio-player__now-playing-context">
+              <span>{selectedArtist}</span>
+
+              <span aria-hidden="true">·</span>
+
+              <span>{selectedReleaseTitle}</span>
+            </span>
+          </div>
+
+          <button
+            ref={metadataButtonRef}
+            type="button"
+            className="
+            player-controls__metadata-button
+            audio-player__now-playing-metadata-button
+          "
+            aria-label="View selected track metadata"
+            title="Track information"
+            disabled={!selectedTrack}
+            onClick={() => {
+              setIsMetadataViewerOpen(true);
+            }}
+          >
+            <span aria-hidden="true">i</span>
+          </button>
+        </section>
+      ) : null}
+
+      <footer className="audio-player__footer">
+        <span>
+          © {new Date().getFullYear()} Nathan Brenton
+        </span>
+
+        <span aria-hidden="true">·</span>
+
+        <span>Audio Player v{APP_VERSION}</span>
+
+        <span aria-hidden="true">·</span>
+
+        <a href="mailto:nbrenton@gmail.com">
+          Contact
+        </a>
+      </footer>
     </section>
   );
 }
