@@ -5448,3 +5448,36 @@ canvas {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---------------------------------------------------------
+   Live oscilloscope visualization
+   --------------------------------------------------------- */
+
+/*
+ * Match the existing waveform canvas footprint so switching modes
+ * never changes the artwork/waveform layout relationship.
+ */
+.oscilloscope-canvas {
+  display: block;
+  width: 100%;
+  height: var(--waveform-canvas-height, 240px);
+  max-width: 100%;
+  background: #181818;
+}
+
+/* Keep the live trace shallow on the established landscape layouts. */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 950px) {
+  .oscilloscope-canvas {
+    height: var(--waveform-canvas-height, 170px);
+  }
+}
+
+@media (
+  orientation: landscape
+) and (max-height: 410px) and (max-width: 950px) {
+  .oscilloscope-canvas {
+    height: var(--waveform-canvas-height, 145px);
+  }
+}

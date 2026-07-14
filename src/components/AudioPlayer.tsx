@@ -12,6 +12,7 @@ import LibraryBrowser from "./LibraryBrowser";
 import MetadataViewer, {
   type MetadataVerbosity,
 } from "./MetadataViewer";
+import OscilloscopeCanvas from "./OscilloscopeCanvas";
 import WaveformCanvas, {
   type WaveformColorMode,
 } from "./WaveformCanvas";
@@ -76,6 +77,10 @@ type PlayableTrack = {
   release: CatalogRelease;
   track: CatalogTrack;
 };
+
+type WaveformViewMode =
+  | "waveform"
+  | "oscilloscope";
 
 /*
  * Format seconds as minutes and seconds for player-facing timestamps.
@@ -166,6 +171,17 @@ function ArtworkTransportIcon({
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  /*
+   * A MediaElementAudioSourceNode can only be created once for an
+   * audio element, so retain the complete Web Audio graph in refs.
+   */
+  const audioContextRef =
+    useRef<AudioContext | null>(null);
+  const mediaSourceRef =
+    useRef<MediaElementAudioSourceNode | null>(null);
+  const analyserRef =
+    useRef<AnalyserNode | null>(null);
+
   // Restore focus to these triggers after closing overlays.
   const metadataButtonRef =
     useRef<HTMLButtonElement | null>(null);
@@ -249,6 +265,19 @@ export default function AudioPlayer() {
   // Horizontal waveform scale in canvas pixels per second.
   const [pixelsPerSecond, setPixelsPerSecond] =
     useState(100);
+
+  // Oscilloscope is the visualization stage beyond maximum zoom.
+  const [
+    waveformViewMode,
+    setWaveformViewMode,
+  ] = useState<WaveformViewMode>("waveform");
+
+  const [
+    analyserNode,
+    setAnalyserNode,
+  ] = useState<AnalyserNode | null>(null);
+
+  const lastWaveformZoomRef = useRef(100);
 
   /*
    * Flatten playable tracks for lookup while retaining their
@@ -392,6 +421,23 @@ export default function AudioPlayer() {
       );
     };
   }, [isLibraryOpen]);
+
+  /*
+   * Release Web Audio resources only when the complete player
+   * component is removed, not when individual tracks change.
+   */
+  useEffect(() => {
+    return () => {
+      const audioContext = audioContextRef.current;
+
+      if (
+        audioContext &&
+        audioContext.state !== "closed"
+      ) {
+        void audioContext.close();
+      }
+    };
+  }, []);
 
   // Load the generated release and track catalog.
   useEffect(() => {
@@ -881,6 +927,70 @@ export default function AudioPlayer() {
     resetArtworkGesture();
   }
 
+  /*
+   * Lazily create the Web Audio graph after a user gesture. Browsers
+   * commonly prevent AudioContext startup before user interaction.
+   */
+  async function ensureAudioAnalyser(): Promise<
+    AnalyserNode | null
+  > {
+    const audio = audioRef.current;
+
+    if (!audio) {
+      return null;
+    }
+
+    const existingAnalyser = analyserRef.current;
+    const existingContext = audioContextRef.current;
+
+    if (existingAnalyser && existingContext) {
+      if (existingContext.state === "suspended") {
+        await existingContext.resume();
+      }
+
+      return existingAnalyser;
+    }
+
+    const AudioContextConstructor =
+      window.AudioContext ??
+      (
+        window as typeof window & {
+          webkitAudioContext?: typeof AudioContext;
+        }
+      ).webkitAudioContext;
+
+    if (!AudioContextConstructor) {
+      return null;
+    }
+
+    const audioContext =
+      new AudioContextConstructor();
+
+    const mediaSource =
+      audioContext.createMediaElementSource(audio);
+
+    const analyser =
+      audioContext.createAnalyser();
+
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.72;
+
+    mediaSource.connect(analyser);
+    analyser.connect(audioContext.destination);
+
+    audioContextRef.current = audioContext;
+    mediaSourceRef.current = mediaSource;
+    analyserRef.current = analyser;
+
+    setAnalyserNode(analyser);
+
+    if (audioContext.state === "suspended") {
+      await audioContext.resume();
+    }
+
+    return analyser;
+  }
+
   async function togglePlayback() {
     const audio = audioRef.current;
 
@@ -889,6 +999,7 @@ export default function AudioPlayer() {
     }
 
     if (audio.paused) {
+      await ensureAudioAnalyser();
       await audio.play();
     } else {
       audio.pause();
@@ -943,28 +1054,50 @@ export default function AudioPlayer() {
     waveformZoomSteps.indexOf(pixelsPerSecond);
 
   function decreaseWaveformZoom() {
+    if (waveformViewMode === "oscilloscope") {
+      setWaveformViewMode("waveform");
+      setPixelsPerSecond(
+        lastWaveformZoomRef.current,
+      );
+      return;
+    }
+
     const currentIndex =
       waveformZoomIndex >= 0 ? waveformZoomIndex : 1;
 
-    setPixelsPerSecond(
+    const nextZoom =
       waveformZoomSteps[
         Math.max(0, currentIndex - 1)
-      ],
-    );
+      ];
+
+    lastWaveformZoomRef.current = nextZoom;
+    setPixelsPerSecond(nextZoom);
   }
 
   function increaseWaveformZoom() {
+    if (waveformViewMode === "oscilloscope") {
+      return;
+    }
+
     const currentIndex =
       waveformZoomIndex >= 0 ? waveformZoomIndex : 1;
 
-    setPixelsPerSecond(
-      waveformZoomSteps[
-        Math.min(
-          waveformZoomSteps.length - 1,
-          currentIndex + 1,
-        )
-      ],
-    );
+    const maximumIndex =
+      waveformZoomSteps.length - 1;
+
+    if (currentIndex >= maximumIndex) {
+      lastWaveformZoomRef.current =
+        pixelsPerSecond;
+
+      setWaveformViewMode("oscilloscope");
+      return;
+    }
+
+    const nextZoom =
+      waveformZoomSteps[currentIndex + 1];
+
+    lastWaveformZoomRef.current = nextZoom;
+    setPixelsPerSecond(nextZoom);
   }
 
   return (
@@ -1028,6 +1161,37 @@ export default function AudioPlayer() {
                 </div>
 
                 <label className="settings-control">
+                  <span>Waveform view</span>
+
+                  <select
+                    value={waveformViewMode}
+                    onChange={(event) => {
+                      const nextMode =
+                        event.currentTarget
+                          .value as WaveformViewMode;
+
+                      if (nextMode === "oscilloscope") {
+                        lastWaveformZoomRef.current =
+                          pixelsPerSecond;
+                      } else {
+                        setPixelsPerSecond(
+                          lastWaveformZoomRef.current,
+                        );
+                      }
+
+                      setWaveformViewMode(nextMode);
+                    }}
+                  >
+                    <option value="waveform">
+                      Scrolling waveform
+                    </option>
+                    <option value="oscilloscope">
+                      Oscilloscope
+                    </option>
+                  </select>
+                </label>
+
+                <label className="settings-control">
                   <span>Waveform color</span>
 
                   <select
@@ -1054,9 +1218,15 @@ export default function AudioPlayer() {
                   <select
                     value={pixelsPerSecond}
                     onChange={(event) => {
-                      setPixelsPerSecond(
-                        Number(event.currentTarget.value),
+                      const nextZoom = Number(
+                        event.currentTarget.value,
                       );
+
+                      lastWaveformZoomRef.current =
+                        nextZoom;
+
+                      setPixelsPerSecond(nextZoom);
+                      setWaveformViewMode("waveform");
                     }}
                   >
                     <option value={2}>2 px/s</option>
@@ -1582,14 +1752,23 @@ export default function AudioPlayer() {
       {waveform ? (
         <>
           <div className="waveform-panel">
-            <WaveformCanvas
-              peaks={waveform.peaks}
-              audioRef={audioRef}
-              isPlaying={isPlaying}
-              colorMode={colorMode}
-              pixelsPerSecond={pixelsPerSecond}
-              peaksPerSecond={waveform.peaksPerSecond}
-            />
+            {waveformViewMode === "oscilloscope" ? (
+              <OscilloscopeCanvas
+                analyser={analyserNode}
+                audioRef={audioRef}
+                isPlaying={isPlaying}
+                colorMode={colorMode}
+              />
+            ) : (
+              <WaveformCanvas
+                peaks={waveform.peaks}
+                audioRef={audioRef}
+                isPlaying={isPlaying}
+                colorMode={colorMode}
+                pixelsPerSecond={pixelsPerSecond}
+                peaksPerSecond={waveform.peaksPerSecond}
+              />
+            )}
 
             <output
               className="waveform-panel__current-time"
@@ -1610,13 +1789,28 @@ export default function AudioPlayer() {
                 "
                 onClick={increaseWaveformZoom}
                 disabled={
-                  pixelsPerSecond >=
-                  waveformZoomSteps[
-                    waveformZoomSteps.length - 1
-                  ]
+                  waveformViewMode === "oscilloscope"
                 }
-                aria-label="Zoom waveform in"
-                title="Zoom waveform in"
+                aria-label={
+                  waveformViewMode === "oscilloscope"
+                    ? "Oscilloscope active"
+                    : pixelsPerSecond >=
+                        waveformZoomSteps[
+                          waveformZoomSteps.length - 1
+                        ]
+                      ? "Enter oscilloscope"
+                      : "Zoom waveform in"
+                }
+                title={
+                  waveformViewMode === "oscilloscope"
+                    ? "Oscilloscope active"
+                    : pixelsPerSecond >=
+                        waveformZoomSteps[
+                          waveformZoomSteps.length - 1
+                        ]
+                      ? "Enter oscilloscope"
+                      : "Zoom waveform in"
+                }
               >
                 +
               </button>
@@ -1629,11 +1823,19 @@ export default function AudioPlayer() {
                 "
                 onClick={decreaseWaveformZoom}
                 disabled={
-                  pixelsPerSecond <=
-                  waveformZoomSteps[0]
+                  waveformViewMode === "waveform" &&
+                  pixelsPerSecond <= waveformZoomSteps[0]
                 }
-                aria-label="Zoom waveform out"
-                title="Zoom waveform out"
+                aria-label={
+                  waveformViewMode === "oscilloscope"
+                    ? "Return to waveform"
+                    : "Zoom waveform out"
+                }
+                title={
+                  waveformViewMode === "oscilloscope"
+                    ? "Return to waveform"
+                    : "Zoom waveform out"
+                }
               >
                 −
               </button>
