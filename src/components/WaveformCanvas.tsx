@@ -568,6 +568,21 @@ export default function WaveformCanvas({
     // Allow pointer handlers to redraw while playback is paused.
     renderFrameRef.current = renderFrame;
 
+    /*
+     * Compact waveforms update the shared audio element directly.
+     * Redraw immediately even when the playback animation is paused.
+     */
+    function handleExternalSeek() {
+      renderFrame();
+    }
+
+    const audio = audioRef.current;
+
+    audio?.addEventListener(
+      "audioplayerseek",
+      handleExternalSeek,
+    );
+
     // Always draw at least one frame.
     renderFrame();
 
@@ -583,6 +598,11 @@ export default function WaveformCanvas({
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
+
+      audio?.removeEventListener(
+        "audioplayerseek",
+        handleExternalSeek,
+      );
 
       renderFrameRef.current = null;
     };

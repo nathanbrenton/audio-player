@@ -104,6 +104,19 @@ function formatTime(seconds: number): string {
 }
 
 /*
+ * Convert the visible 0–100 slider into a non-linear amplitude.
+ * Squaring gives quieter values more usable adjustment range.
+ */
+function volumePercentToGain(percent: number): number {
+  const normalized = Math.max(
+    0,
+    Math.min(100, percent),
+  ) / 100;
+
+  return normalized * normalized;
+}
+
+/*
  * Track directory names may repeat across releases, so combine the
  * release and track identifiers into one selector value.
  */
@@ -150,7 +163,12 @@ function ArtworkTransportIcon({
     >
       <svg viewBox="0 0 48 48" focusable="false">
         {name === "previous" ? (
-          <path d="M34 9 14 24l20 15Z" />
+          <>
+            <path d="M35 9 16 24l19 15Z" />
+
+            {/* Universal previous-track marker: |< */}
+            <path d="M12 10v28" />
+          </>
         ) : null}
 
         {name === "play" ? (
@@ -165,10 +183,63 @@ function ArtworkTransportIcon({
         ) : null}
 
         {name === "next" ? (
-          <path d="m14 9 20 15-20 15Z" />
+          <>
+            <path d="m13 9 19 15-19 15Z" />
+
+            {/* Universal next-track marker: >| */}
+            <path d="M36 10v28" />
+          </>
         ) : null}
       </svg>
     </span>
+  );
+}
+
+type VolumeIconLevel =
+  | "muted"
+  | "low"
+  | "medium"
+  | "high";
+
+/*
+ * Show the current volume range without relying on text glyphs.
+ */
+function VolumeIcon({
+  level,
+}: {
+  level: VolumeIconLevel;
+}) {
+  return (
+    <svg
+      className="audio-player__volume-icon"
+      viewBox="0 0 48 48"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M8 20h8l10-8v24L16 28H8Z" />
+
+      {level === "low" ||
+      level === "medium" ||
+      level === "high" ? (
+        <path d="M31 20c2 2 2 6 0 8" />
+      ) : null}
+
+      {level === "medium" ||
+      level === "high" ? (
+        <path d="M35 16c5 5 5 11 0 16" />
+      ) : null}
+
+      {level === "high" ? (
+        <path d="M39 12c8 7 8 17 0 24" />
+      ) : null}
+
+      {level === "muted" ? (
+        <>
+          <path d="m32 19 10 10" />
+          <path d="m42 19-10 10" />
+        </>
+      ) : null}
+    </svg>
   );
 }
 
@@ -180,6 +251,7 @@ const APP_VERSION = (
 
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const volumeControlRef = useRef<HTMLDivElement | null>(null);
 
   /*
    * Preserve the pre-scrub playback indication while the pointer is
@@ -310,6 +382,15 @@ export default function AudioPlayer() {
   const [hasPlaybackEnded, setHasPlaybackEnded] =
     useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+
+  /*
+   * Store the user-facing percentage separately from the actual
+   * non-linear amplitude assigned to the media element.
+   */
+  const [volumePercent, setVolumePercent] =
+    useState(100);
+  const [isVolumeControlOpen, setIsVolumeControlOpen] =
+    useState(false);
 
   // Waveform data and loading state.
   const [waveform, setWaveform] =
@@ -463,6 +544,15 @@ export default function AudioPlayer() {
     ? scrubDisplayPlayingRef.current
     : isPlaying;
 
+  const volumeIconLevel: VolumeIconLevel =
+    volumePercent <= 0
+      ? "muted"
+      : volumePercent < 34
+        ? "low"
+        : volumePercent < 67
+          ? "medium"
+          : "high";
+
   const headerStatus = isAudiophileMode
     ? audiophileHeaderStatus
     : loadError
@@ -516,6 +606,76 @@ export default function AudioPlayer() {
             playableTracks.length
         ]
       : null;
+
+  /*
+   * Apply the perceptual slider curve directly to the shared audio
+   * element. Track changes retain the selected volume.
+   */
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    if (!audio) {
+      return;
+    }
+
+    audio.volume =
+      volumePercentToGain(volumePercent);
+  }, [volumePercent]);
+
+  /*
+   * Close the vertical volume control when interaction moves away
+   * from it or when Escape is pressed.
+   */
+  useEffect(() => {
+    if (!isVolumeControlOpen) {
+      return;
+    }
+
+    function handleVolumePointerDown(
+      event: PointerEvent,
+    ) {
+      const control = volumeControlRef.current;
+      const target = event.target;
+
+      if (
+        control &&
+        target instanceof Node &&
+        !control.contains(target)
+      ) {
+        setIsVolumeControlOpen(false);
+      }
+    }
+
+    function handleVolumeKeyDown(
+      event: KeyboardEvent,
+    ) {
+      if (event.key === "Escape") {
+        setIsVolumeControlOpen(false);
+      }
+    }
+
+    document.addEventListener(
+      "pointerdown",
+      handleVolumePointerDown,
+    );
+
+    document.addEventListener(
+      "keydown",
+      handleVolumeKeyDown,
+    );
+
+    return () => {
+      document.removeEventListener(
+        "pointerdown",
+        handleVolumePointerDown,
+      );
+
+      document.removeEventListener(
+        "keydown",
+        handleVolumeKeyDown,
+      );
+    };
+  }, [isVolumeControlOpen]);
 
   /*
    * Preserve normal desktop right-click behavior while suppressing
@@ -1358,6 +1518,14 @@ export default function AudioPlayer() {
 
     audio.currentTime = nextTime;
 
+    /*
+     * The main waveform stops its animation loop while paused.
+     * Signal it to redraw immediately after any compact seek.
+     */
+    audio.dispatchEvent(
+      new Event("audioplayerseek"),
+    );
+
     setHasPlaybackEnded(
       nextTime >=
         waveform.durationSeconds - 0.05,
@@ -2087,14 +2255,14 @@ export default function AudioPlayer() {
                 handleArtworkLostPointerCapture
               }
               aria-label={
-                isPlaying && !isScrubbing
+                displayedIsPlaying
                   ? "Pause track"
                   : "Play track"
               }
-              aria-pressed={isPlaying && !isScrubbing}
+              aria-pressed={displayedIsPlaying}
               aria-disabled={!audioSource || !waveform}
               title={
-                isPlaying && !isScrubbing
+                displayedIsPlaying
                   ? "Pause"
                   : "Play"
               }
@@ -2114,7 +2282,7 @@ export default function AudioPlayer() {
 
               <ArtworkTransportIcon
                 name={
-                  isPlaying && !isScrubbing
+                  displayedIsPlaying
                     ? "pause"
                     : "play"
                 }
@@ -2302,69 +2470,6 @@ export default function AudioPlayer() {
           }
         }}
       />
-
-      <div className="player-controls">
-        <div className="player-controls__track-selector">
-
-
-          <label className="
-            player-controls__field
-            player-controls__field--desktop-track
-          ">
-            <span>Track</span>
-
-            <select
-              value={selectedTrackKey}
-              disabled={!catalog || playableTracks.length === 0}
-              onChange={(event) => {
-                const trackKey =
-                  event.currentTarget.value;
-
-                loadTrack(trackKey, false);
-              }}
-            >
-              {catalog?.releases.map((release) => {
-                const playableReleaseTracks =
-                  release.tracks.filter(
-                    (track) => track.playable,
-                  );
-
-                if (playableReleaseTracks.length === 0) {
-                  return null;
-                }
-
-                return (
-                  <optgroup
-                    key={release.id}
-                    label={release.title}
-                  >
-                    {playableReleaseTracks.map((track) => {
-                      const trackNumber =
-                        track.trackNumber !== null
-                          ? `${track.trackNumber
-                              .toString()
-                              .padStart(2, "0")}. `
-                          : "";
-
-                      return (
-                        <option
-                          key={getTrackKey(release, track)}
-                          value={getTrackKey(release, track)}
-                        >
-                          {trackNumber}
-                          {track.title}
-                        </option>
-                      );
-                    })}
-                  </optgroup>
-                );
-              })}
-            </select>
-          </label>
-
-
-        </div>
-      </div>
 
       {isLibraryOpen ? (
         <div
@@ -2775,33 +2880,21 @@ export default function AudioPlayer() {
       {selectedTrack ? (
         <section
           className="audio-player__now-playing"
-          aria-labelledby="now-playing-heading"
+          aria-label="Current track"
         >
-          <div className="audio-player__now-playing-index">
-            <span>Track</span>
-
-            <strong>
-              {displayedTrackNumber !== null
-                ? displayedTrackNumber
-                    .toString()
-                    .padStart(2, "0")
-                : "—"}
-              <small>
-                /{playableTracks.length
-                  .toString()
-                  .padStart(2, "0")}
-              </small>
-            </strong>
+          <div className="audio-player__now-playing-artwork">
+            {artworkSource ? (
+              <img
+                src={artworkSource}
+                alt=""
+                aria-hidden="true"
+              />
+            ) : (
+              <span aria-hidden="true">♪</span>
+            )}
           </div>
 
           <div className="audio-player__now-playing-copy">
-            <span
-              id="now-playing-heading"
-              className="audio-player__now-playing-eyebrow"
-            >
-              Now Playing
-            </span>
-
             <strong className="audio-player__now-playing-title">
               {selectedTrack.track.title}
             </strong>
@@ -2813,6 +2906,137 @@ export default function AudioPlayer() {
 
               <span>{selectedReleaseTitle}</span>
             </span>
+          </div>
+
+          <output
+            className="audio-player__now-playing-time"
+            aria-label="Current and total playback time"
+          >
+            <span>{formatTime(currentTime)}</span>
+
+            <span aria-hidden="true">/</span>
+
+            <span>
+              {formatTime(
+                waveform?.durationSeconds ?? 0,
+              )}
+            </span>
+          </output>
+
+          <CompactWaveformCanvas
+            peaks={waveform?.peaks ?? []}
+            colorMode={colorMode}
+            progress={compactWaveformProgress}
+            onSeek={seekCompactWaveform}
+            seekLabel="Seek within the current track"
+            className="
+              audio-player__now-playing-waveform
+            "
+          />
+
+          <div
+            className="
+              audio-player__now-playing-transport
+            "
+            aria-label="Now Playing controls"
+          >
+            <button
+              type="button"
+              disabled={!previousTrack}
+              aria-label="Previous track"
+              title="Previous track"
+              onClick={selectPreviousTrack}
+            >
+              <ArtworkTransportIcon name="previous" />
+            </button>
+
+            <button
+              type="button"
+              className="
+                audio-player__now-playing-play
+              "
+              disabled={!audioSource || !waveform}
+              aria-label={
+                displayedIsPlaying
+                  ? "Pause track"
+                  : "Play track"
+              }
+              aria-pressed={displayedIsPlaying}
+              title={
+                displayedIsPlaying
+                  ? "Pause"
+                  : "Play"
+              }
+              onClick={() => {
+                void togglePlayback();
+              }}
+            >
+              <ArtworkTransportIcon
+                name={
+                  displayedIsPlaying
+                    ? "pause"
+                    : "play"
+                }
+              />
+            </button>
+
+            <button
+              type="button"
+              disabled={!nextTrack}
+              aria-label="Next track"
+              title="Next track"
+              onClick={selectNextTrack}
+            >
+              <ArtworkTransportIcon name="next" />
+            </button>
+          <div
+            ref={volumeControlRef}
+            className="audio-player__volume-control"
+            data-open={
+              isVolumeControlOpen ? "true" : "false"
+            }
+          >
+            <button
+              type="button"
+              className="audio-player__volume-button"
+              aria-label={`Volume ${volumePercent}%`}
+              aria-haspopup="true"
+              aria-expanded={isVolumeControlOpen}
+              title={`Volume ${volumePercent}%`}
+              onClick={() => {
+                setIsVolumeControlOpen(
+                  (isOpen) => !isOpen,
+                );
+              }}
+            >
+              <VolumeIcon level={volumeIconLevel} />
+            </button>
+
+            {isVolumeControlOpen ? (
+              <div
+                className="audio-player__volume-popup"
+                role="group"
+                aria-label="Volume control"
+              >
+                <div className="audio-player__volume-slider">
+                  <input
+                    id="now-playing-volume"
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={volumePercent}
+                    aria-label="Volume"
+                    onChange={(event) => {
+                      setVolumePercent(
+                        Number(event.currentTarget.value),
+                      );
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
           </div>
 
           <button
