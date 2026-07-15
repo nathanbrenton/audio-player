@@ -698,7 +698,9 @@ export default function WaveformCanvas({
       startClientX: event.clientX,
       startTime: audio.currentTime,
       heldTime: audio.currentTime,
-      wasPlaying: !audio.paused,
+      wasPlaying:
+        isPlaying ||
+        (!audio.paused && !audio.ended),
     };
 
     /*
@@ -793,7 +795,6 @@ export default function WaveformCanvas({
      */
     stopScrubPreview();
     dragRef.current = null;
-    onScrubbingChange?.(false);
 
     const audio = audioRef.current;
 
@@ -801,20 +802,28 @@ export default function WaveformCanvas({
       audio.currentTime = releaseTime;
     }
 
+    /*
+     * Resume before releasing the parent's visual scrub lock. This
+     * prevents release reconciliation from observing the temporary
+     * pause created by the final audible scrub preview.
+     */
+    if (shouldResume && audio) {
+      void audio.play().catch((error: unknown) => {
+        console.error(
+          "Unable to resume playback after scrubbing:",
+          error,
+        );
+      });
+    }
+
+    onScrubbingChange?.(false);
+
     if (canvas.hasPointerCapture(event.pointerId)) {
       canvas.releasePointerCapture(event.pointerId);
     }
 
     canvas.style.cursor = "grab";
     renderFrameRef.current?.();
-
-    /*
-     * Resume exactly once and only when playback was active before
-     * pointer-down. Stale preview timers can no longer pause it.
-     */
-    if (shouldResume && audio) {
-      void audio.play();
-    }
   }
 
   useEffect(() => {

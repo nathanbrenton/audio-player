@@ -518,26 +518,43 @@ export default function AudioPlayer() {
       : null;
 
   /*
-   * Suppress browser context menus and mobile touch callouts across
-   * the app. Explicit application hold gestures, including About,
-   * continue to use their own pointer-event handlers.
+   * Preserve normal desktop right-click behavior while suppressing
+   * long-press context menus from touch, pen, and mobile-style input.
    */
   useEffect(() => {
-    function suppressContextMenu(
+    const coarseInputQuery = window.matchMedia(
+      "(hover: none) and (pointer: coarse)",
+    );
+
+    function suppressMobileContextMenu(
       event: MouseEvent,
     ) {
-      event.preventDefault();
+      const pointerType =
+        "pointerType" in event
+          ? (event as PointerEvent).pointerType
+          : "";
+
+      const isTouchLikePointer =
+        pointerType === "touch" ||
+        pointerType === "pen";
+
+      if (
+        isTouchLikePointer ||
+        coarseInputQuery.matches
+      ) {
+        event.preventDefault();
+      }
     }
 
     document.addEventListener(
       "contextmenu",
-      suppressContextMenu,
+      suppressMobileContextMenu,
     );
 
     return () => {
       document.removeEventListener(
         "contextmenu",
-        suppressContextMenu,
+        suppressMobileContextMenu,
       );
     };
   }, []);
@@ -1367,12 +1384,25 @@ export default function AudioPlayer() {
        * Freeze all visible playback indicators at their pre-gesture
        * state while media events fire beneath the scrub interaction.
        */
-      scrubDisplayPlayingRef.current =
+      const audioIsActivelyPlaying =
         Boolean(
           audio &&
           !audio.paused &&
           !audio.ended,
-        ) || isPlaying;
+        );
+
+      /*
+       * A rapid second scrub can begin while the previous release is
+       * still reconciling media events. Preserve the existing scrub
+       * intent rather than replacing it with a transient paused state.
+       */
+      scrubDisplayPlayingRef.current =
+        (
+          isScrubbing &&
+          scrubDisplayPlayingRef.current
+        ) ||
+        audioIsActivelyPlaying ||
+        isPlaying;
 
       setIsScrubbing(true);
       return;
@@ -1847,9 +1877,6 @@ export default function AudioPlayer() {
                   if (event.pointerType === "mouse") {
                     finishAboutPointer(event);
                   }
-                }}
-                onContextMenu={(event) => {
-                  event.preventDefault();
                 }}
               >
                 <span>
@@ -2463,7 +2490,9 @@ export default function AudioPlayer() {
                 catalog={catalog}
                 selectedTrackKey={libraryTrackKey}
                 playingTrackKey={
-                  isPlaying ? selectedTrackKey : null
+                  displayedIsPlaying
+                    ? selectedTrackKey
+                    : null
                 }
                 onSelectTrack={(trackKey) => {
                   setLibraryTrackKey(trackKey);
@@ -2602,7 +2631,7 @@ export default function AudioPlayer() {
               <WaveformCanvas
                 peaks={waveform.peaks}
                 audioRef={audioRef}
-                isPlaying={isPlaying}
+                isPlaying={displayedIsPlaying}
                 colorMode={colorMode}
                 pixelsPerSecond={pixelsPerSecond}
                 peaksPerSecond={waveform.peaksPerSecond}
@@ -2728,7 +2757,9 @@ export default function AudioPlayer() {
           catalog={catalog}
           selectedTrackKey={libraryTrackKey}
           playingTrackKey={
-            isPlaying ? selectedTrackKey : null
+            displayedIsPlaying
+              ? selectedTrackKey
+              : null
           }
           onSelectTrack={(trackKey) => {
             setLibraryTrackKey(trackKey);
