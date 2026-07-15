@@ -1986,23 +1986,49 @@ export default function AudioPlayer() {
                   "
                 />
 
-                <select
-                  id="waveform-color-select"
-                  value={colorMode}
-                  onChange={(event) => {
-                    setColorMode(
-                      event.currentTarget
-                        .value as WaveformColorMode,
-                    );
-                  }}
-                >
-                  <option value="3band">3Band</option>
-                  <option value="rgb">RGB</option>
-                  <option value="blue">Blue</option>
-                  <option value="monochrome">
-                    Monochrome
-                  </option>
-                </select>
+                <div className="settings-control__waveform-actions">
+                  <select
+                    id="waveform-color-select"
+                    value={colorMode}
+                    onChange={(event) => {
+                      setColorMode(
+                        event.currentTarget
+                          .value as WaveformColorMode,
+                      );
+                    }}
+                  >
+                    <option value="3band">3Band</option>
+                    <option value="rgb">RGB</option>
+                    <option value="blue">Blue</option>
+                    <option value="monochrome">
+                      Monochrome
+                    </option>
+                  </select>
+
+                  <button
+                    type="button"
+                    className="audio-player__menu-playback-button"
+                    aria-label={
+                      displayedIsPlaying
+                        ? "Pause track"
+                        : "Play track"
+                    }
+                    aria-pressed={displayedIsPlaying}
+                    disabled={!audioSource || !waveform}
+                    title={
+                      displayedIsPlaying ? "Pause" : "Play"
+                    }
+                    onClick={() => {
+                      void togglePlayback();
+                    }}
+                  >
+                    <ArtworkTransportIcon
+                      name={
+                        displayedIsPlaying ? "pause" : "play"
+                      }
+                    />
+                  </button>
+                </div>
               </div>
 
               

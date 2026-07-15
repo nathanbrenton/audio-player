@@ -10559,3 +10559,1658 @@ body:has(.app-menu[open])
     grid-area: metadata;
   }
 }
+
+/* ---------------------------------------------------------
+   Mobile Now Playing responsive layout states
+   --------------------------------------------------------- */
+
+/*
+ * Shared mobile presentation:
+ * expose the artwork, time, waveform, transport, volume, and metadata
+ * items that were introduced for the desktop Now Playing region.
+ */
+@media (max-width: 899px) and (hover: none),
+  (max-width: 899px) and (pointer: coarse) {
+  .audio-player__now-playing {
+    display: grid;
+    width: 100%;
+    max-width: none;
+    align-items: center;
+  }
+
+  .audio-player__now-playing-artwork {
+    display: grid;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    overflow: hidden;
+    place-items: center;
+    aspect-ratio: 1;
+  }
+
+  .audio-player__now-playing-artwork img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    aspect-ratio: 1;
+    object-fit: cover;
+  }
+
+  .audio-player__now-playing-copy {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .audio-player__now-playing-time {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    min-width: max-content;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .audio-player__now-playing-waveform {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: 44px;
+    justify-self: stretch;
+  }
+
+  .audio-player__now-playing-metadata-button {
+    position: relative;
+    inset: auto;
+    align-self: center;
+    justify-self: center;
+    margin: 0;
+  }
+}
+
+/*
+ * Mobile portrait mirrors the Narrow Viewport desktop state.
+ *
+ * Row 1:
+ * Previous | Play | Waveform | Next | Volume
+ *
+ * Row 2:
+ * Artwork | Track Identity | Elapsed / Total | Metadata
+ */
+@media
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (hover: none),
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (pointer: coarse) {
+  .audio-player__now-playing {
+    grid-template-areas:
+      "previous play waveform next volume"
+      "artwork identity identity time metadata";
+    grid-template-columns:
+      36px
+      42px
+      minmax(0, 1fr)
+      36px
+      36px;
+    grid-template-rows:
+      48px
+      56px;
+    gap: 8px 7px;
+  }
+
+  /*
+   * Split the shared transport cluster so its buttons can surround
+   * the waveform as independent parent-grid items.
+   */
+  .audio-player__now-playing-transport {
+    display: contents;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(1) {
+    grid-area: previous;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(2) {
+    grid-area: play;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(3) {
+    grid-area: next;
+  }
+
+  .audio-player__volume-control {
+    grid-area: volume;
+  }
+
+  .audio-player__now-playing-artwork {
+    grid-area: artwork;
+  }
+
+  .audio-player__now-playing-copy {
+    grid-area: identity;
+  }
+
+  .audio-player__now-playing-time {
+    grid-area: time;
+    justify-self: end;
+  }
+
+  .audio-player__now-playing-waveform {
+    grid-area: waveform;
+  }
+
+  .audio-player__now-playing-metadata-button {
+    grid-area: metadata;
+  }
+
+  /*
+   * Keep the volume popup inside the right side of narrow portrait
+   * screens instead of centering it beyond the viewport edge.
+   */
+  .audio-player__volume-popup {
+    right: 0;
+    transform: none;
+  }
+}
+
+/*
+ * Mobile landscape mirrors the Compact Desktop state.
+ *
+ * Row 1:
+ * Waveform
+ *
+ * Row 2:
+ * Artwork | Track Identity | Time | Transport | Volume | Metadata
+ */
+@media
+  (max-width: 899px)
+  and (orientation: landscape)
+  and (hover: none),
+  (max-width: 899px)
+  and (orientation: landscape)
+  and (pointer: coarse) {
+  .audio-player__now-playing {
+    grid-template-areas:
+      "waveform waveform waveform waveform waveform waveform"
+      "artwork identity time transport volume metadata";
+    grid-template-columns:
+      44px
+      minmax(150px, 1fr)
+      max-content
+      auto
+      36px
+      42px;
+    grid-template-rows:
+      46px
+      52px;
+    gap: 7px 9px;
+  }
+
+  /*
+   * Restore the complete transport cluster after portrait's
+   * split-control layout.
+   */
+  .audio-player__now-playing-transport {
+    grid-area: transport;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(1),
+  .audio-player__now-playing-transport
+    > button:nth-child(2),
+  .audio-player__now-playing-transport
+    > button:nth-child(3) {
+    grid-area: auto;
+  }
+
+  .audio-player__now-playing-artwork {
+    grid-area: artwork;
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    min-height: 42px;
+  }
+
+  .audio-player__now-playing-copy {
+    grid-area: identity;
+  }
+
+  .audio-player__now-playing-time {
+    grid-area: time;
+  }
+
+  .audio-player__now-playing-waveform {
+    grid-area: waveform;
+    height: 42px;
+  }
+
+  .audio-player__volume-control {
+    grid-area: volume;
+  }
+
+  .audio-player__now-playing-metadata-button {
+    grid-area: metadata;
+  }
+
+  .audio-player__volume-popup {
+    right: 50%;
+    transform: translateX(50%);
+  }
+}
+
+/* ---------------------------------------------------------
+   Mobile Now Playing transport correction
+   --------------------------------------------------------- */
+
+@media (max-width: 899px) and (hover: none),
+  (max-width: 899px) and (pointer: coarse) {
+  /*
+   * Mobile devices use their physical volume controls. Remove the
+   * application volume button and popup from mobile layouts entirely.
+   */
+  .audio-player__now-playing .audio-player__volume-control {
+    display: none;
+  }
+
+  /*
+   * Keep each shared transport icon inside its own Now Playing button.
+   * Earlier artwork-control positioning could otherwise place the SVG
+   * relative to the full player viewport.
+   */
+  .audio-player__now-playing-transport > button {
+    position: relative;
+    display: grid;
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+    place-items: center;
+  }
+
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon {
+    position: static;
+    inset: auto;
+    display: grid;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    place-items: center;
+    transform: none;
+  }
+
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon svg {
+    position: static;
+    display: block;
+    width: 22px;
+    height: 22px;
+    transform: none;
+  }
+}
+
+/*
+ * Mobile portrait mirrors Narrow Desktop without application volume:
+ *
+ * Previous | Play | Waveform | Next
+ * Artwork  | Track identity | Time | Metadata
+ */
+@media
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (hover: none),
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (pointer: coarse) {
+  .audio-player__now-playing {
+    grid-template-areas:
+      "previous play waveform next"
+      "artwork identity time metadata";
+    grid-template-columns:
+      36px
+      42px
+      minmax(0, 1fr)
+      36px;
+    grid-template-rows:
+      48px
+      56px;
+    gap: 8px 7px;
+  }
+
+  .audio-player__now-playing-copy {
+    min-width: 0;
+  }
+
+  .audio-player__now-playing-time {
+    justify-self: end;
+  }
+}
+
+/*
+ * Mobile landscape mirrors Compact Desktop without application volume:
+ *
+ * Waveform
+ * Artwork | Track identity | Time | Transport | Metadata
+ */
+@media
+  (max-width: 899px)
+  and (orientation: landscape)
+  and (hover: none),
+  (max-width: 899px)
+  and (orientation: landscape)
+  and (pointer: coarse) {
+  .audio-player__now-playing {
+    grid-template-areas:
+      "waveform waveform waveform waveform waveform"
+      "artwork identity time transport metadata";
+    grid-template-columns:
+      42px
+      minmax(150px, 1fr)
+      max-content
+      auto
+      42px;
+    grid-template-rows:
+      46px
+      52px;
+    gap: 7px 9px;
+  }
+
+  .audio-player__now-playing-transport {
+    grid-area: transport;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+}
+
+/* ---------------------------------------------------------
+   Mobile Now Playing transport and identity refinement
+   --------------------------------------------------------- */
+
+@media (max-width: 899px) and (hover: none),
+  (max-width: 899px) and (pointer: coarse) {
+  /*
+   * Match the desktop transport cluster: circular controls with no
+   * rectangular mobile-button background.
+   */
+  .audio-player__now-playing-transport > button {
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    max-height: 36px;
+    padding: 0;
+    border: 1px solid #444444;
+    border-radius: 50%;
+    color: #d7d7d7;
+    background: #202020;
+    box-shadow: none;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .audio-player__now-playing-transport > button:active {
+    background: #2b414c;
+  }
+
+  .audio-player__now-playing-transport > button:focus-visible {
+    outline: 2px solid #8fd3ff;
+    outline-offset: 2px;
+  }
+
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon {
+    color: inherit;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon svg {
+    fill: currentColor;
+    stroke: currentColor;
+    background: transparent;
+  }
+}
+
+/*
+ * Portrait row 2:
+ * Artwork | Track identity spanning the flexible middle | Time | Metadata
+ *
+ * The identity block no longer inherits a transport-sized column.
+ */
+@media
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (hover: none),
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (pointer: coarse) {
+  .audio-player__now-playing {
+    grid-template-areas:
+      "previous play waveform next"
+      "artwork identity identity metadata"
+      "artwork time time metadata";
+    grid-template-columns:
+      44px
+      42px
+      minmax(0, 1fr)
+      42px;
+    grid-template-rows:
+      48px
+      auto
+      auto;
+    gap: 5px 7px;
+  }
+
+  .audio-player__now-playing-copy {
+    grid-area: identity;
+    width: 100%;
+    min-width: 0;
+    justify-self: stretch;
+  }
+
+  .audio-player__now-playing-time {
+    grid-area: time;
+    justify-self: start;
+    min-width: 0;
+  }
+
+  .audio-player__now-playing-artwork {
+    grid-area: artwork;
+    align-self: center;
+  }
+
+  .audio-player__now-playing-metadata-button {
+    grid-area: metadata;
+    align-self: center;
+  }
+}
+
+/* Keep portrait track identity and time on the same row. */
+@media
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (hover: none),
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (pointer: coarse) {
+  .audio-player__now-playing {
+    grid-template-areas:
+      "previous play waveform next"
+      "artwork identity time metadata";
+    grid-template-columns:
+      44px
+      minmax(0, 1fr)
+      max-content
+      42px;
+    grid-template-rows:
+      48px
+      56px;
+    gap: 8px 7px;
+  }
+
+  .audio-player__now-playing-copy {
+    grid-area: identity;
+    min-width: 0;
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .audio-player__now-playing-time {
+    grid-area: time;
+    justify-self: end;
+    min-width: max-content;
+  }
+
+  .audio-player__now-playing-artwork {
+    grid-area: artwork;
+    align-self: center;
+  }
+
+  .audio-player__now-playing-metadata-button {
+    grid-area: metadata;
+    align-self: center;
+  }
+}
+
+/* ---------------------------------------------------------
+   Stable mobile portrait Now Playing layout
+   --------------------------------------------------------- */
+
+@media
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (hover: none),
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (pointer: coarse) {
+  /*
+   * Row 1:
+   * Previous | Play | flexible Waveform | Next
+   *
+   * Row 2:
+   * Artwork | flexible Track Identity | Time | Metadata
+   *
+   * The repeated "next" area lets that fixed-size button occupy the
+   * right-side columns without taking flexibility from the waveform.
+   */
+  .audio-player__now-playing {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    grid-template-areas:
+      "previous play waveform next next"
+      "artwork identity identity time metadata";
+    grid-template-columns:
+      36px
+      42px
+      minmax(0, 1fr)
+      max-content
+      42px;
+    grid-template-rows:
+      48px
+      56px;
+    gap: 8px 7px;
+    overflow: hidden;
+  }
+
+  /*
+   * Explicitly restore the split portrait transport after landscape
+   * grouped the buttons back into one flex container.
+   */
+  .audio-player__now-playing-transport {
+    display: contents;
+    width: auto;
+    min-width: 0;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(1) {
+    grid-area: previous;
+    justify-self: center;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(2) {
+    grid-area: play;
+    justify-self: center;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(3) {
+    grid-area: next;
+    justify-self: end;
+  }
+
+  .audio-player__now-playing-waveform {
+    grid-area: waveform;
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: 44px;
+    justify-self: stretch;
+    overflow: hidden;
+  }
+
+  .audio-player__now-playing-waveform canvas {
+    display: block;
+    width: 100%;
+    max-width: none;
+  }
+
+  .audio-player__now-playing-artwork {
+    grid-area: artwork;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    align-self: center;
+  }
+
+  .audio-player__now-playing-copy {
+    grid-area: identity;
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    justify-self: stretch;
+    overflow: hidden;
+  }
+
+  .audio-player__now-playing-copy > * {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .audio-player__now-playing-time {
+    grid-area: time;
+    min-width: max-content;
+    width: auto;
+    justify-self: end;
+    white-space: nowrap;
+  }
+
+  .audio-player__now-playing-metadata-button {
+    grid-area: metadata;
+    position: relative;
+    inset: auto;
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    align-self: center;
+    justify-self: end;
+    margin: 0;
+  }
+}
+
+/* ---------------------------------------------------------
+   Final mobile portrait Now Playing spacing
+   --------------------------------------------------------- */
+
+@media
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (hover: none),
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (pointer: coarse) {
+  /*
+   * Row 1:
+   * Previous | Play | Waveform spanning center | Next
+   *
+   * Row 2:
+   * Artwork | Track Identity spanning center | Time | Metadata
+   */
+  .audio-player__now-playing {
+    grid-template-areas:
+      "previous play waveform waveform next"
+      "artwork identity identity time metadata";
+    grid-template-columns:
+      36px
+      36px
+      minmax(0, 1fr)
+      max-content
+      36px;
+    grid-template-rows:
+      48px
+      56px;
+    column-gap: 7px;
+    row-gap: 8px;
+
+    /*
+     * Reclaim a little room from the outer left cushion while
+     * retaining enough separation from the screen edge.
+     */
+    padding-left: 4px;
+    padding-right: 7px;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(1) {
+    grid-area: previous;
+    justify-self: start;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(2) {
+    grid-area: play;
+    justify-self: start;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(3) {
+    grid-area: next;
+    justify-self: end;
+  }
+
+  /*
+   * Let the waveform consume the complete center section instead of
+   * being limited to only the first flexible column.
+   */
+  .audio-player__now-playing-waveform {
+    grid-area: waveform;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    justify-self: stretch;
+  }
+
+  .audio-player__now-playing-artwork {
+    grid-area: artwork;
+    justify-self: start;
+  }
+
+  /*
+   * Add a small local cushion between artwork and track text without
+   * increasing the outer left padding of the entire region.
+   */
+  .audio-player__now-playing-copy {
+    grid-area: identity;
+    width: calc(100% - 3px);
+    min-width: 0;
+    margin-left: 3px;
+    justify-self: stretch;
+  }
+
+  .audio-player__now-playing-time {
+    grid-area: time;
+    justify-self: end;
+  }
+
+  .audio-player__now-playing-metadata-button {
+    grid-area: metadata;
+    justify-self: end;
+  }
+}
+
+/* Authoritative mobile transport and menu controls */
+
+.audio-player__menu-waveform-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  align-items: end;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.audio-player__menu-waveform-controls > label {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+}
+
+.audio-player__menu-waveform-controls select {
+  width: 100%;
+  min-width: 0;
+}
+
+.audio-player__menu-playback-button {
+  position: relative;
+  display: grid;
+  width: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #444444;
+  border-radius: 50%;
+  color: #d7d7d7;
+  background: #202020;
+  box-shadow: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.audio-player__menu-playback-button:hover,
+.audio-player__menu-playback-button:active {
+  border-color: #7893a1;
+  color: #ffffff;
+  background: #2b414c;
+}
+
+.audio-player__menu-playback-button:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+.audio-player__menu-playback-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.audio-player__menu-playback-button
+  .artwork-stack__transport-icon,
+.audio-player__menu-playback-button
+  .artwork-stack__transport-icon svg {
+  position: static;
+  inset: auto;
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  color: inherit;
+  background: transparent;
+  transform: none;
+}
+
+.audio-player__menu-playback-button
+  .artwork-stack__transport-icon svg {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+/*
+ * Use slightly smaller circles so each mobile transport position has
+ * visible breathing room without taking width away from the waveform.
+ */
+@media (max-width: 899px) and (hover: none),
+  (max-width: 899px) and (pointer: coarse) {
+  .audio-player__now-playing-transport > button {
+    width: 32px;
+    min-width: 32px;
+    max-width: 32px;
+    height: 32px;
+    min-height: 32px;
+    max-height: 32px;
+  }
+
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon,
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon svg {
+    width: 19px;
+    height: 19px;
+  }
+}
+
+/*
+ * Portrait buttons are separate parent-grid items, so the grid itself
+ * owns their spacing.
+ */
+@media
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (hover: none),
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (pointer: coarse) {
+  .audio-player__now-playing {
+    grid-template-areas:
+      "previous play waveform waveform next"
+      "artwork identity identity time metadata";
+    grid-template-columns:
+      32px
+      32px
+      minmax(0, 1fr)
+      max-content
+      32px;
+    column-gap: 8px;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(1),
+  .audio-player__now-playing-transport
+    > button:nth-child(2),
+  .audio-player__now-playing-transport
+    > button:nth-child(3) {
+    width: 32px;
+    min-width: 32px;
+    max-width: 32px;
+    justify-self: center;
+  }
+}
+
+/*
+ * Landscape keeps the controls grouped, so Flexbox owns the spacing.
+ */
+@media
+  (max-width: 899px)
+  and (orientation: landscape)
+  and (hover: none),
+  (max-width: 899px)
+  and (orientation: landscape)
+  and (pointer: coarse) {
+  .audio-player__now-playing-transport {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px !important;
+  }
+}
+
+/* Final verified mobile transport and waveform card layout */
+
+/*
+ * Waveform Color card:
+ * row 1: heading
+ * row 2: waveform preview
+ * row 3: dropdown and Play/Pause
+ */
+.settings-control--waveform-color {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.settings-control--waveform-color > label {
+  margin: 0;
+}
+
+.settings-control--waveform-color
+  .settings-control__waveform-preview {
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-control__waveform-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-control__waveform-actions
+  #waveform-color-select {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.settings-control__waveform-actions
+  .audio-player__menu-playback-button {
+  position: relative !important;
+  inset: auto !important;
+  display: grid !important;
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  margin: 0 !important;
+  padding: 0 !important;
+  place-items: center;
+  transform: none !important;
+}
+
+.settings-control__waveform-actions
+  .audio-player__menu-playback-button
+  .artwork-stack__transport-icon {
+  position: static !important;
+  inset: auto !important;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  place-items: center;
+  transform: none !important;
+}
+
+.settings-control__waveform-actions
+  .audio-player__menu-playback-button
+  .artwork-stack__transport-icon svg {
+  position: static !important;
+  display: block;
+  width: 22px;
+  height: 22px;
+  transform: none !important;
+}
+
+/*
+ * Use smaller circles inside the existing mobile layout slots.
+ * This guarantees visible cushion without changing the validated grid.
+ */
+@media (max-width: 899px) {
+  .audio-player__now-playing-transport > button {
+    position: static !important;
+    inset: auto !important;
+    flex: 0 0 30px !important;
+    width: 30px !important;
+    min-width: 30px !important;
+    max-width: 30px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+  }
+
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon,
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+}
+
+/*
+ * Portrait buttons occupy separate grid positions. Their 30px circles
+ * sit within the existing wider slots, creating visible separation.
+ */
+@media
+  (max-width: 899px)
+  and (orientation: portrait) {
+  .audio-player__now-playing-transport
+    > button:nth-child(1) {
+    justify-self: start !important;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(2) {
+    justify-self: center !important;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(3) {
+    justify-self: end !important;
+  }
+}
+
+/*
+ * Landscape gets a fixed-width transport cluster so its three circles
+ * cannot collapse into one another.
+ */
+@media
+  (max-width: 899px)
+  and (orientation: landscape) {
+  .audio-player__now-playing-transport {
+    position: static !important;
+    display: flex !important;
+    width: 114px !important;
+    min-width: 114px !important;
+    max-width: 114px !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0 !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+}
+
+
+/* ---------------------------------------------------------
+   Mobile transport ring and landscape identity/time alignment
+   --------------------------------------------------------- */
+
+@media (max-width: 899px) {
+  /*
+   * The button itself now supplies the visible circle and hit area.
+   * Remove the older decorative circle drawn around the shared icon.
+   */
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon::before {
+    content: none !important;
+    display: none !important;
+  }
+}
+
+/*
+ * Mobile landscape:
+ *
+ * Artwork | Identity | Time | flexible space | Transport | Metadata
+ *
+ * The flexible space moves after Time, so elapsed/total remains
+ * visually attached to the track identity.
+ */
+@media
+  (max-width: 899px)
+  and (orientation: landscape)
+  and (hover: none),
+  (max-width: 899px)
+  and (orientation: landscape)
+  and (pointer: coarse) {
+  .audio-player__now-playing {
+    grid-template-areas:
+      "waveform waveform waveform waveform waveform waveform"
+      "artwork identity time spacer transport metadata";
+    grid-template-columns:
+      42px
+      minmax(150px, 34vw)
+      max-content
+      minmax(0, 1fr)
+      114px
+      42px;
+  }
+
+  .audio-player__now-playing-copy {
+    grid-area: identity;
+    width: 100%;
+    min-width: 0;
+    margin-left: 3px;
+    justify-self: stretch;
+  }
+
+  .audio-player__now-playing-time {
+    grid-area: time;
+    min-width: max-content;
+    margin-left: 6px;
+    justify-self: start;
+    white-space: nowrap;
+  }
+
+  .audio-player__now-playing-transport {
+    grid-area: transport;
+    justify-self: end;
+  }
+
+  .audio-player__now-playing-metadata-button {
+    grid-area: metadata;
+    justify-self: end;
+  }
+}
+
+/* ---------------------------------------------------------
+   Mobile Now Playing spacing and responsive identity sizing
+   --------------------------------------------------------- */
+
+/*
+ * Use a 32px visible and clickable circle inside a larger layout slot.
+ * The button itself is the tap target; surrounding slot space preserves
+ * separation between adjacent controls.
+ */
+@media (max-width: 899px) {
+  .audio-player__now-playing-transport > button {
+    flex-basis: 32px !important;
+    width: 32px !important;
+    min-width: 32px !important;
+    max-width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+  }
+
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon,
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon svg {
+    width: 19px !important;
+    height: 19px !important;
+  }
+}
+
+/*
+ * Portrait:
+ * - 38px transport slots contain centered 32px circles.
+ * - Track identity regains a small cushion beside the artwork.
+ */
+@media
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (hover: none),
+  (max-width: 899px)
+  and (orientation: portrait)
+  and (pointer: coarse) {
+  .audio-player__now-playing {
+    grid-template-areas:
+      "previous play waveform waveform next"
+      "artwork identity identity time metadata";
+    grid-template-columns:
+      38px
+      38px
+      minmax(0, 1fr)
+      max-content
+      38px;
+    column-gap: 7px;
+  }
+
+  .audio-player__now-playing-transport
+    > button:nth-child(1),
+  .audio-player__now-playing-transport
+    > button:nth-child(2),
+  .audio-player__now-playing-transport
+    > button:nth-child(3) {
+    justify-self: center !important;
+  }
+
+  .audio-player__now-playing-copy {
+    width: calc(100% - 5px);
+    min-width: 0;
+    margin-left: 5px;
+    justify-self: stretch;
+  }
+}
+
+/*
+ * Landscape:
+ *
+ * Artwork | responsive identity | time | flexible space |
+ * transport | metadata
+ *
+ * fit-content() lets short titles use only their natural width while
+ * capping long titles so they truncate and leave room for other items.
+ */
+@media
+  (max-width: 899px)
+  and (orientation: landscape)
+  and (hover: none),
+  (max-width: 899px)
+  and (orientation: landscape)
+  and (pointer: coarse) {
+  .audio-player__now-playing {
+    grid-template-areas:
+      "waveform waveform waveform waveform waveform waveform"
+      "artwork identity time spacer transport metadata";
+    grid-template-columns:
+      42px
+      fit-content(42vw)
+      max-content
+      minmax(0, 1fr)
+      112px
+      42px;
+  }
+
+  .audio-player__now-playing-copy {
+    grid-area: identity;
+    width: auto;
+    min-width: 0;
+    max-width: 42vw;
+    margin-left: 5px;
+    justify-self: start;
+  }
+
+  .audio-player__now-playing-time {
+    grid-area: time;
+    width: max-content;
+    min-width: max-content;
+    margin-left: 7px;
+    justify-self: start;
+    white-space: nowrap;
+  }
+
+  .audio-player__now-playing-transport {
+    grid-area: transport;
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+    justify-content: space-between !important;
+  }
+}
+
+/* ---------------------------------------------------------
+   Viewport-fit desktop and mobile landscape layout
+   --------------------------------------------------------- */
+
+/*
+ * Desktop and landscape are intended to behave like fixed application
+ * views. Use the dynamic viewport height so the footer remains visible
+ * without requiring page scrolling.
+ */
+@media (min-width: 900px),
+  (orientation: landscape) and (max-width: 899px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    min-height: 0;
+  }
+
+  body {
+    overflow-y: hidden;
+  }
+
+  #root {
+    height: 100dvh;
+    min-height: 0;
+    padding-top:
+      max(
+        8px,
+        env(safe-area-inset-top)
+      );
+    padding-bottom:
+      max(
+        8px,
+        env(safe-area-inset-bottom)
+      );
+  }
+
+  .audio-player {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .audio-player__header,
+  .audio-player__now-playing,
+  .audio-player__footer {
+    flex: 0 0 auto;
+  }
+
+  /*
+   * The primary artwork/waveform region owns only the height remaining
+   * between the header and the Now Playing/footer stack.
+   */
+  .player-layout {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .artwork-panel,
+  .player-layout__main {
+    min-height: 0;
+    max-height: 100%;
+  }
+
+  /*
+   * Previous landscape translations moved content visually downward
+   * while preserving its original layout footprint, causing overflow.
+   */
+  .artwork-panel,
+  .player-layout__main {
+    transform: none !important;
+  }
+
+  .audio-player__footer {
+    margin-top: 6px;
+    padding-top: 5px;
+  }
+}
+
+/*
+ * Mobile landscape has very limited vertical room. Keep the artwork
+ * square but cap it from the available viewport height.
+ */
+@media
+  (orientation: landscape)
+  and (max-width: 899px) {
+  #root {
+    padding-right:
+      max(
+        8px,
+        env(safe-area-inset-right)
+      );
+    padding-left:
+      max(
+        8px,
+        env(safe-area-inset-left)
+      );
+  }
+
+  .player-layout {
+    gap: clamp(8px, 1.8vw, 14px);
+    padding-top: 2px;
+  }
+
+  .artwork-panel {
+    width:
+      min(
+        30vw,
+        calc(100dvh - 190px),
+        190px
+      );
+    max-width:
+      min(
+        30vw,
+        calc(100dvh - 190px),
+        190px
+      );
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .artwork-stack {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .audio-player__now-playing {
+    margin-top: 5px;
+    padding-block: 6px;
+  }
+
+  .audio-player__footer {
+    font-size: 0.6rem;
+    line-height: 1.2;
+  }
+}
+
+/*
+ * Short desktop windows need slightly tighter vertical spacing, but
+ * retain the established desktop column layout and control sizes.
+ */
+@media
+  (min-width: 900px)
+  and (max-height: 820px) {
+  #root {
+    padding-top: 12px;
+    padding-bottom: 8px;
+  }
+
+  .player-layout {
+    gap: 16px;
+  }
+
+  .artwork-panel {
+    width:
+      min(
+        28vw,
+        calc(100dvh - 330px),
+        300px
+      );
+  }
+
+  .artwork-stack {
+    max-width: 100%;
+  }
+
+  .waveform-panel {
+    margin-bottom: 10px;
+  }
+
+  .audio-player__now-playing {
+    margin-top: 8px;
+    padding-block: 8px;
+  }
+}
+
+/*
+ * Extra-short desktop windows receive a stronger artwork cap so the
+ * footer remains visible without clipping the primary controls.
+ */
+@media
+  (min-width: 900px)
+  and (max-height: 680px) {
+  .artwork-panel {
+    width:
+      min(
+        25vw,
+        calc(100dvh - 300px),
+        250px
+      );
+  }
+
+  .player-layout {
+    gap: 12px;
+  }
+
+  .audio-player__now-playing {
+    margin-top: 5px;
+    padding-block: 6px;
+  }
+
+  .audio-player__footer {
+    margin-top: 4px;
+    padding-top: 4px;
+  }
+}
+
+/* ---------------------------------------------------------
+   Restore desktop Now Playing visibility
+   --------------------------------------------------------- */
+
+/*
+ * Mobile landscape benefits from a fixed application viewport.
+ * Desktop needs normal horizontal overflow behavior so responsive
+ * Now Playing grids are not clipped by the main content region.
+ */
+@media (min-width: 900px) {
+  html,
+  body {
+    height: auto;
+    min-height: 100%;
+  }
+
+  body {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  #root {
+    width: 100%;
+    max-width: none;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .audio-player {
+    width: 100%;
+    max-width: none;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .player-layout {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  /*
+   * Now Playing belongs to the application width—not the narrower
+   * artwork/waveform content column.
+   */
+  .audio-player__now-playing {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .audio-player__now-playing-artwork,
+  .audio-player__now-playing-copy,
+  .audio-player__now-playing-time,
+  .audio-player__now-playing-waveform,
+  .audio-player__now-playing-transport,
+  .audio-player__volume-control,
+  .audio-player__now-playing-metadata-button {
+    min-width: 0;
+  }
+
+  .audio-player__footer {
+    width: 100%;
+    max-width: none;
+    flex: 0 0 auto;
+  }
+}
+
+/*
+ * Compact Desktop:
+ * ensure the artwork column remains fully inside the Now Playing grid.
+ */
+@media (min-width: 900px) and (max-width: 1199px) {
+  .audio-player__now-playing {
+    grid-template-areas:
+      "waveform waveform waveform waveform waveform"
+      "artwork identity time transport metadata";
+    grid-template-columns:
+      48px
+      minmax(0, 1fr)
+      max-content
+      max-content
+      max-content;
+    padding-inline: 10px;
+  }
+
+  .audio-player__now-playing-artwork {
+    grid-area: artwork;
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    min-height: 48px;
+    justify-self: start;
+  }
+
+  .audio-player__now-playing-copy {
+    grid-area: identity;
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/*
+ * Narrow desktop:
+ * explicitly restore the shared SVG icons after the transport cluster
+ * is exposed to the parent grid through display: contents.
+ */
+@media
+  (max-width: 899px)
+  and (hover: hover)
+  and (pointer: fine) {
+  .audio-player__now-playing {
+    overflow: visible;
+  }
+
+  .audio-player__now-playing-transport
+    > button {
+    position: relative !important;
+    display: grid !important;
+    overflow: visible;
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon {
+    position: absolute !important;
+    inset: 0 !important;
+    display: grid !important;
+    width: auto !important;
+    height: auto !important;
+    place-items: center;
+    color: inherit;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: none;
+  }
+
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon::before {
+    content: none !important;
+  }
+
+  .audio-player__now-playing-transport
+    .artwork-stack__transport-icon svg {
+    position: static !important;
+    display: block !important;
+    width: 19px !important;
+    height: 19px !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 3;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+  }
+
+  .audio-player__now-playing-play
+    .artwork-stack__transport-icon svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+}
