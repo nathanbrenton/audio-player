@@ -180,9 +180,8 @@ function drawRgbColumn(
   const centerY = height / 2;
 
   /*
-   * Keep RGB inside the same amplitude envelope used by the other
-   * waveform modes. Band energy controls the relative trace height,
-   * but cannot make the waveform larger than the source amplitude.
+   * Keep RGB inside the same source-amplitude envelope used by the
+   * other waveform modes.
    */
   const envelopeAmplitude = Math.min(
     1,
@@ -191,48 +190,132 @@ function drawRgbColumn(
       Math.abs(maximum),
     ),
   );
+
   const maximumHalfHeight =
     centerY * envelopeAmplitude;
 
   const bands = [
     {
-      energy: low,
-      color: "rgba(255, 90, 90, 0.55)",
+      energy: Math.max(0, Math.min(1, low)),
+      color: "rgb(255, 90, 90)",
     },
     {
-      energy: mid,
-      color: "rgba(98, 210, 111, 0.55)",
+      energy: Math.max(0, Math.min(1, mid)),
+      color: "rgb(98, 210, 111)",
     },
     {
-      energy: high,
-      color: "rgba(90, 183, 255, 0.55)",
+      energy: Math.max(0, Math.min(1, high)),
+      color: "rgb(90, 183, 255)",
     },
   ];
 
-  for (const band of bands) {
-    // Protect the renderer from malformed out-of-range values.
-    const normalizedEnergy = Math.max(
-      0,
-      Math.min(1, band.energy),
+  const strokeX =
+    x + physicalPixel / 2;
+
+  /*
+   * Track the largest region already painted behind the current band.
+   * Red is drawn first, green second, and blue last.
+   */
+  let coveredHalfHeight = 0;
+
+  function drawSegment(
+    topY: number,
+    bottomY: number,
+    color: string,
+    alpha: number,
+  ) {
+    if (bottomY <= topY) {
+      return;
+    }
+
+    context.globalAlpha = alpha;
+    context.strokeStyle = color;
+    context.beginPath();
+
+    context.moveTo(
+      strokeX,
+      Math.round(topY) + 0.5,
     );
 
-    const halfHeight =
-      normalizedEnergy * maximumHalfHeight;
+    context.lineTo(
+      strokeX,
+      Math.round(bottomY) + 0.5,
+    );
 
-    context.strokeStyle = band.color;
-    context.beginPath();
-    const topY =
-      Math.round(centerY - halfHeight) + 0.5;
-    const bottomY =
-      Math.round(centerY + halfHeight) + 0.5;
-
-    const strokeX =
-      x + physicalPixel / 2;
-
-    context.moveTo(strokeX, topY);
-    context.lineTo(strokeX, bottomY);
     context.stroke();
   }
+
+  for (const band of bands) {
+    const halfHeight =
+      band.energy * maximumHalfHeight;
+
+    if (halfHeight <= 0) {
+      continue;
+    }
+
+    const topY = centerY - halfHeight;
+    const bottomY = centerY + halfHeight;
+
+    const overlapHalfHeight = Math.min(
+      halfHeight,
+      coveredHalfHeight,
+    );
+
+    /*
+     * Draw any portion extending outside the existing bands at full
+     * opacity. These outer regions preserve each band's distinct
+     * frequency shape.
+     */
+    if (halfHeight > overlapHalfHeight) {
+      drawSegment(
+        topY,
+        centerY - overlapHalfHeight,
+        band.color,
+        1,
+      );
+
+      drawSegment(
+        centerY + overlapHalfHeight,
+        bottomY,
+        band.color,
+        1,
+      );
+    }
+
+    /*
+     * Reduce opacity only where this band overlaps traces already
+     * painted behind it. Blue remains in front, but red and green can
+     * still contribute visibly through the shared center region.
+     */
+    if (overlapHalfHeight > 0) {
+      const overlapRatio =
+        overlapHalfHeight / halfHeight;
+
+      const overlapAlpha =
+        0.58 + (1 - overlapRatio) * 0.22;
+
+      drawSegment(
+        centerY - overlapHalfHeight,
+        centerY + overlapHalfHeight,
+        band.color,
+        overlapAlpha,
+      );
+    } else {
+      drawSegment(
+        topY,
+        bottomY,
+        band.color,
+        1,
+      );
+    }
+
+    coveredHalfHeight = Math.max(
+      coveredHalfHeight,
+      halfHeight,
+    );
+  }
+
+  context.globalAlpha = 1;
 }
 
 function getWaveformStrokeStyle(

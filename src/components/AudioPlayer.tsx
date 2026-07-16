@@ -13,7 +13,10 @@ import LibraryBrowser from "./LibraryBrowser";
 import MetadataViewer, {
   type MetadataVerbosity,
 } from "./MetadataViewer";
-import OscilloscopeCanvas from "./OscilloscopeCanvas";
+import OscilloscopeCanvas, {
+  captureOscilloscopeFrame,
+  seedOscilloscopeFrame,
+} from "./OscilloscopeCanvas";
 import WaveformCanvas, {
   type WaveformColorMode,
 } from "./WaveformCanvas";
@@ -252,12 +255,20 @@ const APP_VERSION = (
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const volumeControlRef = useRef<HTMLDivElement | null>(null);
+  const waveformPanelRef = useRef<HTMLDivElement | null>(null);
 
   /*
    * Preserve the pre-scrub playback indication while the pointer is
    * moving. The real media state is reconciled after release.
    */
   const scrubDisplayPlayingRef = useRef(false);
+
+  /*
+   * React state can lag pointer events by one render. This ref closes
+   * that gap so keyboard playback commands cannot race scrubbing.
+   */
+  const isScrubbingRef = useRef(false);
+
   const scrubReleaseTimeoutRef =
     useRef<number | null>(null);
 
@@ -418,6 +429,13 @@ export default function AudioPlayer() {
   ] = useState<AnalyserNode | null>(null);
 
   const lastWaveformZoomRef = useRef(100);
+
+  /*
+   * Mouse wheels and trackpads emit many small wheel events. Accumulate
+   * those deltas so one deliberate gesture advances one zoom step.
+   */
+  const waveformWheelDeltaRef = useRef(0);
+  const waveformWheelDirectionRef = useRef<-1 | 0 | 1>(0);
 
   /*
    * Smaller sample windows magnify progressively shorter slices of
@@ -936,8 +954,12 @@ export default function AudioPlayer() {
       };
     }
 
-    // Preserve the non-null URL inside the nested async function.
+    /*
+     * Preserve values narrowed above inside the nested async function.
+     * React state may change before the fetch resolves.
+     */
     const resolvedWaveformUrl = waveformUrl;
+    const resolvedTrackKey = selectedTrack.key;
 
     async function loadWaveform() {
       try {
@@ -956,6 +978,16 @@ export default function AudioPlayer() {
 
         const data =
           (await response.json()) as WaveformData;
+
+        /*
+         * Queue a waveform-derived oscilloscope placeholder before
+         * the track has produced any analyser samples.
+         */
+        seedOscilloscopeFrame(
+          resolvedTrackKey,
+          data.peaks,
+          data.sampleRate,
+        );
 
         setWaveform(data);
       } catch (error) {
@@ -1549,6 +1581,13 @@ export default function AudioPlayer() {
 
     if (nextIsScrubbing) {
       /*
+       * Lock synchronously before any React state update. Rapid
+       * keyboard input can therefore never enter playback handling
+       * during the pointer gesture.
+       */
+      isScrubbingRef.current = true;
+
+      /*
        * Freeze all visible playback indicators at their pre-gesture
        * state while media events fire beneath the scrub interaction.
        */
@@ -1588,6 +1627,8 @@ export default function AudioPlayer() {
         if (!settledAudio) {
           setIsPlaying(false);
           setIsScrubbing(false);
+
+          isScrubbingRef.current = false;
           scrubReleaseTimeoutRef.current = null;
           return;
         }
@@ -1605,6 +1646,11 @@ export default function AudioPlayer() {
         setIsPlaying(settledIsPlaying);
 
         window.requestAnimationFrame(() => {
+          /*
+           * Release the synchronous lock only after transient pause,
+           * seek, timeupdate, and playing events have settled.
+           */
+          isScrubbingRef.current = false;
           setIsScrubbing(false);
           scrubReleaseTimeoutRef.current = null;
         });
@@ -1651,6 +1697,121 @@ export default function AudioPlayer() {
 
     audio.pause();
   }
+
+  /*
+   * Space always controls playback unless the user is actively typing
+   * in a text-entry surface. Capture-phase handling prevents focused
+   * buttons from converting Space into their own native click.
+   */
+  useEffect(() => {
+    function isTextEntryTarget(
+      target: EventTarget | null,
+    ): boolean {
+      if (!(target instanceof Element)) {
+        return false;
+      }
+
+      return Boolean(
+        target.closest(
+          [
+            "textarea",
+            "[contenteditable='true']",
+            "[role='textbox']",
+            "input:not([type])",
+            "input[type='text']",
+            "input[type='search']",
+            "input[type='email']",
+            "input[type='url']",
+            "input[type='tel']",
+            "input[type='password']",
+            "input[type='number']",
+          ].join(", "),
+        ),
+      );
+    }
+
+    function handlePlaybackShortcut(
+      event: KeyboardEvent,
+    ) {
+      if (
+        event.code !== "Space" ||
+        event.repeat ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        isTextEntryTarget(event.target)
+      ) {
+        return;
+      }
+
+      /*
+       * Always consume Space outside text entry so focused Previous,
+       * Next, Play, library, or menu buttons cannot activate natively.
+       */
+      event.preventDefault();
+      event.stopPropagation();
+
+      /*
+       * During scrubbing and its short reconciliation window, consume
+       * Space without changing the underlying playback state.
+       */
+      if (
+        isScrubbingRef.current ||
+        isScrubbing ||
+        scrubReleaseTimeoutRef.current !== null
+      ) {
+        return;
+      }
+
+      void togglePlayback();
+    }
+
+    function suppressPlaybackShortcutKeyUp(
+      event: KeyboardEvent,
+    ) {
+      if (
+        event.code !== "Space" ||
+        isTextEntryTarget(event.target)
+      ) {
+        return;
+      }
+
+      /*
+       * Native buttons commonly activate on Space keyup. Suppressing
+       * keyup prevents track navigation after the shortcut handled
+       * keydown.
+       */
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    document.addEventListener(
+      "keydown",
+      handlePlaybackShortcut,
+      true,
+    );
+
+    document.addEventListener(
+      "keyup",
+      suppressPlaybackShortcutKeyUp,
+      true,
+    );
+
+    return () => {
+      document.removeEventListener(
+        "keydown",
+        handlePlaybackShortcut,
+        true,
+      );
+
+      document.removeEventListener(
+        "keyup",
+        suppressPlaybackShortcutKeyUp,
+        true,
+      );
+    };
+  });
 
   /*
    * Double-clicking or double-tapping a row always requests playback.
@@ -1840,6 +2001,169 @@ export default function AudioPlayer() {
     setPixelsPerSecond(nextZoom);
   }
 
+  /*
+   * Mouse wheels, trackpad scrolling, and trackpad pinch all arrive
+   * as wheel events in common desktop browsers. Handle them through
+   * a native non-passive listener so preventDefault() reliably stops
+   * page scrolling and browser zoom.
+   */
+  useEffect(() => {
+    const waveformPanel = waveformPanelRef.current;
+
+    if (!waveformPanel) {
+      return;
+    }
+
+    function handleWaveformWheel(event: WheelEvent) {
+      const horizontalMagnitude = Math.abs(event.deltaX);
+      const verticalMagnitude = Math.abs(event.deltaY);
+
+      if (
+        horizontalMagnitude === 0 &&
+        verticalMagnitude === 0
+      ) {
+        return;
+      }
+
+      /*
+       * The gesture began over the waveform, so reserve it entirely
+       * for waveform zoom.
+       */
+      event.preventDefault();
+      event.stopPropagation();
+
+      /*
+       * Browser-reported trackpad pinch normally arrives as a
+       * ctrlKey wheel event and uses deltaY.
+       *
+       * For ordinary scrolling, use whichever axis is dominant so
+       * small diagonal trackpad movement does not cause two zooms.
+       */
+      const isPinchGesture = event.ctrlKey;
+
+      const isHorizontalGesture =
+        !isPinchGesture &&
+        horizontalMagnitude > verticalMagnitude;
+
+      let shouldZoomIn: boolean;
+      let gestureMagnitude: number;
+
+      if (isPinchGesture) {
+        /*
+         * Browser convention:
+         * negative deltaY = spread/pinch out
+         * positive deltaY = pinch in
+         */
+        shouldZoomIn = event.deltaY < 0;
+        gestureMagnitude = verticalMagnitude;
+      } else if (isHorizontalGesture) {
+        /*
+         * Logic-style horizontal mapping:
+         * two-finger swipe left zooms in;
+         * two-finger swipe right zooms out.
+         */
+        shouldZoomIn = event.deltaX > 0;
+        gestureMagnitude = horizontalMagnitude;
+      } else {
+        /*
+         * Logic-style reversed vertical mapping:
+         * upward movement zooms out; downward movement zooms in.
+         */
+        shouldZoomIn = event.deltaY > 0;
+        gestureMagnitude = verticalMagnitude;
+      }
+
+      const direction: -1 | 1 =
+        shouldZoomIn ? 1 : -1;
+
+      /*
+       * Reset accumulated movement whenever the user reverses zoom
+       * direction.
+       */
+      if (
+        waveformWheelDirectionRef.current !== 0 &&
+        waveformWheelDirectionRef.current !== direction
+      ) {
+        waveformWheelDeltaRef.current = 0;
+      }
+
+      waveformWheelDirectionRef.current = direction;
+      waveformWheelDeltaRef.current += gestureMagnitude;
+
+      /*
+       * Pinching should feel immediate. Horizontal trackpad movement
+       * uses a medium threshold, while wheel/vertical scrolling stays
+       * conservative enough to avoid racing through zoom levels.
+       */
+      const activationThreshold =
+        isPinchGesture
+          ? 7
+          : isHorizontalGesture
+            ? 42
+            : 72;
+
+      if (
+        waveformWheelDeltaRef.current <
+        activationThreshold
+      ) {
+        return;
+      }
+
+      waveformWheelDeltaRef.current = 0;
+
+      if (shouldZoomIn) {
+        increaseWaveformZoom();
+        return;
+      }
+
+      decreaseWaveformZoom();
+    }
+
+    waveformPanel.addEventListener(
+      "wheel",
+      handleWaveformWheel,
+      {
+        passive: false,
+      },
+    );
+
+    return () => {
+      waveformPanel.removeEventListener(
+        "wheel",
+        handleWaveformWheel,
+      );
+    };
+  });
+
+  /*
+   * Outside the waveform, ordinary wheel and two-finger scrolling
+   * remain available. Only browser-level pinch zoom is suppressed.
+   */
+  useEffect(() => {
+    function suppressBrowserPinch(event: WheelEvent) {
+      if (!event.ctrlKey) {
+        return;
+      }
+
+      event.preventDefault();
+    }
+
+    document.addEventListener(
+      "wheel",
+      suppressBrowserPinch,
+      {
+        passive: false,
+      },
+    );
+
+    return () => {
+      document.removeEventListener(
+        "wheel",
+        suppressBrowserPinch,
+      );
+    };
+  }, []);
+
   function clearAboutHoldTimer() {
     if (aboutHoldTimerRef.current !== null) {
       window.clearTimeout(aboutHoldTimerRef.current);
@@ -2002,6 +2326,19 @@ export default function AudioPlayer() {
             className="audio-player__brand-logo"
           />
         </span>
+
+        <label className="audio-player__header-search">
+          <span className="audio-player__header-search-label">
+            Search library
+          </span>
+
+          <input
+            type="search"
+            placeholder="Search library…"
+            aria-label="Search library"
+            autoComplete="off"
+          />
+        </label>
 
         <div
           ref={appMenuRef}
@@ -2494,6 +2831,15 @@ export default function AudioPlayer() {
         onPause={(event) => {
           const audio = event.currentTarget;
 
+          /*
+           * Save the current analyser frame even when the regular
+           * waveform view is mounted and OscilloscopeCanvas is absent.
+           */
+          captureOscilloscopeFrame(
+            selectedTrackKey,
+            analyserRef.current,
+          );
+
           setIsPlaying(false);
 
           if (
@@ -2509,6 +2855,11 @@ export default function AudioPlayer() {
           }
         }}
         onEnded={(event) => {
+          captureOscilloscopeFrame(
+            selectedTrackKey,
+            analyserRef.current,
+          );
+
           setIsPlaying(false);
           setHasPlaybackEnded(true);
           setCurrentTime(
@@ -2816,13 +3167,18 @@ export default function AudioPlayer() {
 
       {waveform ? (
         <>
-          <div className="waveform-panel">
+          <div
+            ref={waveformPanelRef}
+            className="waveform-panel"
+          >
             {waveformViewMode === "oscilloscope" ? (
               <OscilloscopeCanvas
                 analyser={analyserNode}
                 audioRef={audioRef}
                 isPlaying={isPlaying}
                 colorMode={colorMode}
+                trackKey={selectedTrackKey}
+                sampleRate={waveform.sampleRate}
                 sampleWindow={
                   oscilloscopeSampleWindow
                 }
