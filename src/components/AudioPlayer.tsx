@@ -1917,6 +1917,75 @@ export default function AudioPlayer() {
     clearAboutHoldTimer();
   }
 
+  /*
+   * Keep desktop scrolling content clear of the fixed header and
+   * Now Playing bar using their actual responsive rendered heights.
+   */
+  useEffect(() => {
+    const player = document.querySelector<HTMLElement>(
+      ".audio-player",
+    );
+
+    const header = document.querySelector<HTMLElement>(
+      ".audio-player__header",
+    );
+
+    const nowPlaying = document.querySelector<HTMLElement>(
+      ".audio-player__now-playing",
+    );
+
+    if (!player || !header) {
+      return;
+    }
+
+    /*
+     * Preserve TypeScript's non-null narrowing inside the nested
+     * resize callback.
+     */
+    const activePlayer = player;
+    const activeHeader = header;
+
+    function updateFixedRegionHeights() {
+      activePlayer.style.setProperty(
+        "--fixed-header-height",
+        `${activeHeader.getBoundingClientRect().height}px`,
+      );
+
+      activePlayer.style.setProperty(
+        "--fixed-now-playing-height",
+        nowPlaying
+          ? `${nowPlaying.getBoundingClientRect().height}px`
+          : "0px",
+      );
+    }
+
+    updateFixedRegionHeights();
+
+    const observer = new ResizeObserver(
+      updateFixedRegionHeights,
+    );
+
+    observer.observe(header);
+
+    if (nowPlaying) {
+      observer.observe(nowPlaying);
+    }
+
+    window.addEventListener(
+      "resize",
+      updateFixedRegionHeights,
+    );
+
+    return () => {
+      observer.disconnect();
+
+      window.removeEventListener(
+        "resize",
+        updateFixedRegionHeights,
+      );
+    };
+  }, [selectedTrack]);
+
   return (
     <section
       className="audio-player"

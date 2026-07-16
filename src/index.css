@@ -12214,3 +12214,956 @@ body:has(.app-menu[open])
     height: 22px !important;
   }
 }
+
+/* Persistent desktop header and full-width Now Playing */
+
+@media (min-width: 900px) {
+  /*
+   * The application content returns to its original centered width.
+   * Only the Now Playing region breaks out to full viewport width.
+   */
+  #root {
+    width: 100%;
+    max-width: none;
+    min-height: 100dvh;
+    padding-inline: 20px;
+  }
+
+  .audio-player {
+    --fixed-header-height: 72px;
+    --fixed-now-playing-height: 92px;
+
+    box-sizing: border-box;
+    width: min(100%, 1000px);
+    max-width: 1000px;
+    min-height: 100dvh;
+    margin-inline: auto;
+
+    /*
+     * Reserve scrollable space for the viewport-fixed regions.
+     * The page content can still visually scroll behind them.
+     */
+    padding-top:
+      calc(
+        var(--fixed-header-height)
+        + 14px
+      );
+
+    padding-bottom:
+      calc(
+        var(--fixed-now-playing-height)
+        + 18px
+      );
+
+    overflow: visible;
+  }
+
+  /*
+   * Header remains centered at the normal application width while
+   * staying pinned to the top of the viewport.
+   */
+  .audio-player__header {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    z-index: 300;
+    box-sizing: border-box;
+    width:
+      min(
+        calc(100vw - 40px),
+        1000px
+      );
+    max-width: 1000px;
+    margin: 0;
+    padding-top:
+      max(
+        12px,
+        env(safe-area-inset-top)
+      );
+    padding-bottom: 10px;
+    transform: translateX(-50%);
+    background:
+      linear-gradient(
+        to bottom,
+        rgb(16 16 16 / 100%) 0%,
+        rgb(16 16 16 / 96%) 78%,
+        rgb(16 16 16 / 88%) 100%
+      );
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /*
+   * Main content and footer remain balanced in the centered column.
+   */
+  .player-layout,
+  .audio-player__footer {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1000px;
+    margin-inline: auto;
+  }
+
+  /*
+   * Now Playing alone spans the full viewport and stays pinned to the
+   * bottom while the centered page content scrolls behind it.
+   */
+  .audio-player__now-playing {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 280;
+    box-sizing: border-box;
+    width: 100vw;
+    max-width: none;
+    margin: 0;
+    padding-right:
+      max(
+        20px,
+        env(safe-area-inset-right)
+      );
+    padding-bottom:
+      max(
+        10px,
+        env(safe-area-inset-bottom)
+      );
+    padding-left:
+      max(
+        20px,
+        env(safe-area-inset-left)
+      );
+    background:
+      linear-gradient(
+        to top,
+        rgb(16 16 16 / 100%) 0%,
+        rgb(16 16 16 / 97%) 82%,
+        rgb(16 16 16 / 90%) 100%
+      );
+    box-shadow:
+      0 -12px 30px rgb(0 0 0 / 35%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /*
+   * Undo the recent full-width declarations on the ordinary desktop
+   * content regions.
+   */
+  .player-layout {
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  .audio-player__footer {
+    max-width: 100%;
+  }
+}
+
+/*
+ * Narrow desktop remains viewport-pinned but keeps its existing
+ * responsive Now Playing grid and visible transport icons.
+ */
+@media
+  (max-width: 899px)
+  and (hover: hover)
+  and (pointer: fine) {
+  .audio-player {
+    --fixed-header-height: 68px;
+    --fixed-now-playing-height: 120px;
+
+    padding-top:
+      calc(
+        var(--fixed-header-height)
+        + 10px
+      );
+
+    padding-bottom:
+      calc(
+        var(--fixed-now-playing-height)
+        + 14px
+      );
+  }
+
+  .audio-player__header {
+    position: fixed;
+    top: 0;
+    left: 12px;
+    right: 12px;
+    z-index: 300;
+    width: auto;
+    background: rgb(16 16 16 / 96%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .audio-player__now-playing {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 280;
+    width: 100vw;
+    max-width: none;
+    margin: 0;
+    background: rgb(16 16 16 / 97%);
+    box-shadow:
+      0 -12px 30px rgb(0 0 0 / 35%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+
+
+/* Keep the fixed Desktop Now Playing bar inside the viewport. */
+@media (min-width: 1200px) {
+  .audio-player__now-playing {
+    right: 0;
+    left: 0;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------
+   Standard Desktop viewport alignment and artwork containment
+   --------------------------------------------------------- */
+
+@media (min-width: 1200px) and (max-width: 1399px) {
+  /*
+   * Anchor the fixed Now Playing bar directly to both viewport edges.
+   * width:auto prevents scrollbar-width spill from 100vw.
+   */
+  .audio-player__now-playing {
+    position: fixed !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    box-sizing: border-box !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+
+  /*
+   * Reserve internal side room for the angled previous/next artwork.
+   * The padding increases gradually as Standard approaches Compact.
+   */
+  .artwork-panel {
+    box-sizing: border-box;
+    padding-inline:
+      clamp(
+        12px,
+        calc((1400px - 100vw) * 0.08),
+        28px
+      );
+  }
+
+  .artwork-stack {
+    width: 100%;
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  /*
+   * Pull the side artwork slightly inward at Standard widths so the
+   * previous item does not cross the viewport edge.
+   */
+  .artwork-stack__item--previous {
+    transform:
+      translate(-2%, -50%)
+      rotate(-4deg)
+      scale(0.8);
+  }
+
+  .artwork-stack__item--next {
+    transform:
+      translate(2%, -50%)
+      rotate(4deg)
+      scale(0.8);
+  }
+
+  .artwork-stack__item--previous:hover {
+    transform:
+      translate(0, -50%)
+      rotate(-2deg)
+      scale(0.82);
+  }
+
+  .artwork-stack__item--next:hover {
+    transform:
+      translate(0, -50%)
+      rotate(2deg)
+      scale(0.82);
+  }
+}
+
+/* ---------------------------------------------------------
+   Final desktop viewport anchoring and Standard artwork inset
+   --------------------------------------------------------- */
+
+/*
+ * All desktop Now Playing layouts are viewport-fixed. Explicitly
+ * remove the older centered breakout geometry at every desktop width.
+ */
+@media (min-width: 900px) {
+  .audio-player__now-playing {
+    position: fixed !important;
+    inset-inline: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+}
+
+/*
+ * Standard Desktop approaches the viewport edge as it nears Compact.
+ *
+ * Reduce the artwork panel width from its left side and shift it
+ * inward by the same amount. Its right edge therefore stays aligned
+ * with the waveform column while previous artwork remains on-screen.
+ */
+@media (min-width: 1200px) and (max-width: 1399px) {
+  .artwork-panel {
+    --standard-artwork-inset:
+      clamp(
+        0px,
+        calc((1400px - 100vw) * 0.12),
+        24px
+      );
+
+    box-sizing: border-box;
+    width:
+      calc(
+        100% -
+        var(--standard-artwork-inset)
+      );
+    max-width:
+      calc(
+        100% -
+        var(--standard-artwork-inset)
+      );
+    margin-right: 0;
+    margin-left: var(--standard-artwork-inset);
+    padding-inline: 0;
+    transform: none;
+  }
+
+  .artwork-stack {
+    width: 100%;
+    max-width: 100%;
+    margin-inline: 0;
+  }
+}
+
+/* ---------------------------------------------------------
+   Standard Desktop artwork overflow safety gutter
+   --------------------------------------------------------- */
+
+@media (min-width: 1200px) and (max-width: 1399px) {
+  /*
+   * The carousel artwork and edge controls deliberately extend beyond
+   * the artwork stack. Reserve real grid space for that extension
+   * instead of visually translating or shrinking only the panel.
+   */
+  .player-layout {
+    --standard-artwork-gutter:
+      clamp(
+        34px,
+        calc(34px + ((1400px - 100vw) * 0.18)),
+        70px
+      );
+
+    width: 100%;
+    max-width: 100%;
+    padding-left: var(--standard-artwork-gutter);
+
+    grid-template-columns:
+      minmax(
+        250px,
+        calc(
+          360px -
+          (
+            (1400px - 100vw) * 0.28
+          )
+        )
+      )
+      minmax(0, 1fr);
+
+    gap:
+      clamp(
+        42px,
+        5vw,
+        64px
+      );
+  }
+
+  /*
+   * Reset previous Standard-only panel adjustments. The parent grid
+   * now owns the safety gutter and responsive artwork-column width.
+   */
+  .artwork-panel {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    transform: none !important;
+  }
+
+  .artwork-stack {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    overflow: visible;
+  }
+
+  /*
+   * Keep the edge controls close to the layered artwork as available
+   * horizontal room decreases toward the Compact breakpoint.
+   */
+  .artwork-stack__edge-control--previous {
+    right:
+      clamp(
+        82%,
+        calc(82% + ((100vw - 1200px) * 0.03)),
+        88%
+      );
+  }
+
+  .artwork-stack__edge-control--next {
+    left:
+      clamp(
+        82%,
+        calc(82% + ((100vw - 1200px) * 0.03)),
+        88%
+      );
+  }
+}
+
+/* ---------------------------------------------------------
+   Continuous Standard-to-Compact artwork positioning
+   --------------------------------------------------------- */
+
+/*
+ * Do not resize the artwork column during Standard Desktop.
+ * Gradually shift the complete panel inward until it reaches the
+ * existing Compact Desktop offset of 28px at the 1200px boundary.
+ */
+@media (min-width: 1200px) and (max-width: 1399px) {
+  .player-layout {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 0;
+
+    grid-template-columns:
+      minmax(280px, 360px)
+      minmax(0, 1fr);
+
+    gap: 64px;
+  }
+
+  .artwork-panel {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+
+    transform:
+      translateX(
+        clamp(
+          0px,
+          calc((1400px - 100vw) * 0.14),
+          28px
+        )
+      ) !important;
+  }
+
+  .artwork-stack {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+  }
+
+  /*
+   * Restore the established desktop edge-control positions.
+   * Only the complete artwork panel moves inward.
+   */
+  .artwork-stack__edge-control--previous {
+    right: 88%;
+    left: auto;
+  }
+
+  .artwork-stack__edge-control--next {
+    right: auto;
+    left: 88%;
+  }
+}
+
+/* ---------------------------------------------------------
+   Standard Desktop left-side artwork containment
+   --------------------------------------------------------- */
+
+@media (min-width: 1200px) and (max-width: 1399px) {
+  /*
+   * Progress from the original 48% side-artwork displacement at the
+   * Wide boundary to 38% near Compact. The current artwork does not
+   * resize or move.
+   */
+  .artwork-stack {
+    --standard-side-displacement:
+      clamp(
+        38%,
+        calc(38% + ((100vw - 1200px) * 0.05)),
+        48%
+      );
+  }
+
+  /*
+   * Override the later continuous-gesture rule. The previous artwork
+   * still follows swipe progress, but its resting position stays
+   * farther inside the viewport as Standard narrows.
+   */
+  .artwork-stack
+    .artwork-stack__item--previous {
+    transform:
+      translate(
+        calc(
+          -50% -
+          (
+            (1 - var(--artwork-previous-progress)) *
+            var(--standard-side-displacement)
+          )
+        ),
+        -50%
+      )
+      rotate(
+        calc(
+          (var(--artwork-previous-progress) - 1) *
+          5deg
+        )
+      )
+      scale(
+        calc(
+          0.82 +
+          (var(--artwork-previous-progress) * 0.18)
+        )
+      ) !important;
+  }
+
+  /*
+   * Keep the second previous cover inside the same visual envelope.
+   * It remains behind the visible previous artwork.
+   */
+  .artwork-stack__item--far-previous {
+    left: 0;
+    transform:
+      translate(
+        clamp(
+          -22%,
+          calc(-12% - ((100vw - 1200px) * 0.05)),
+          -12%
+        ),
+        -50%
+      )
+      rotate(-8deg)
+      scale(0.68) !important;
+  }
+
+  /*
+   * Move only the visible Previous control inward. Its full button
+   * and outward-expanded click target remain available.
+   */
+  .artwork-stack__edge-control--previous {
+    right:
+      clamp(
+        82%,
+        calc(82% + ((100vw - 1200px) * 0.03)),
+        88%
+      ) !important;
+    left: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------
+   Stable late-Standard artwork transition
+   --------------------------------------------------------- */
+
+/*
+ * Standard Desktop keeps the established artwork geometry.
+ * Neutralize earlier experiments that resized the grid, padded the
+ * artwork panel, or moved individual carousel layers independently.
+ */
+@media (min-width: 1200px) and (max-width: 1399px) {
+  .player-layout {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 0;
+
+    grid-template-columns:
+      minmax(280px, 360px)
+      minmax(0, 1fr);
+
+    gap: 64px;
+  }
+
+  .artwork-panel {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    transform: none !important;
+  }
+
+  .artwork-stack {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+
+    /*
+     * Restore the normal desktop resting displacement. Do not alter
+     * one side of the stack independently during responsive resizing.
+     */
+    --standard-side-displacement: 48%;
+  }
+
+  .artwork-stack
+    .artwork-stack__item--previous {
+    transform:
+      translate(
+        calc(
+          -50% -
+          (
+            (1 - var(--artwork-previous-progress)) *
+            48%
+          )
+        ),
+        -50%
+      )
+      rotate(
+        calc(
+          (var(--artwork-previous-progress) - 1) *
+          5deg
+        )
+      )
+      scale(
+        calc(
+          0.82 +
+          (var(--artwork-previous-progress) * 0.18)
+        )
+      ) !important;
+  }
+
+  .artwork-stack
+    .artwork-stack__item--next {
+    transform:
+      translate(
+        calc(
+          -50% +
+          (
+            (1 - var(--artwork-next-progress)) *
+            48%
+          )
+        ),
+        -50%
+      )
+      rotate(
+        calc(
+          (1 - var(--artwork-next-progress)) *
+          5deg
+        )
+      )
+      scale(
+        calc(
+          0.82 +
+          (var(--artwork-next-progress) * 0.18)
+        )
+      ) !important;
+  }
+
+  .artwork-stack__item--far-previous {
+    transform:
+      translate(-22%, -50%)
+      rotate(-8deg)
+      scale(0.68) !important;
+  }
+
+  .artwork-stack__item--far-next {
+    transform:
+      translate(22%, -50%)
+      rotate(8deg)
+      scale(0.68) !important;
+  }
+
+  .artwork-stack__edge-control--previous {
+    right: 88% !important;
+    left: auto !important;
+  }
+
+  .artwork-stack__edge-control--next {
+    right: auto !important;
+    left: 88% !important;
+  }
+}
+
+/*
+ * Only the final portion of Standard needs additional viewport
+ * clearance. Move the complete carousel—not its individual covers.
+ *
+ * 1280px and wider: no movement.
+ * 1200px: 28px inward, matching the existing Compact layout.
+ */
+@media (min-width: 1200px) and (max-width: 1279px) {
+  .artwork-panel {
+    transform:
+      translateX(
+        calc(
+          (1280px - 100vw) * 0.35
+        )
+      ) !important;
+  }
+}
+
+/*
+ * Lock the endpoints to prevent rounding or scrollbar-width effects
+ * from creating a one-frame breakpoint jump.
+ */
+@media (min-width: 1280px) and (max-width: 1399px) {
+  .artwork-panel {
+    transform: none !important;
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1200px) {
+  .artwork-panel {
+    transform: translateX(28px) !important;
+  }
+}
+
+/* ---------------------------------------------------------
+   Final pre-reflow desktop artwork clearance
+   --------------------------------------------------------- */
+
+/*
+ * The desktop player remains two columns through 900px. During the
+ * final 100px before the layout reflows, progressively increase the
+ * complete artwork panel's inward offset.
+ *
+ * 1000px: established 28px offset
+ * 900px:  52px offset
+ *
+ * The individual covers retain their normal relative positions.
+ */
+@media (min-width: 900px) and (max-width: 999px) {
+  .artwork-panel {
+    transform:
+      translateX(
+        calc(
+          28px +
+          ((1000px - 100vw) * 0.24)
+        )
+      ) !important;
+  }
+}
+
+/*
+ * Prevent earlier Standard experiments from affecting this final
+ * pre-reflow interval.
+ */
+@media (min-width: 900px) and (max-width: 999px) {
+  .player-layout {
+    padding-left: 0;
+  }
+
+  .artwork-panel {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .artwork-stack {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+  }
+
+  .artwork-stack__edge-control--previous {
+    right: 88% !important;
+    left: auto !important;
+  }
+
+  .artwork-stack__edge-control--next {
+    right: auto !important;
+    left: 88% !important;
+  }
+}
+
+/* ---------------------------------------------------------
+   Unified Compact Desktop artwork and waveform layout
+   --------------------------------------------------------- */
+
+/*
+ * Use one stable responsive layout throughout 900–1199px.
+ *
+ * Earlier rules combined a large artwork column with visual
+ * translations. Since transforms do not affect grid calculations,
+ * the carousel could move over the waveform before the final reflow.
+ *
+ * This version reserves real layout space instead.
+ */
+@media (min-width: 900px) and (max-width: 1199px) {
+  .player-layout {
+    /*
+     * Preserve increasing left-side carousel clearance as the
+     * viewport approaches the narrow-desktop reflow.
+     */
+    --compact-artwork-gutter:
+      clamp(
+        28px,
+        calc(
+          28px +
+          ((1200px - 100vw) * 0.08)
+        ),
+        52px
+      );
+
+    /*
+     * Keep the smaller artwork size for this complete range.
+     * The waveform receives every remaining pixel.
+     */
+    grid-template-columns:
+      minmax(
+        210px,
+        clamp(
+          210px,
+          25vw,
+          280px
+        )
+      )
+      minmax(0, 1fr);
+
+    gap:
+      clamp(
+        38px,
+        5vw,
+        64px
+      );
+
+    width: 100%;
+    max-width: 100%;
+    padding-right: 0;
+    padding-left: var(--compact-artwork-gutter);
+    align-items: start;
+  }
+
+  /*
+   * Grid padding—not translation—moves the entire artwork region.
+   * This ensures the waveform can never occupy the same space.
+   */
+  .artwork-panel {
+    position: sticky;
+    top: 20px;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    transform: none !important;
+  }
+
+  .artwork-stack {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+    overflow: visible;
+  }
+
+  .player-layout__main {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .waveform-panel {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    justify-self: stretch;
+  }
+
+  /*
+   * Restore the established carousel relationship. Individual covers
+   * do not move independently during responsive resizing.
+   */
+  .artwork-stack
+    .artwork-stack__item--previous {
+    transform:
+      translate(
+        calc(
+          -50% -
+          (
+            (1 - var(--artwork-previous-progress)) *
+            48%
+          )
+        ),
+        -50%
+      )
+      rotate(
+        calc(
+          (var(--artwork-previous-progress) - 1) *
+          5deg
+        )
+      )
+      scale(
+        calc(
+          0.82 +
+          (var(--artwork-previous-progress) * 0.18)
+        )
+      ) !important;
+  }
+
+  .artwork-stack
+    .artwork-stack__item--next {
+    transform:
+      translate(
+        calc(
+          -50% +
+          (
+            (1 - var(--artwork-next-progress)) *
+            48%
+          )
+        ),
+        -50%
+      )
+      rotate(
+        calc(
+          (1 - var(--artwork-next-progress)) *
+          5deg
+        )
+      )
+      scale(
+        calc(
+          0.82 +
+          (var(--artwork-next-progress) * 0.18)
+        )
+      ) !important;
+  }
+
+  .artwork-stack__edge-control--previous {
+    right: 88% !important;
+    left: auto !important;
+  }
+
+  .artwork-stack__edge-control--next {
+    right: auto !important;
+    left: 88% !important;
+  }
+}
