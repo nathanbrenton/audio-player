@@ -13167,3 +13167,112 @@ body:has(.app-menu[open])
     left: 88% !important;
   }
 }
+
+
+/* Disable browser-level pinch zoom while preserving panning. */
+html,
+body,
+#root {
+  touch-action: pan-x pan-y;
+}
+
+/*
+ * The interactive waveform owns gestures that begin on its surface.
+ * Existing waveform pointer handling continues to manage scrubbing.
+ */
+.waveform-panel,
+.waveform-panel canvas {
+  touch-action: none;
+}
+
+
+/* Header placeholder search and Space shortcut test field */
+
+.audio-player__header-search {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  /*
+   * Preserve the centered Player status while placing Search directly
+   * beside the hamburger menu.
+   */
+  .audio-player__header {
+    grid-template-areas:
+      "brand summary search menu";
+    grid-template-columns:
+      auto
+      minmax(0, 1fr)
+      minmax(180px, 280px)
+      auto;
+    align-items: center;
+  }
+
+  .audio-player__header-search {
+    grid-area: search;
+    display: block;
+    min-width: 0;
+  }
+
+  .audio-player__header-search-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .audio-player__header-search input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    height: 38px;
+    min-height: 38px;
+    padding: 7px 12px;
+    border: 1px solid #383838;
+    border-radius: 8px;
+    color: #ededed;
+    background: #191919;
+    outline: none;
+  }
+
+  .audio-player__header-search input::placeholder {
+    color: #717171;
+  }
+
+  .audio-player__header-search input:hover {
+    border-color: #505050;
+    background: #202020;
+  }
+
+  .audio-player__header-search input:focus {
+    border-color: #607987;
+    background: #202020;
+    box-shadow:
+      0 0 0 2px rgb(143 211 255 / 22%);
+  }
+
+  /*
+   * Native search cancellation remains available while matching the
+   * dark interface.
+   */
+  .audio-player__header-search input {
+    color-scheme: dark;
+  }
+}
+
+/*
+ * Keep Standard and Compact Desktop from letting the placeholder
+ * search consume excessive header width.
+ */
+@media (min-width: 900px) and (max-width: 1199px) {
+  .audio-player__header {
+    grid-template-columns:
+      auto
+      minmax(100px, 1fr)
+      minmax(150px, 220px)
+      auto;
+    column-gap: 9px;
+  }
+}
