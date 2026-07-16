@@ -351,6 +351,16 @@ export default function AudioPlayer() {
   const artworkStartYRef = useRef(0);
   const artworkGestureAxisRef =
     useRef<"horizontal" | "vertical" | null>(null);
+
+  /*
+   * Pointer-move state updates may be batched on mobile. Keep the
+   * latest commit values in refs so pointer-up can queue the track
+   * immediately without waiting for a React render.
+   */
+  const artworkDragProgressRef = useRef(0);
+  const artworkSwipeDirectionRef =
+    useRef<"previous" | "next" | "none">("none");
+
   const artworkCommitPendingRef = useRef(false);
 
   // Prevent pointer-generated clicks after horizontal artwork swipes.
@@ -1214,6 +1224,8 @@ export default function AudioPlayer() {
       secondFrameId = window.requestAnimationFrame(() => {
         artworkPointerIdRef.current = null;
         artworkGestureAxisRef.current = null;
+        artworkDragProgressRef.current = 0;
+        artworkSwipeDirectionRef.current = "none";
         artworkCommitPendingRef.current = false;
 
         setArtworkDragOffset(0);
@@ -1237,6 +1249,8 @@ export default function AudioPlayer() {
   function resetArtworkGesture() {
     artworkPointerIdRef.current = null;
     artworkGestureAxisRef.current = null;
+    artworkDragProgressRef.current = 0;
+    artworkSwipeDirectionRef.current = "none";
     setArtworkDragOffset(0);
     setArtworkDragProgress(0);
     setArtworkSwipeDirection("none");
@@ -1255,6 +1269,8 @@ export default function AudioPlayer() {
     artworkStartXRef.current = event.clientX;
     artworkStartYRef.current = event.clientY;
     artworkGestureAxisRef.current = null;
+    artworkDragProgressRef.current = 0;
+    artworkSwipeDirectionRef.current = "none";
     artworkSuppressClickRef.current = false;
 
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -1295,8 +1311,14 @@ export default function AudioPlayer() {
       ) {
         artworkSuppressClickRef.current = true;
 
+        const initialDirection =
+          deltaX < 0 ? "next" : "previous";
+
+        artworkSwipeDirectionRef.current =
+          initialDirection;
+
         setArtworkSwipeDirection(
-          deltaX < 0 ? "next" : "previous",
+          initialDirection,
         );
       }
     }
@@ -1319,24 +1341,31 @@ export default function AudioPlayer() {
      * opposite artwork stack.
      */
     const reversalThreshold = 12;
-    let effectiveDirection = artworkSwipeDirection;
+    let effectiveDirection =
+      artworkSwipeDirectionRef.current;
 
     if (
       effectiveDirection === "next" &&
       deltaX > reversalThreshold
     ) {
       effectiveDirection = "previous";
-      setArtworkSwipeDirection("previous");
+      artworkSwipeDirectionRef.current =
+        effectiveDirection;
+      setArtworkSwipeDirection(effectiveDirection);
     } else if (
       effectiveDirection === "previous" &&
       deltaX < -reversalThreshold
     ) {
       effectiveDirection = "next";
-      setArtworkSwipeDirection("next");
+      artworkSwipeDirectionRef.current =
+        effectiveDirection;
+      setArtworkSwipeDirection(effectiveDirection);
     } else if (effectiveDirection === "none") {
       effectiveDirection =
         deltaX < 0 ? "next" : "previous";
 
+      artworkSwipeDirectionRef.current =
+        effectiveDirection;
       setArtworkSwipeDirection(effectiveDirection);
     }
 
@@ -1373,6 +1402,9 @@ export default function AudioPlayer() {
       1,
     );
 
+    artworkDragProgressRef.current =
+      dragProgress;
+
     setArtworkDragOffset(constrainedOffset);
     setArtworkDragProgress(dragProgress);
   }
@@ -1391,14 +1423,20 @@ export default function AudioPlayer() {
      * calculation. This behaves consistently in narrow landscape
      * artwork columns.
      */
+    const latestDragProgress =
+      artworkDragProgressRef.current;
+
+    const latestSwipeDirection =
+      artworkSwipeDirectionRef.current;
+
     const shouldCommit =
       artworkGestureAxisRef.current === "horizontal" &&
-      artworkDragProgress >= 0.9;
+      latestDragProgress >= 0.9;
 
     const committedDirection = shouldCommit
-      ? artworkSwipeDirection === "next" ||
-        artworkSwipeDirection === "previous"
-        ? artworkSwipeDirection
+      ? latestSwipeDirection === "next" ||
+        latestSwipeDirection === "previous"
+        ? latestSwipeDirection
         : null
       : null;
 
