@@ -1,10 +1,25 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
-// Canonical media stays outside the frontend build output.
-const mediaRoot = path.resolve("media-library");
+/*
+ * Resolve media outside the frontend repository.
+ *
+ * Default: ../published-media
+ * Override: MEDIA_LIBRARY_ROOT=/path/to/alternate-public-media
+ */
+const projectRoot = path.dirname(
+  fileURLToPath(import.meta.url),
+);
+const configuredMediaRoot =
+  process.env.MEDIA_LIBRARY_ROOT ?? "../published-media";
+const mediaRoot = path.resolve(
+  projectRoot,
+  configuredMediaRoot,
+);
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -12,7 +27,10 @@ const mimeTypes = {
   ".jpeg": "image/jpeg",
   ".jpg": "image/jpeg",
   ".json": "application/json; charset=utf-8",
+  ".m3u8": "application/vnd.apple.mpegurl",
+  ".m4s": "video/iso.segment",
   ".mp3": "audio/mpeg",
+  ".mp4": "video/mp4",
   ".ogg": "audio/ogg",
   ".png": "image/png",
   ".svg": "image/svg+xml",
@@ -21,7 +39,7 @@ const mimeTypes = {
 };
 
 /*
- * Serve media-library/* from /media/* during local development and
+ * Serve the configured media root from /media/* during development and
  * `vite preview`, without copying the library into dist/.
  */
 function mediaLibraryPlugin() {
@@ -98,8 +116,22 @@ function mediaLibraryPlugin() {
 }
 
 export default defineConfig({
-  // Do not copy any media directory into dist/.
-  publicDir: false,
+  server: {
+    host: "127.0.0.1",
+    port: 5173,
+  },
+
+  build: {
+    // hls.js is lazy-loaded into its own chunk and is not part of the
+    // initial Hiplingo payload. Keep this threshold narrowly above the
+    // current HLS engine size so unrelated bundle growth still warns.
+    chunkSizeWarningLimit: 525,
+  },
+
+  // Static Hiplingo site/brand assets live under public/ and are copied into
+  // dist/ by Vite. Published release media remains outside this repository
+  // and is served separately from ../published-media at /media/*.
+  publicDir: "public",
 
   plugins: [
     mediaLibraryPlugin(),

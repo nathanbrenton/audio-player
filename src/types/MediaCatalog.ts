@@ -51,8 +51,18 @@ export type CatalogTrack = {
   };
 
   assets: {
+    /* Legacy private-library fields retained for compatibility only. */
     audioMaster: string | null;
     audioPlayback: string | null;
+
+    /* Canonical public playback contract produced by metadata-editor. */
+    stream: {
+      path: string | null;
+      protocol: string | null;
+      codec: string | null;
+      bitrateKbps: number | null;
+    } | null;
+
     waveform: string | null;
   };
 

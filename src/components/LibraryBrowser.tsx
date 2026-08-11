@@ -5,6 +5,12 @@ import type {
   CatalogTrack,
   MediaCatalog,
 } from "../types/MediaCatalog";
+import {
+  getMediaUrl,
+  getReleaseArtworkPath,
+  getTrackArtist,
+  getTrackKey,
+} from "../lib/mediaCatalog";
 
 type LibraryTrack = {
   key: string;
@@ -21,51 +27,6 @@ type LibraryBrowserProps = {
   onToggleTrackPlayback?: (trackKey: string) => void;
   variant?: "desktop" | "mobile";
 };
-
-/*
- * Track identifiers may repeat between releases, so library rows use
- * the same release-and-track key format as the main audio player.
- */
-function getTrackKey(
-  release: CatalogRelease,
-  track: CatalogTrack,
-): string {
-  return `${release.id}::${track.id}`;
-}
-
-/* Convert a catalog-relative media path into a browser URL. */
-function getMediaUrl(
-  mediaBaseUrl: string,
-  assetPath: string | null,
-): string | null {
-  if (!assetPath) {
-    return null;
-  }
-
-  return `${mediaBaseUrl.replace(/\/$/, "")}/${assetPath}`;
-}
-
-/*
- * Accept both historical and current catalog artwork structures.
- * Current generated catalogs store release artwork under `.path`.
- */
-function getReleaseArtworkPath(
-  release: CatalogRelease,
-): string | null {
-  const artwork = release.artwork as
-    | string
-    | {
-        source?: "release" | null;
-        path: string | null;
-      }
-    | null;
-
-  if (typeof artwork === "string") {
-    return artwork;
-  }
-
-  return artwork?.path ?? null;
-}
 
 export default function LibraryBrowser({
   catalog,
@@ -217,11 +178,9 @@ export default function LibraryBrowser({
           const isPlaying =
             entry.key === playingTrackKey;
 
-          const artist =
-            entry.track.artist ??
-            entry.track.metadata.resolved
-              .primaryArtist.name ??
-            "Unknown artist";
+          const artist = getTrackArtist(
+            entry.track,
+          );
 
           const artworkUrl = getMediaUrl(
             catalog.mediaBaseUrl,

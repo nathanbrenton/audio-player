@@ -1,22 +1,16 @@
 Required Tools
 --------------
 
-ffmpeg
-  - provides: ffmpeg, ffprobe
-
-webp
-  - provides: cwebp
-
-Node.js LTS
+Node.js
 npm
 git
 
+Hiplingo is a read-only public web application. Media preparation,
+transcoding, waveform generation, metadata authoring, and publication are
+owned by metadata-editor and are not runtime/development dependencies of this
+repository.
 
 # macOS
 brew install node;
 node --version;
 npm --version;
-
-
-
-npm install react react-dom;

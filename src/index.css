@@ -13276,3 +13276,1341 @@ body,
     column-gap: 9px;
   }
 }
+
+/* =========================================================
+   Hiplingo public web application shell
+   ========================================================= */
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(72, 111, 132, 0.12), transparent 34rem),
+    #0d0d0d;
+}
+
+#root {
+  min-height: 100vh;
+  padding: 0;
+}
+
+.hiplingo-site-shell {
+  min-height: 100vh;
+}
+
+.hiplingo-site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(13, 13, 13, 0.94);
+  backdrop-filter: blur(16px);
+}
+
+.hiplingo-site-brand {
+  display: inline-flex;
+  width: max-content;
+  align-items: center;
+  gap: 9px;
+  color: #f4f4f4;
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.hiplingo-site-brand img {
+  display: block;
+  width: 28px;
+  height: 28px;
+}
+
+.hiplingo-site-nav {
+  display: flex;
+  gap: 4px;
+  margin-inline: -4px;
+  padding: 0 4px 2px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.hiplingo-site-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.hiplingo-site-nav a {
+  flex: 0 0 auto;
+  padding: 7px 9px;
+  border-radius: 999px;
+  color: #8c8c8c;
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.hiplingo-site-nav a:hover,
+.hiplingo-site-nav a:focus-visible,
+.hiplingo-site-nav a[aria-current="page"] {
+  color: #edf8fe;
+  background: rgba(83, 134, 160, 0.16);
+}
+
+.hiplingo-site-nav a:focus-visible,
+.hiplingo-site-brand:focus-visible,
+.hiplingo-feature-card:focus-visible,
+.hiplingo-button:focus-visible,
+.hiplingo-site-footer a:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+.hiplingo-page {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding: clamp(36px, 9vw, 96px) 16px 56px;
+}
+
+.hiplingo-player-page {
+  padding: 16px 12px 0;
+}
+
+.hiplingo-player-page .audio-player {
+  width: min(100%, 1000px);
+}
+
+.hiplingo-kicker {
+  display: block;
+  margin-bottom: 10px;
+  color: #84a9bc;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hiplingo-hero {
+  max-width: 760px;
+  padding: clamp(24px, 7vw, 58px) 0 clamp(40px, 9vw, 86px);
+}
+
+.hiplingo-hero h1,
+.hiplingo-placeholder-card h1 {
+  margin: 0;
+  max-width: 12ch;
+  color: #f4f4f4;
+  font-size: clamp(2.6rem, 11vw, 6.2rem);
+  font-weight: 760;
+  letter-spacing: -0.055em;
+  line-height: 0.92;
+}
+
+.hiplingo-hero > p {
+  max-width: 620px;
+  margin: 24px 0 0;
+  color: #a7a7a7;
+  font-size: clamp(1rem, 3.5vw, 1.18rem);
+  line-height: 1.65;
+}
+
+.hiplingo-hero__actions,
+.hiplingo-placeholder-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.hiplingo-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border: 1px solid #333333;
+  border-radius: 999px;
+  color: #d7d7d7;
+  background: #171717;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.hiplingo-button--primary {
+  border-color: #55788b;
+  color: #f5fbff;
+  background: #27414f;
+}
+
+.hiplingo-button:hover {
+  border-color: #627f8f;
+  background: #21313a;
+}
+
+.hiplingo-feature-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid #242424;
+  border-radius: 14px;
+  background: #242424;
+}
+
+.hiplingo-feature-card {
+  display: grid;
+  gap: 8px;
+  min-height: 168px;
+  padding: 22px;
+  color: inherit;
+  background: rgba(17, 17, 17, 0.96);
+  text-decoration: none;
+}
+
+.hiplingo-feature-card:hover {
+  background: #151a1d;
+}
+
+.hiplingo-feature-card > span {
+  color: #718692;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hiplingo-feature-card strong {
+  color: #e9e9e9;
+  font-size: 1rem;
+}
+
+.hiplingo-feature-card p,
+.hiplingo-placeholder-copy p {
+  margin: 0;
+  color: #8f8f8f;
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.hiplingo-placeholder-page {
+  min-height: 66vh;
+}
+
+.hiplingo-placeholder-card {
+  max-width: 760px;
+  padding-top: clamp(24px, 7vw, 64px);
+}
+
+.hiplingo-placeholder-card h1 {
+  max-width: none;
+  font-size: clamp(2.4rem, 10vw, 5rem);
+}
+
+.hiplingo-placeholder-copy {
+  display: grid;
+  gap: 14px;
+  max-width: 620px;
+  margin-top: 24px;
+}
+
+.hiplingo-site-footer {
+  display: flex;
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 16px 30px;
+  border-top: 1px solid #222222;
+  color: #646464;
+  font-size: 0.7rem;
+}
+
+.hiplingo-site-footer a {
+  color: #858585;
+  text-decoration: none;
+}
+
+.hiplingo-site-footer a:hover {
+  color: #d8d8d8;
+}
+
+/* The player already contains its own utility footer. On Hiplingo the
+ * application shell owns the public footer, so keep only player controls. */
+.hiplingo-player-page .audio-player__footer {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .hiplingo-site-header {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 24px;
+    padding: 12px 20px;
+  }
+
+  .hiplingo-site-nav {
+    justify-content: flex-end;
+    margin: 0;
+    padding: 0;
+  }
+
+  .hiplingo-feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hiplingo-page {
+    padding-inline: 20px;
+  }
+
+  .hiplingo-player-page {
+    padding: 18px 20px 0;
+  }
+}
+
+@media (min-width: 980px) {
+  .hiplingo-feature-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .hiplingo-site-nav a {
+    padding-inline: 11px;
+  }
+}
+
+/* Keep the player utility header below Hiplingo's public navigation when the
+ * player's desktop/narrow-desktop layouts pin that utility header. */
+.hiplingo-site-header {
+  z-index: 400;
+}
+
+.hiplingo-player-page .audio-player__header {
+  top: 53px;
+}
+
+@media (max-width: 639px) {
+  .hiplingo-player-page .audio-player__header {
+    top: 0;
+  }
+}
+
+/* =========================================================
+   Hiplingo H2 release discovery
+   ========================================================= */
+
+.hiplingo-catalog-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.hiplingo-catalog-heading h1 {
+  margin: 0;
+  color: #f4f4f4;
+  font-size: clamp(2.5rem, 12vw, 5.4rem);
+  font-weight: 760;
+  letter-spacing: -0.055em;
+  line-height: 0.92;
+}
+
+.hiplingo-catalog-heading > p {
+  margin: 0;
+  color: #747474;
+  font-size: 0.74rem;
+}
+
+.hiplingo-catalog-state {
+  display: grid;
+  gap: 8px;
+  min-height: 180px;
+  align-content: center;
+  justify-items: start;
+  padding: 24px;
+  border: 1px solid #262626;
+  border-radius: 14px;
+  color: #8f8f8f;
+  background: rgba(17, 17, 17, 0.9);
+}
+
+.hiplingo-catalog-state strong {
+  color: #dedede;
+  font-size: 1rem;
+}
+
+.hiplingo-catalog-state span {
+  max-width: 580px;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.hiplingo-catalog-state--error {
+  border-color: rgba(179, 102, 91, 0.42);
+}
+
+.hiplingo-release-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 12px;
+}
+
+.hiplingo-release-card {
+  display: grid;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hiplingo-release-card__artwork,
+.hiplingo-release-detail__artwork {
+  display: grid;
+  overflow: hidden;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid #272727;
+  background:
+    linear-gradient(145deg, rgba(92, 137, 159, 0.18), transparent 58%),
+    #151515;
+}
+
+.hiplingo-release-card__artwork {
+  border-radius: 10px;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease;
+}
+
+.hiplingo-release-card:hover .hiplingo-release-card__artwork {
+  transform: translateY(-2px);
+  border-color: #4d6673;
+}
+
+.hiplingo-release-card__artwork img,
+.hiplingo-release-detail__artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hiplingo-release-artwork-fallback {
+  color: #66808d;
+  font-size: clamp(1.2rem, 8vw, 3rem);
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.hiplingo-release-card__copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  padding: 10px 2px 0;
+}
+
+.hiplingo-release-card__copy strong,
+.hiplingo-release-card__copy > span,
+.hiplingo-release-card__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hiplingo-release-card__copy strong {
+  color: #ededed;
+  font-size: 0.9rem;
+}
+
+.hiplingo-release-card__copy > span {
+  color: #999999;
+  font-size: 0.76rem;
+}
+
+.hiplingo-release-card__copy small {
+  color: #626262;
+  font-size: 0.65rem;
+  text-transform: capitalize;
+}
+
+.hiplingo-release-card:focus-visible,
+.hiplingo-release-back:focus-visible,
+.hiplingo-release-track:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 3px;
+}
+
+.hiplingo-release-detail-page {
+  padding-top: 26px;
+}
+
+.hiplingo-release-back {
+  margin: 0 0 20px;
+  padding: 7px 0;
+  border: 0;
+  color: #879aa4;
+  background: transparent;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.hiplingo-release-back:hover {
+  color: #d9edf7;
+}
+
+.hiplingo-release-detail__hero {
+  display: grid;
+  gap: 26px;
+}
+
+.hiplingo-release-detail__artwork {
+  width: min(100%, 520px);
+  border-radius: 14px;
+}
+
+.hiplingo-release-detail__intro {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  flex-direction: column;
+  justify-content: end;
+}
+
+.hiplingo-release-detail__intro h1 {
+  margin: 0;
+  color: #f5f5f5;
+  font-size: clamp(2.4rem, 12vw, 5.2rem);
+  font-weight: 780;
+  letter-spacing: -0.055em;
+  line-height: 0.94;
+  overflow-wrap: anywhere;
+}
+
+.hiplingo-release-detail__artist {
+  margin: 14px 0 0;
+  color: #b7b7b7;
+  font-size: clamp(1rem, 4vw, 1.3rem);
+  font-weight: 660;
+}
+
+.hiplingo-release-detail__meta {
+  margin: 6px 0 22px;
+  color: #707070;
+  font-size: 0.75rem;
+  text-transform: capitalize;
+}
+
+.hiplingo-release-detail__unavailable {
+  color: #777777;
+  font-size: 0.76rem;
+}
+
+.hiplingo-release-detail__intro .hiplingo-button,
+.hiplingo-catalog-state .hiplingo-button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.hiplingo-release-tracklist {
+  margin-top: 42px;
+  border-top: 1px solid #252525;
+  padding-top: 24px;
+}
+
+.hiplingo-release-tracklist__heading {
+  margin-bottom: 12px;
+}
+
+.hiplingo-release-tracklist__heading h2 {
+  margin: 0;
+  color: #dcdcdc;
+  font-size: 1.05rem;
+}
+
+.hiplingo-release-tracklist__rows {
+  border-top: 1px solid #222222;
+}
+
+.hiplingo-release-track {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 58px;
+  padding: 8px 6px;
+  border: 0;
+  border-bottom: 1px solid #222222;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+button.hiplingo-release-track {
+  cursor: pointer;
+}
+
+button.hiplingo-release-track:hover {
+  background: rgba(88, 128, 148, 0.08);
+}
+
+.hiplingo-release-track__number {
+  color: #626262;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.hiplingo-release-track__title {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.hiplingo-release-track__title strong,
+.hiplingo-release-track__title small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hiplingo-release-track__title strong {
+  color: #dcdcdc;
+  font-size: 0.82rem;
+  font-weight: 660;
+}
+
+.hiplingo-release-track__title small {
+  color: #767676;
+  font-size: 0.68rem;
+}
+
+.hiplingo-release-track__action {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid #343434;
+  border-radius: 50%;
+  color: #b8d4e1;
+  font-size: 0.62rem;
+}
+
+.hiplingo-release-track__status {
+  color: #666666;
+  font-size: 0.64rem;
+}
+
+.hiplingo-release-track--unavailable {
+  opacity: 0.58;
+}
+
+@media (min-width: 640px) {
+  .hiplingo-release-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 30px 18px;
+  }
+
+  .hiplingo-release-detail__hero {
+    grid-template-columns: minmax(260px, 0.86fr) minmax(0, 1.14fr);
+    align-items: stretch;
+  }
+
+  .hiplingo-release-track {
+    grid-template-columns: 42px minmax(0, 1fr) 46px;
+    min-height: 64px;
+    padding-inline: 10px;
+  }
+}
+
+@media (min-width: 980px) {
+  .hiplingo-release-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 34px 22px;
+  }
+
+  .hiplingo-release-detail__hero {
+    gap: clamp(36px, 6vw, 74px);
+  }
+
+  .hiplingo-release-tracklist {
+    margin-top: 58px;
+  }
+}
+
+/* =========================================================
+   Hiplingo H4 persistent playback
+   ========================================================= */
+
+/* Keep the player component mounted at one stable shell position while
+ * routes switch between the expanded player and compact global transport. */
+.hiplingo-route-content {
+  display: contents;
+}
+
+.hiplingo-player-host--compact {
+  width: 0;
+  height: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.audio-player[data-display-mode="compact"] {
+  position: fixed;
+  z-index: 520;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  left: max(10px, env(safe-area-inset-left));
+  width: auto;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+/* The full player remains mounted so its audio/HLS/Web Audio objects survive
+ * route changes, but only the compact transport is painted off /listen. */
+.audio-player[data-display-mode="compact"]
+  > :not(.hiplingo-compact-player) {
+  display: none !important;
+}
+
+.hiplingo-compact-player {
+  --hiplingo-progress: 0%;
+
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-height: 66px;
+  overflow: hidden;
+  padding: 8px;
+  border: 1px solid rgba(143, 211, 255, 0.2);
+  border-radius: 14px;
+  background: rgba(17, 20, 22, 0.96);
+  box-shadow:
+    0 14px 42px rgba(0, 0, 0, 0.42),
+    0 2px 10px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(18px);
+}
+
+.hiplingo-compact-player__open {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hiplingo-compact-player__artwork {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid #30383c;
+  border-radius: 8px;
+  color: #7895a4;
+  background: #15191b;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.hiplingo-compact-player__artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hiplingo-compact-player__copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.hiplingo-compact-player__copy strong,
+.hiplingo-compact-player__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hiplingo-compact-player__copy strong {
+  color: #f0f0f0;
+  font-size: 0.78rem;
+  font-weight: 720;
+}
+
+.hiplingo-compact-player__copy small {
+  color: #858f94;
+  font-size: 0.66rem;
+}
+
+.hiplingo-compact-player__transport {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.hiplingo-compact-player__transport button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: #b8c7cf;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hiplingo-compact-player__transport button:hover:not(:disabled),
+.hiplingo-compact-player__transport button:focus-visible {
+  color: #f4fbff;
+  background: rgba(112, 170, 199, 0.14);
+}
+
+.hiplingo-compact-player__transport button:focus-visible,
+.hiplingo-compact-player__open:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 2px;
+}
+
+.hiplingo-compact-player__transport button:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.hiplingo-compact-player__transport svg {
+  width: 19px;
+  height: 19px;
+}
+
+.hiplingo-compact-player__play {
+  color: #f3fbff !important;
+  background: #29434f !important;
+}
+
+.hiplingo-compact-player__progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.hiplingo-compact-player__progress::after {
+  display: block;
+  width: var(--hiplingo-progress);
+  height: 100%;
+  background: #86c8e8;
+  content: "";
+  transition: width 120ms linear;
+}
+
+.hiplingo-site-shell:has(.hiplingo-compact-player) {
+  padding-bottom: 92px;
+}
+
+@media (max-width: 520px) {
+  .audio-player[data-display-mode="compact"] {
+    right: max(6px, env(safe-area-inset-right));
+    bottom: max(6px, env(safe-area-inset-bottom));
+    left: max(6px, env(safe-area-inset-left));
+  }
+
+  .hiplingo-compact-player {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 62px;
+    padding: 6px;
+    border-radius: 12px;
+  }
+
+  .hiplingo-compact-player__open {
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .hiplingo-compact-player__artwork {
+    width: 46px;
+    height: 46px;
+  }
+
+  .hiplingo-compact-player__transport {
+    gap: 0;
+  }
+
+  .hiplingo-compact-player__transport button {
+    width: 34px;
+    height: 38px;
+  }
+
+  .hiplingo-compact-player__transport svg {
+    width: 17px;
+    height: 17px;
+  }
+}
+
+/* =========================================================
+   Hiplingo H5 brand + primary landing experience
+   ========================================================= */
+
+:root {
+  --hiplingo-canvas: #090810;
+  --hiplingo-surface-1: #100e18;
+  --hiplingo-surface-2: #171421;
+  --hiplingo-surface-3: #211b2e;
+  --hiplingo-border: rgba(219, 200, 255, 0.12);
+  --hiplingo-border-strong: rgba(219, 200, 255, 0.24);
+  --hiplingo-text: #f7f4fb;
+  --hiplingo-muted: #aaa1b5;
+  --hiplingo-purple: #a98cff;
+  --hiplingo-pink: #ef8bc5;
+  --hiplingo-cyan: #78cce8;
+}
+
+body {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(132, 83, 199, 0.14), transparent 30rem),
+    radial-gradient(circle at 86% 18%, rgba(58, 139, 176, 0.08), transparent 30rem),
+    var(--hiplingo-canvas);
+}
+
+.hiplingo-site-header {
+  border-bottom-color: var(--hiplingo-border);
+  background: rgba(9, 8, 16, 0.92);
+}
+
+.hiplingo-site-brand {
+  color: var(--hiplingo-text);
+}
+
+.hiplingo-site-brand img {
+  border-radius: 7px;
+}
+
+.hiplingo-site-nav a {
+  color: #9a92a3;
+}
+
+.hiplingo-site-nav a:hover,
+.hiplingo-site-nav a:focus-visible,
+.hiplingo-site-nav a[aria-current="page"] {
+  color: #fffaff;
+  background: rgba(169, 140, 255, 0.13);
+}
+
+.hiplingo-site-nav a:focus-visible,
+.hiplingo-site-brand:focus-visible,
+.hiplingo-feature-card:focus-visible,
+.hiplingo-button:focus-visible,
+.hiplingo-site-footer a:focus-visible,
+.hiplingo-home-release__artwork:focus-visible {
+  outline-color: var(--hiplingo-cyan);
+}
+
+.hiplingo-home {
+  padding-top: 18px;
+}
+
+/* Banner stays a texture. The logo is a separate foreground asset. */
+.hiplingo-hero {
+  position: relative;
+  max-width: none;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--hiplingo-border);
+  border-radius: 18px;
+  background: var(--hiplingo-surface-1);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+
+.hiplingo-hero__banner {
+  position: relative;
+  height: clamp(190px, 58vw, 300px);
+  background-image:
+    linear-gradient(to bottom, rgba(8, 7, 14, 0.03) 30%, rgba(8, 7, 14, 0.18) 68%, var(--hiplingo-surface-1) 100%),
+    url("/brand/hiplingo-banner-mobile.webp");
+  background-position: center 44%;
+  background-size: cover;
+}
+
+.hiplingo-hero__identity {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  padding: 0 20px 24px;
+}
+
+.hiplingo-hero__logo {
+  display: grid;
+  width: 82px;
+  height: 82px;
+  margin-top: -40px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 22px;
+  background: #17131f;
+  box-shadow:
+    0 14px 32px rgba(0, 0, 0, 0.42),
+    0 0 0 5px var(--hiplingo-surface-1);
+}
+
+.hiplingo-hero__logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.hiplingo-hero__copy {
+  min-width: 0;
+}
+
+.hiplingo-hero .hiplingo-kicker {
+  color: #b9a9df;
+}
+
+.hiplingo-hero h1 {
+  max-width: 11ch;
+  color: var(--hiplingo-text);
+  font-size: clamp(2.45rem, 11vw, 5.5rem);
+}
+
+.hiplingo-hero__copy > p {
+  max-width: 640px;
+  margin: 18px 0 0;
+  color: var(--hiplingo-muted);
+  font-size: clamp(0.96rem, 3.5vw, 1.12rem);
+  line-height: 1.6;
+}
+
+.hiplingo-button {
+  border-color: var(--hiplingo-border-strong);
+  color: #ded8e5;
+  background: var(--hiplingo-surface-2);
+}
+
+.hiplingo-button--primary {
+  border-color: rgba(179, 148, 255, 0.62);
+  color: #fffaff;
+  background:
+    linear-gradient(135deg, rgba(169, 140, 255, 0.30), rgba(239, 139, 197, 0.15)),
+    #241b35;
+}
+
+.hiplingo-button:hover {
+  border-color: rgba(186, 158, 255, 0.55);
+  background: var(--hiplingo-surface-3);
+}
+
+/* The newest publication is the homepage's first music action. */
+.hiplingo-home-release {
+  display: grid;
+  grid-template-columns: minmax(92px, 116px) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--hiplingo-border);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(120, 204, 232, 0.04), rgba(169, 140, 255, 0.05)),
+    var(--hiplingo-surface-1);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
+}
+
+.hiplingo-home-release__artwork {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--hiplingo-border-strong);
+  border-radius: 12px;
+  background: var(--hiplingo-surface-2);
+  cursor: pointer;
+}
+
+.hiplingo-home-release__artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hiplingo-home-release__copy {
+  min-width: 0;
+  align-self: center;
+}
+
+.hiplingo-home-release__copy .hiplingo-kicker {
+  margin-bottom: 5px;
+  color: #9e8cc4;
+}
+
+.hiplingo-home-release__copy h2 {
+  margin: 0;
+  overflow: hidden;
+  color: var(--hiplingo-text);
+  font-size: clamp(1.25rem, 6vw, 2.25rem);
+  letter-spacing: -0.035em;
+  line-height: 1;
+  text-overflow: ellipsis;
+}
+
+.hiplingo-home-release__artist,
+.hiplingo-home-release__meta {
+  margin: 5px 0 0;
+}
+
+.hiplingo-home-release__artist {
+  color: #c4bdcc;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.hiplingo-home-release__meta {
+  color: #756f7b;
+  font-size: 0.66rem;
+}
+
+.hiplingo-home-release__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.hiplingo-home-release__actions .hiplingo-button {
+  min-height: 38px;
+  padding: 7px 12px;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.hiplingo-home-release--state {
+  grid-template-columns: 1fr;
+  min-height: 120px;
+  align-content: center;
+}
+
+.hiplingo-home-release--state strong {
+  color: #d8d1df;
+}
+
+.hiplingo-feature-grid {
+  grid-template-columns: 1fr;
+  margin-top: 18px;
+  border-color: var(--hiplingo-border);
+  background: var(--hiplingo-border);
+}
+
+.hiplingo-feature-card {
+  min-height: 148px;
+  background: rgba(16, 14, 24, 0.97);
+}
+
+.hiplingo-feature-card:hover {
+  background: var(--hiplingo-surface-2);
+}
+
+.hiplingo-feature-card > span {
+  color: #9585b7;
+}
+
+.hiplingo-feature-card strong {
+  color: #eee9f2;
+}
+
+.hiplingo-feature-card p {
+  color: #958e9d;
+}
+
+/* Extend the brand accents into release discovery without overpowering art. */
+.hiplingo-release-card__artwork,
+.hiplingo-release-detail__artwork {
+  border-color: var(--hiplingo-border);
+  background:
+    linear-gradient(145deg, rgba(169, 140, 255, 0.13), transparent 58%),
+    var(--hiplingo-surface-1);
+}
+
+.hiplingo-release-card:hover .hiplingo-release-card__artwork {
+  border-color: rgba(169, 140, 255, 0.46);
+}
+
+button.hiplingo-release-track:hover {
+  background: rgba(169, 140, 255, 0.07);
+}
+
+.hiplingo-release-track__action {
+  border-color: var(--hiplingo-border-strong);
+  color: #cfbfff;
+}
+
+/* Persistent playback belongs visually to the same app shell. */
+.hiplingo-compact-player {
+  border-color: rgba(169, 140, 255, 0.28);
+  background: rgba(15, 12, 22, 0.96);
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.48),
+    0 0 30px rgba(128, 87, 187, 0.08);
+}
+
+.hiplingo-compact-player__artwork {
+  border-color: rgba(169, 140, 255, 0.24);
+  background: var(--hiplingo-surface-2);
+}
+
+.hiplingo-compact-player__transport button:hover:not(:disabled),
+.hiplingo-compact-player__transport button:focus-visible {
+  color: #fffaff;
+  background: rgba(169, 140, 255, 0.14);
+}
+
+.hiplingo-compact-player__transport button:focus-visible,
+.hiplingo-compact-player__open:focus-visible {
+  outline-color: var(--hiplingo-cyan);
+}
+
+.hiplingo-site-footer {
+  border-top-color: var(--hiplingo-border);
+}
+
+@media (min-width: 640px) {
+  .hiplingo-home {
+    padding-top: 28px;
+  }
+
+  .hiplingo-hero__banner {
+    height: clamp(240px, 38vw, 390px);
+    background-image:
+      linear-gradient(to bottom, rgba(8, 7, 14, 0.02) 35%, rgba(8, 7, 14, 0.15) 72%, var(--hiplingo-surface-1) 100%),
+      url("/brand/hiplingo-banner-desktop.webp");
+    background-position: center 48%;
+  }
+
+  .hiplingo-hero__identity {
+    grid-template-columns: 108px minmax(0, 1fr);
+    gap: 24px;
+    padding: 0 30px 32px;
+  }
+
+  .hiplingo-hero__logo {
+    width: 108px;
+    height: 108px;
+    margin-top: -54px;
+    border-radius: 27px;
+  }
+
+  .hiplingo-hero__copy {
+    padding-top: 18px;
+  }
+
+  .hiplingo-home-release {
+    grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+    gap: clamp(24px, 5vw, 54px);
+    align-items: center;
+    margin-top: 28px;
+    padding: clamp(18px, 3vw, 28px);
+  }
+
+  .hiplingo-home-release__actions .hiplingo-button {
+    min-height: 42px;
+    padding-inline: 15px;
+  }
+
+  .hiplingo-feature-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 28px;
+  }
+}
+
+@media (min-width: 980px) {
+  .hiplingo-home {
+    padding-top: 36px;
+  }
+
+  .hiplingo-hero__banner {
+    height: min(32vw, 360px);
+  }
+
+  .hiplingo-hero__identity {
+    grid-template-columns: 128px minmax(0, 1fr);
+    gap: 30px;
+    padding: 0 42px 38px;
+  }
+
+  .hiplingo-hero__logo {
+    width: 128px;
+    height: 128px;
+    margin-top: -64px;
+    border-radius: 30px;
+  }
+}
+
+/* Short phone landscape uses the wide source and a shallow texture strip. */
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 950px) {
+  .hiplingo-home {
+    padding-top: 14px;
+  }
+
+  .hiplingo-hero__banner {
+    height: 132px;
+    background-image:
+      linear-gradient(to bottom, rgba(8, 7, 14, 0.02) 22%, rgba(8, 7, 14, 0.25) 70%, var(--hiplingo-surface-1) 100%),
+      url("/brand/hiplingo-banner-desktop.webp");
+    background-position: center 48%;
+  }
+
+  .hiplingo-hero__identity {
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 18px;
+    padding: 0 22px 20px;
+  }
+
+  .hiplingo-hero__logo {
+    width: 78px;
+    height: 78px;
+    margin-top: -38px;
+    border-radius: 20px;
+  }
+
+  .hiplingo-hero__copy {
+    padding-top: 8px;
+  }
+
+  .hiplingo-hero h1 {
+    font-size: clamp(2rem, 7vw, 3.4rem);
+  }
+
+  .hiplingo-hero__copy > p {
+    margin-top: 10px;
+    font-size: 0.88rem;
+  }
+
+  .hiplingo-hero__actions {
+    margin-top: 14px;
+  }
+}

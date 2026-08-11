@@ -1,12 +1,15 @@
 // React imports
 import {
+  forwardRef,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import type Hls from "hls.js";
 
 import CompactWaveformCanvas from "./CompactWaveformCanvas";
 import LibraryBrowser from "./LibraryBrowser";
@@ -27,8 +30,24 @@ import type {
   MediaCatalog,
 } from "../types/MediaCatalog";
 
-import hlLogo from "../assets/hl-logo-graphite.svg";
 import packageJsonSource from "../../package.json?raw";
+import {
+  fetchMediaCatalog,
+  getMediaUrl,
+  getTrackKey,
+  getTrackPlaybackPath,
+  getTrackPlaybackProtocol,
+} from "../lib/mediaCatalog";
+
+let hlsModulePromise: Promise<typeof import("hls.js")> | null = null;
+
+function loadHlsModule() {
+  if (!hlsModulePromise) {
+    hlsModulePromise = import("hls.js");
+  }
+
+  return hlsModulePromise;
+}
 
 type WaveformData = {
   version: number;
@@ -117,31 +136,6 @@ function volumePercentToGain(percent: number): number {
   ) / 100;
 
   return normalized * normalized;
-}
-
-/*
- * Track directory names may repeat across releases, so combine the
- * release and track identifiers into one selector value.
- */
-function getTrackKey(
-  release: CatalogRelease,
-  track: CatalogTrack,
-): string {
-  return `${release.id}::${track.id}`;
-}
-
-/*
- * Convert a catalog-relative path into a browser media URL.
- */
-function getMediaUrl(
-  mediaBaseUrl: string,
-  assetPath: string | null,
-): string | null {
-  if (!assetPath) {
-    return null;
-  }
-
-  return `${mediaBaseUrl.replace(/\/$/, "")}/${assetPath}`;
 }
 
 type ArtworkTransportIconName =
@@ -252,8 +246,40 @@ const APP_VERSION = (
   }
 ).version;
 
-export default function AudioPlayer() {
+export type PlaybackQueueRequest = {
+  trackKey: string;
+  queueTrackKeys: string[];
+  autoplay: boolean;
+};
+
+export type AudioPlayerHandle = {
+  playQueue: (request: PlaybackQueueRequest) => void;
+};
+
+type AudioPlayerDisplayMode = "full" | "compact";
+
+type AudioPlayerProps = {
+  catalog?: MediaCatalog | null;
+  catalogError?: string | null;
+  initialTrackKey?: string | null;
+  displayMode?: AudioPlayerDisplayMode;
+  onOpenFullPlayer?: () => void;
+};
+
+const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
+  function AudioPlayer(
+    {
+      catalog: suppliedCatalog,
+      catalogError = null,
+      initialTrackKey = null,
+      displayMode = "full",
+      onOpenFullPlayer,
+    },
+    ref,
+  ) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
+  const hlsAutoplayTrackKeyRef = useRef<string | null>(null);
   const volumeControlRef = useRef<HTMLDivElement | null>(null);
   const waveformPanelRef = useRef<HTMLDivElement | null>(null);
 
@@ -384,10 +410,20 @@ export default function AudioPlayer() {
   ] = useState<string | null>(null);
 
   // Media catalog and selected-track state.
-  const [catalog, setCatalog] =
+  const [localCatalog, setLocalCatalog] =
     useState<MediaCatalog | null>(null);
+  const catalog =
+    suppliedCatalog === undefined
+      ? localCatalog
+      : suppliedCatalog;
+  const appliedInitialTrackKeyRef =
+    useRef<string | null>(null);
   const [selectedTrackKey, setSelectedTrackKey] =
     useState("");
+  const [queueTrackKeys, setQueueTrackKeys] =
+    useState<string[]>([]);
+  const [hasPlaybackSelection, setHasPlaybackSelection] =
+    useState(false);
 
   /*
    * Library highlighting is independent from the loaded player
@@ -418,6 +454,7 @@ export default function AudioPlayer() {
     useState<WaveformData | null>(null);
   const [loadError, setLoadError] =
     useState<string | null>(null);
+  const displayLoadError = catalogError ?? loadError;
 
   // Waveform visual settings.
   const [colorMode, setColorMode] =
@@ -486,6 +523,22 @@ export default function AudioPlayer() {
     });
   }, [catalog]);
 
+  const activeQueue = useMemo<PlayableTrack[]>(() => {
+    if (queueTrackKeys.length === 0) {
+      return playableTracks;
+    }
+
+    const queue = queueTrackKeys.flatMap((trackKey) => {
+      const entry = playableTracks.find(
+        (candidate) => candidate.key === trackKey,
+      );
+
+      return entry ? [entry] : [];
+    });
+
+    return queue.length > 0 ? queue : playableTracks;
+  }, [playableTracks, queueTrackKeys]);
+
   const selectedTrack = useMemo(() => {
     return (
       playableTracks.find(
@@ -514,7 +567,7 @@ export default function AudioPlayer() {
       : 0;
 
   const selectedTrackIndex = selectedTrack
-    ? playableTracks.findIndex(
+    ? activeQueue.findIndex(
         (entry) => entry.key === selectedTrack.key,
       )
     : -1;
@@ -552,7 +605,7 @@ export default function AudioPlayer() {
       }`
     : "Loading audio data";
 
-  const playbackHeaderStatus = loadError
+  const playbackHeaderStatus = displayLoadError
     ? "Unavailable"
     : !catalog
       ? "Loading library"
@@ -583,7 +636,7 @@ export default function AudioPlayer() {
 
   const headerStatus = isAudiophileMode
     ? audiophileHeaderStatus
-    : loadError
+    : displayLoadError
       ? "Unavailable"
       : !catalog
         ? "Loading library"
@@ -600,39 +653,25 @@ export default function AudioPlayer() {
                   : "Ready";
 
   const previousTrack =
-    selectedTrackIndex >= 0 && playableTracks.length > 1
-      ? playableTracks[
-          (selectedTrackIndex -
-            1 +
-            playableTracks.length) %
-            playableTracks.length
-        ]
+    selectedTrackIndex > 0
+      ? activeQueue[selectedTrackIndex - 1]
       : null;
 
   const nextTrack =
-    selectedTrackIndex >= 0 && playableTracks.length > 1
-      ? playableTracks[
-          (selectedTrackIndex + 1) %
-            playableTracks.length
-        ]
+    selectedTrackIndex >= 0 &&
+    selectedTrackIndex < activeQueue.length - 1
+      ? activeQueue[selectedTrackIndex + 1]
       : null;
 
   const previousPreviousTrack =
-    selectedTrackIndex >= 0 && playableTracks.length > 2
-      ? playableTracks[
-          (selectedTrackIndex -
-            2 +
-            playableTracks.length) %
-            playableTracks.length
-        ]
+    selectedTrackIndex > 1
+      ? activeQueue[selectedTrackIndex - 2]
       : null;
 
   const nextNextTrack =
-    selectedTrackIndex >= 0 && playableTracks.length > 2
-      ? playableTracks[
-          (selectedTrackIndex + 2) %
-            playableTracks.length
-        ]
+    selectedTrackIndex >= 0 &&
+    selectedTrackIndex < activeQueue.length - 2
+      ? activeQueue[selectedTrackIndex + 2]
       : null;
 
   /*
@@ -821,6 +860,22 @@ export default function AudioPlayer() {
   }, [isLibraryOpen]);
 
   /*
+   * Route changes collapse the full player without unmounting it. Close
+   * full-player-only overlays so returning to /listen starts from the
+   * playback surface rather than a stale modal or menu.
+   */
+  useEffect(() => {
+    if (displayMode !== "compact") {
+      return;
+    }
+
+    setIsAppMenuOpen(false);
+    setIsMetadataViewerOpen(false);
+    setIsLibraryOpen(false);
+    setIsVolumeControlOpen(false);
+  }, [displayMode]);
+
+  /*
    * Cancel an unfinished About-card hold when the player unmounts.
    */
   useEffect(() => {
@@ -835,6 +890,8 @@ export default function AudioPlayer() {
    */
   useEffect(() => {
     return () => {
+      destroyHlsPlayback();
+
       const audioContext = audioContextRef.current;
 
       if (
@@ -846,29 +903,21 @@ export default function AudioPlayer() {
     };
   }, []);
 
-  // Load the generated release and track catalog.
+  // Load the generated release and track catalog when one was not supplied.
   useEffect(() => {
+    if (suppliedCatalog !== undefined) {
+      return;
+    }
+
     const controller = new AbortController();
 
     async function loadCatalog() {
       try {
-        const response = await fetch(
-          "/media/catalog.json",
-          {
-            signal: controller.signal,
-          },
+        const data = await fetchMediaCatalog(
+          controller.signal,
         );
 
-        if (!response.ok) {
-          throw new Error(
-            `Failed to load catalog: ${response.status}`,
-          );
-        }
-
-        const data =
-          (await response.json()) as MediaCatalog;
-
-        setCatalog(data);
+        setLocalCatalog(data);
         setLoadError(null);
       } catch (error) {
         if (controller.signal.aborted) {
@@ -888,15 +937,35 @@ export default function AudioPlayer() {
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [suppliedCatalog]);
 
-  // Select the first playable track after loading the catalog.
+  // Apply a release-page track request once, then preserve in-player navigation.
   useEffect(() => {
     if (playableTracks.length === 0) {
       return;
     }
 
     const firstTrackKey = playableTracks[0].key;
+    const requestedTrackKey =
+      initialTrackKey &&
+      playableTracks.some(
+        (entry) => entry.key === initialTrackKey,
+      )
+        ? initialTrackKey
+        : null;
+
+    if (
+      requestedTrackKey &&
+      appliedInitialTrackKeyRef.current !== initialTrackKey
+    ) {
+      appliedInitialTrackKeyRef.current = initialTrackKey;
+      setQueueTrackKeys(
+        playableTracks.map((entry) => entry.key),
+      );
+      setSelectedTrackKey(requestedTrackKey);
+      setLibraryTrackKey(requestedTrackKey);
+      return;
+    }
 
     if (
       !playableTracks.some(
@@ -914,6 +983,7 @@ export default function AudioPlayer() {
       setLibraryTrackKey(firstTrackKey);
     }
   }, [
+    initialTrackKey,
     libraryTrackKey,
     playableTracks,
     selectedTrackKey,
@@ -1020,13 +1090,164 @@ export default function AudioPlayer() {
     };
   }, [catalog, selectedTrack]);
 
+  const selectedPlaybackPath =
+    selectedTrack
+      ? getTrackPlaybackPath(selectedTrack.track)
+      : null;
+
+  const selectedPlaybackProtocol =
+    selectedTrack
+      ? getTrackPlaybackProtocol(selectedTrack.track)
+      : null;
+
   const audioSource =
-    catalog && selectedTrack
+    catalog && selectedPlaybackPath
       ? getMediaUrl(
           catalog.mediaBaseUrl,
-          selectedTrack.track.assets.audioPlayback,
+          selectedPlaybackPath,
         )
       : null;
+
+  function destroyHlsPlayback() {
+    hlsAutoplayTrackKeyRef.current = null;
+
+    const hls = hlsRef.current;
+
+    if (!hls) {
+      return;
+    }
+
+    hlsRef.current = null;
+    hls.destroy();
+  }
+
+  async function configureAudioSource(
+    audio: HTMLAudioElement,
+    trackKey: string,
+    source: string,
+    protocol: string | null,
+    autoplay: boolean,
+  ): Promise<boolean> {
+    destroyHlsPlayback();
+
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+
+    setLoadError(null);
+    setIsPlaying(false);
+    setHasPlaybackEnded(false);
+    setCurrentTime(0);
+
+    const isHls =
+      protocol?.toLowerCase() === "hls" ||
+      source.toLowerCase().includes(".m3u8");
+
+    if (isHls) {
+      /*
+       * Prefer native HLS when the browser provides it (Safari/iOS).
+       * Other browsers load hls.js only when an HLS stream is actually
+       * needed, keeping it out of Hiplingo's initial application bundle.
+       */
+      if (
+        audio.canPlayType(
+          "application/vnd.apple.mpegurl",
+        )
+      ) {
+        audio.src = source;
+        audio.load();
+
+        if (autoplay) {
+          void ensureAudioAnalyser();
+          void audio.play().catch((error: unknown) => {
+            console.error(
+              "Unable to begin native HLS playback:",
+              error,
+            );
+          });
+        }
+
+        return true;
+      }
+
+      try {
+        const { default: HlsRuntime } = await loadHlsModule();
+
+        if (loadedAudioTrackKeyRef.current !== trackKey) {
+          return false;
+        }
+
+        if (HlsRuntime.isSupported()) {
+          const hls = new HlsRuntime();
+          hlsRef.current = hls;
+          hlsAutoplayTrackKeyRef.current =
+            autoplay ? trackKey : null;
+
+          hls.on(HlsRuntime.Events.ERROR, (_event, data) => {
+            if (!data.fatal || hlsRef.current !== hls) {
+              return;
+            }
+
+            hlsAutoplayTrackKeyRef.current = null;
+            setIsPlaying(false);
+            setLoadError(
+              `Stream playback failed: ${data.details}`,
+            );
+          });
+
+          hls.on(HlsRuntime.Events.MEDIA_ATTACHED, () => {
+            if (hlsRef.current === hls) {
+              hls.loadSource(source);
+            }
+          });
+
+          hls.on(HlsRuntime.Events.MANIFEST_PARSED, () => {
+            if (
+              hlsRef.current !== hls ||
+              hlsAutoplayTrackKeyRef.current !== trackKey
+            ) {
+              return;
+            }
+
+            hlsAutoplayTrackKeyRef.current = null;
+
+            void ensureAudioAnalyser();
+            void audio.play().catch((error: unknown) => {
+              console.error(
+                "Unable to begin HLS playback:",
+                error,
+              );
+            });
+          });
+
+          hls.attachMedia(audio);
+          return true;
+        }
+      } catch (error) {
+        console.error("Unable to load hls.js:", error);
+      }
+
+      setLoadError(
+        "This browser does not support HLS playback.",
+      );
+      return false;
+    }
+
+    audio.src = source;
+    audio.load();
+
+    if (autoplay) {
+      void ensureAudioAnalyser();
+      void audio.play().catch((error: unknown) => {
+        console.error(
+          "Unable to begin destination-track playback:",
+          error,
+        );
+      });
+    }
+
+    return true;
+  }
 
   /*
    * Initialize the first catalog track and cover any future
@@ -1047,14 +1268,18 @@ export default function AudioPlayer() {
 
     loadedAudioTrackKeyRef.current = selectedTrackKey;
 
-    audio.pause();
-    audio.src = audioSource;
-    audio.currentTime = 0;
-    audio.load();
-
-    setIsPlaying(false);
-    setCurrentTime(0);
-  }, [audioSource, selectedTrackKey]);
+    void configureAudioSource(
+      audio,
+      selectedTrackKey,
+      audioSource,
+      selectedPlaybackProtocol,
+      false,
+    );
+  }, [
+    audioSource,
+    selectedPlaybackProtocol,
+    selectedTrackKey,
+  ]);
 
   const artworkSource =
     catalog && selectedTrack
@@ -1120,9 +1345,11 @@ export default function AudioPlayer() {
       return;
     }
 
+    const destinationPlaybackPath =
+      getTrackPlaybackPath(destination.track);
     const destinationAudioUrl = getMediaUrl(
       catalog.mediaBaseUrl,
-      destination.track.assets.audioPlayback,
+      destinationPlaybackPath,
     );
 
     if (!destinationAudioUrl) {
@@ -1130,41 +1357,52 @@ export default function AudioPlayer() {
     }
 
     setLibraryTrackKey(trackKey);
-
-    /*
-     * Loading a different source always begins at zero. A deliberate
-     * non-autoplay selection remains paused.
-     */
-    audio.pause();
+    setHasPlaybackSelection(true);
 
     loadedAudioTrackKeyRef.current = trackKey;
-    audio.src = destinationAudioUrl;
-    audio.currentTime = 0;
-    audio.load();
-
-    setIsPlaying(false);
-    setHasPlaybackEnded(false);
-    setCurrentTime(0);
     setSelectedTrackKey(trackKey);
 
-    if (autoplay) {
-      /*
-       * Begin both operations directly from the original gesture.
-       * Neither waits for React rendering or a later media event.
-       */
-      void ensureAudioAnalyser();
-
-      void audio.play().catch((error: unknown) => {
-        console.error(
-          "Unable to begin destination-track playback:",
-          error,
-        );
-      });
-    }
+    void configureAudioSource(
+      audio,
+      trackKey,
+      destinationAudioUrl,
+      getTrackPlaybackProtocol(destination.track),
+      autoplay,
+    );
   }
 
+  function playQueue(request: PlaybackQueueRequest) {
+    if (!catalog || playableTracks.length === 0) {
+      return;
+    }
+
+    const validQueue = request.queueTrackKeys.filter(
+      (trackKey) =>
+        playableTracks.some((entry) => entry.key === trackKey),
+    );
+    const nextQueue =
+      validQueue.length > 0
+        ? validQueue
+        : playableTracks.map((entry) => entry.key);
+    const requestedTrackKey = nextQueue.includes(request.trackKey)
+      ? request.trackKey
+      : nextQueue[0];
+
+    if (!requestedTrackKey) {
+      return;
+    }
+
+    setQueueTrackKeys(nextQueue);
+    setHasPlaybackSelection(true);
+    loadTrack(requestedTrackKey, request.autoplay);
+  }
+
+  useImperativeHandle(ref, () => ({
+    playQueue,
+  }));
+
   function selectAdjacentTrack(direction: -1 | 1) {
-    if (!selectedTrack || playableTracks.length < 2) {
+    if (!selectedTrack || activeQueue.length < 2) {
       return;
     }
 
@@ -1173,21 +1411,21 @@ export default function AudioPlayer() {
     const shouldAutoplay =
       isPlaying || Boolean(audio && !audio.paused);
 
-    const currentIndex = playableTracks.findIndex(
+    const currentIndex = activeQueue.findIndex(
       (entry) => entry.key === selectedTrack.key,
     );
+    const nextIndex = currentIndex + direction;
 
-    if (currentIndex === -1) {
+    if (
+      currentIndex === -1 ||
+      nextIndex < 0 ||
+      nextIndex >= activeQueue.length
+    ) {
       return;
     }
 
-    // Wrap navigation across the complete playable catalog.
-    const nextIndex =
-      (currentIndex + direction + playableTracks.length) %
-      playableTracks.length;
-
     loadTrack(
-      playableTracks[nextIndex].key,
+      activeQueue[nextIndex].key,
       shouldAutoplay,
     );
   }
@@ -1707,6 +1945,8 @@ export default function AudioPlayer() {
      * briefly lag after seeking, buffering, or reaching a boundary.
      */
     if (audio.paused || audio.ended) {
+      setHasPlaybackSelection(true);
+
       if (
         audio.ended ||
         (
@@ -1858,6 +2098,10 @@ export default function AudioPlayer() {
     trackKey: string,
   ) {
     setLibraryTrackKey(trackKey);
+    setQueueTrackKeys(
+      playableTracks.map((entry) => entry.key),
+    );
+    setHasPlaybackSelection(true);
 
     if (trackKey !== selectedTrackKey) {
       loadTrack(trackKey, true);
@@ -1890,6 +2134,10 @@ export default function AudioPlayer() {
     trackKey: string,
   ) {
     setLibraryTrackKey(trackKey);
+    setQueueTrackKeys(
+      playableTracks.map((entry) => entry.key),
+    );
+    setHasPlaybackSelection(true);
 
     if (trackKey !== selectedTrackKey) {
       loadTrack(trackKey, true);
@@ -2352,15 +2600,102 @@ export default function AudioPlayer() {
     <section
       className="audio-player"
       aria-label="Audio player"
+      data-display-mode={displayMode}
       data-menu-open={
         isAppMenuOpen ? "true" : "false"
       }
     >
+      {
+        displayMode === "compact" &&
+        hasPlaybackSelection &&
+        selectedTrack
+          ? (
+            <div
+              className="hiplingo-compact-player"
+              aria-label="Now playing"
+            >
+              <button
+                type="button"
+                className="hiplingo-compact-player__open"
+                onClick={onOpenFullPlayer}
+                aria-label={`Open full player for ${selectedTrack.track.title}`}
+              >
+                <span
+                  className="hiplingo-compact-player__artwork"
+                  aria-hidden="true"
+                >
+                  {artworkSource ? (
+                    <img src={artworkSource} alt="" />
+                  ) : (
+                    <span>HL</span>
+                  )}
+                </span>
+
+                <span className="hiplingo-compact-player__copy">
+                  <strong>{selectedTrack.track.title}</strong>
+                  <small>{selectedArtist}</small>
+                </span>
+              </button>
+
+              <div
+                className="hiplingo-compact-player__transport"
+                aria-label="Playback controls"
+              >
+                <button
+                  type="button"
+                  onClick={selectPreviousTrack}
+                  disabled={!previousTrack}
+                  aria-label="Previous track"
+                >
+                  <ArtworkTransportIcon name="previous" />
+                </button>
+
+                <button
+                  type="button"
+                  className="hiplingo-compact-player__play"
+                  onClick={() => {
+                    void togglePlayback();
+                  }}
+                  disabled={!audioSource}
+                  aria-label={
+                    displayedIsPlaying ? "Pause" : "Play"
+                  }
+                  aria-pressed={displayedIsPlaying}
+                >
+                  <ArtworkTransportIcon
+                    name={displayedIsPlaying ? "pause" : "play"}
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={selectNextTrack}
+                  disabled={!nextTrack}
+                  aria-label="Next track"
+                >
+                  <ArtworkTransportIcon name="next" />
+                </button>
+              </div>
+
+              <span
+                className="hiplingo-compact-player__progress"
+                aria-hidden="true"
+                style={
+                  {
+                    "--hiplingo-progress": `${compactWaveformProgress * 100}%`,
+                  } as CSSProperties
+                }
+              />
+            </div>
+          )
+          : null
+      }
+
       <header className="audio-player__header">
         <span className="audio-player__brand">
           <img
-            src={hlLogo}
-            alt="HL record label"
+            src="/brand/hiplingo-logo-white.webp"
+            alt="Hiplingo"
             className="audio-player__brand-logo"
           />
         </span>
@@ -2898,6 +3233,14 @@ export default function AudioPlayer() {
             analyserRef.current,
           );
 
+          if (nextTrack) {
+            setIsPlaying(false);
+            setHasPlaybackEnded(false);
+            setCurrentTime(0);
+            loadTrack(nextTrack.key, true);
+            return;
+          }
+
           setIsPlaying(false);
           setHasPlaybackEnded(true);
           setCurrentTime(
@@ -3199,8 +3542,8 @@ export default function AudioPlayer() {
         }}
       />
 
-      {loadError ? (
-        <p role="alert">{loadError}</p>
+      {displayLoadError ? (
+        <p role="alert">{displayLoadError}</p>
       ) : null}
 
       {waveform ? (
@@ -3341,7 +3684,7 @@ export default function AudioPlayer() {
           </div>
 
         </>
-      ) : !loadError ? (
+      ) : !displayLoadError ? (
         <p>Loading track data…</p>
       ) : null}
 
@@ -3549,7 +3892,7 @@ export default function AudioPlayer() {
 
       <footer className="audio-player__footer">
         <span>
-          © {new Date().getFullYear()} Nathan Brenton
+          © {new Date().getFullYear()} Hiplingo
         </span>
 
         <span aria-hidden="true">·</span>
@@ -3564,4 +3907,7 @@ export default function AudioPlayer() {
       </footer>
     </section>
   );
-}
+  },
+);
+
+export default AudioPlayer;

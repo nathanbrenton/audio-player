@@ -14,7 +14,9 @@ The player is one component of a broader record-label media workflow, but this r
 - Stacked artwork navigation with previous and next release context
 - Responsive music library for desktop, mobile portrait, and mobile landscape
 - Release and track metadata viewer with multiple levels of detail
-- Local media catalog generation with configurable media roots
+- Metadata-editor publication-package consumption through `/media/*`
+- HLS playback with hls.js plus native-HLS fallback
+- Persistent site-wide playback with release-scoped queues and a compact global transport
 - macOS development with Debian 13 compatibility as a target
 
 ## Technology
@@ -24,11 +26,10 @@ The player is one component of a broader record-label media workflow, but this r
 - Vite
 - Web Audio API
 - HTML5 Audio
+- hls.js / Media Source Extensions
 - Canvas 2D API
-- Custom waveform and oscilloscope rendering
-- Dependency-light WAV parsing and FFT analysis
-- TOML and JSON metadata
-- Node-based media catalog and analysis scripts
+- Custom Canvas waveform and oscilloscope rendering
+- Sanitized JSON release/track publication metadata
 
 ## Playback
 
@@ -42,6 +43,38 @@ The player supports:
 - Playback-state preservation when navigating between adjacent tracks
 - Mobile-safe track loading inside user gestures to preserve autoplay permission
 - Library browsing without interrupting the currently loaded track
+- Release-page playback without route changes
+- Release-scoped queues with automatic advancement through the remaining tracks
+- Compact site-wide now-playing controls that expand into the full `/listen` player
+
+## Persistent playback and queue
+
+Hiplingo mounts one `AudioPlayer` for the lifetime of the public application
+shell. Routing changes presentation only; they do not unmount the underlying
+HTML audio element, HLS instance, or Web Audio graph.
+
+Release pages send playback commands directly to that persistent player:
+
+```text
+/release detail
+      |
+      | play track / play release
+      v
+persistent AudioPlayer
+      |
+      +-- release-scoped queue
+      +-- HLS playback
+      +-- compact global transport off /listen
+      `-- expanded interface on /listen
+```
+
+Selecting an individual track starts it immediately and keeps the playable
+tracks from that release as the active queue. Next/previous stay inside the
+queue, and reaching the end of a track automatically advances when another
+queued track remains. The final queued track stops normally.
+
+`/listen` is therefore an expanded view of the same playback session rather
+than a separate player lifecycle.
 
 ## Artwork Navigation
 
@@ -188,134 +221,88 @@ Metadata provenance indicators distinguish values that are:
 
 Developer Mode is hidden during normal use and can be revealed through the About interaction.
 
-## Metadata Files
+## Public brand assets
 
-The player can consume a structured combination of authored TOML and generated JSON metadata.
-
-Release-level files may include:
-
-```text
-release.toml
-release-production-notes.toml
-release-settings.toml
-```
-
-Track-level files may include:
+Hiplingo keeps brand artwork separate from release media. Static site identity
+assets live under `public/brand/` and are copied into the Vite production build.
+The responsive landing experience expects:
 
 ```text
-track.toml
-track-credits.toml
-track-production-notes.toml
-track-analysis.json
-waveform-peaks.json
+public/brand/
+├── hiplingo-logo-white.webp
+├── hiplingo-banner-mobile.webp
+└── hiplingo-banner-desktop.webp
 ```
 
-Authored descriptive, musical, credit, rights, and production information belongs in TOML. Generated technical values belong in `track-analysis.json` and `waveform-peaks.json`.
+The banner files are treated as background texture only. The Hiplingo logo is
+rendered separately by the interface so its size and placement can respond
+independently from banner cropping. Mobile portrait uses the dedicated mobile
+texture; desktop and short landscape use the wide desktop texture.
 
-Examples of generated values include duration, sample rate, bit depth, channel layout, codec, bitrate, file size, checksum, loudness measurements, waveform settings, and validation results.
+The homepage surfaces the newest release from the hydrated published catalog.
+Its Play action sends the release queue directly to the persistent player, so
+playback begins without navigating away from the landing page.
 
-Reusable metadata templates are stored under:
+## Published-media contract
+
+Hiplingo is a **read-only consumer** of publication packages produced by
+`metadata-editor`. The player does not author, transcode, sanitize, or publish
+public media.
+
+The default development media root is the public-safe sibling directory:
 
 ```text
-docs/metadata/
+../published-media
 ```
 
-### TOML conventions
-
-TOML integers must not contain leading zeroes.
-
-```toml
-# Valid
-track_number = 4
-
-# Invalid
-track_number = 04
-```
-
-String arrays require quoted, comma-separated values.
-
-```toml
-genres = ["rock", "pop"]
-genres = ["rock"]
-genres = []
-```
-
-Identifiers such as ISRC, ISWC, IPI, ISNI, MusicBrainz UUIDs, and platform IDs should remain strings so formatting and leading zeroes are preserved.
-
-## Media Layout
-
-The player reads releases from a filesystem media root rather than bundling the media into the application source.
-
-A representative layout is:
-
-```text
-<media-root>/
-└── releases/
-    └── YYYY-MM-DD_release-name/
-        ├── release.toml
-        ├── release-production-notes.toml
-        ├── release-settings.toml
-        ├── artwork/
-        │   └── front/
-        │       ├── artwork-master.jpeg
-        │       └── artwork.webp
-        └── tracks/
-            └── artist_01_track-name/
-                ├── track.toml
-                ├── track-credits.toml
-                ├── track-production-notes.toml
-                ├── track-analysis.json
-                ├── audio-master.wav
-                ├── audio-playback.mp3
-                ├── waveform-peaks.json
-                └── artwork/
-                    ├── artwork-master.jpeg
-                    └── artwork.webp
-```
-
-The Vite development server exposes the selected filesystem root through stable `/media/*` URLs, including:
+Vite maps that directory to the same URL contract used in production:
 
 ```text
 /media/catalog.json
-/media/releases/<release-id>/...
+/media/releases/<release-id>/release.json
+/media/releases/<release-id>/tracks/<track-id>/track.json
+/media/releases/<release-id>/tracks/<track-id>/stream/index.m3u8
+/media/releases/<release-id>/tracks/<track-id>/waveform-peaks.json
 ```
 
-The default media root may point to a demo library. A private library can be selected with:
+`catalog.json` is intentionally small. Hiplingo follows each catalog
+`release.href`, then each release `track.href`. `track.json` supplies relative
+`stream.href`, `waveform.href`, and artwork references.
+
+The catalog adapter in `src/lib/mediaCatalog.ts` temporarily also recognizes
+the older audio-player catalog shape so a previously overwritten
+`published-media/catalog.json` can still be used to discover release IDs.
+`release.json` and `track.json` remain authoritative in both cases.
+
+For temporary testing only, an alternate read-only root can be selected:
 
 ```sh
-MEDIA_LIBRARY_ROOT=../media-library
+MEDIA_LIBRARY_ROOT=../some-test-media npm run dev
 ```
 
-Media assets should remain outside Git when they are private, large, licensed, or otherwise unsuitable for source control.
+### Publication ownership
 
-## Catalog Generation
+`metadata-editor` owns:
 
-The media catalog is generated with:
+- HLS/AAC derivative generation
+- Browser-compatible artwork derivatives
+- Waveform generation
+- Sanitized public release and track JSON
+- Publication manifests
+- `published-media/catalog.json`
+- Atomic package promotion/update
 
-```sh
-node scripts/generate-media-catalog.mjs
-```
+Hiplingo owns:
 
-The generator scans releases and tracks, resolves playable audio, applies artwork fallback rules, and produces the catalog consumed by the React application.
+- Catalog/package consumption
+- Release and track browsing
+- Artwork and waveform presentation
+- HLS playback
+- Playback state and public-site UI
 
-## Media Processing Scripts
-
-Important scripts include:
-
-```text
-scripts/generate-media-catalog.mjs
-scripts/generate-waveform-peaks.mjs
-scripts/transcode-audio.sh
-scripts/transcode-artwork.sh
-```
-
-Their responsibilities include:
-
-- Scanning the media root
-- Generating the player catalog
-- Converting playback audio
-- Converting artwork for browser delivery
-- Producing frequency-aware waveform peaks
+Producer-side media preparation scripts have been removed from this repository.
+`audio-player` has no supported workflow that writes to `published-media`.
+Publication changes must originate from `metadata-editor`.
 
 ## Development
 
@@ -361,22 +348,24 @@ src/components/OscilloscopeCanvas.tsx
 src/components/MetadataViewer.tsx
 src/index.css
 vite.config.mjs
-scripts/generate-media-catalog.mjs
-scripts/generate-waveform-peaks.mjs
-docs/metadata/
+src/lib/mediaCatalog.ts
+docs/runbooks/start-app.md
 ```
 
 ## Project Scope
 
 This repository is the audio-player application only.
 
-Related tools may provide metadata editing, private-library management, validation, or deployment preparation, but those responsibilities are intentionally kept separate from the public player. The audio player should consume prepared media and metadata without exposing administrative write access.
+`metadata-editor` owns metadata editing, private-library management, validation,
+derivative preparation, and publication. Hiplingo consumes the resulting
+`published-media` tree without exposing administrative write access or carrying
+a second media-generation pipeline.
 
 ## Status
 
 Current application version: **0.0.2**
 
-Implemented milestones include playback, responsive artwork navigation, waveform and oscilloscope visualization, mobile and desktop library browsing, metadata views, media-root configuration, and generated catalog support.
+Implemented milestones include playback, responsive artwork navigation, waveform and oscilloscope visualization, mobile and desktop library browsing, metadata views, release discovery, metadata-editor publication-package consumption, and persistent site-wide release-queue playback.
 
 ## License
 
@@ -384,3 +373,60 @@ Copyright © 2026 Nathan Brenton. All rights reserved.
 
 This repository is publicly viewable for evaluation and portfolio review.
 It is not open-source software. See [LICENSE](LICENSE) for permitted use.
+
+## Hiplingo web application shell
+
+The public player now runs inside the mobile-first Hiplingo application shell.
+The first shell milestone adds lightweight client-side routes without changing
+the established playback engine:
+
+```text
+/
+/listen
+/releases
+/artists
+/journal
+/jam
+/about
+```
+
+`/listen` hosts the existing AudioPlayer. The Releases, Artists, Journal, and
+Jam Agreement routes are intentionally lightweight boundaries for later
+milestones rather than duplicate implementations of metadata-editor or
+jam-agreement-manager.
+
+The private `jam-agreement-manager` remains a separate administrative
+application. The eventual `/jam` participant experience should talk to a
+purpose-built public API surface and must not expose the administrative UI or
+its unrestricted rights-management endpoints.
+
+### Static hosting requirement
+
+Production hosting must serve `index.html` as the fallback for application
+routes such as `/listen` and `/artists`. Media remains separately addressable
+through the publication/deployment contract rather than being bundled into the
+frontend source tree.
+
+## H2 release discovery
+
+The public `/releases` route uses the hydrated metadata-editor publication
+contract and presents an artwork-first release catalog. Release detail routes
+use the stable release identifier:
+
+```text
+/releases/<release-id>
+```
+
+Each release page presents public release metadata and its track list. Playable
+tracks open the established player through a catalog track key rather than
+creating a second playback implementation:
+
+```text
+/listen?track=<release-id>::<track-id>
+```
+
+The Hiplingo shell owns catalog loading and passes that catalog into
+`AudioPlayer`. `AudioPlayer` still retains a standalone catalog-loading fallback
+for reuse outside the shell. Shared catalog hydration, relative-resource resolution, artwork, artist, and
+identity handling lives in `src/lib/mediaCatalog.ts`, keeping the publication
+contract isolated from the player UI.
