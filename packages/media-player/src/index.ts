@@ -21,6 +21,10 @@ export {
   isPlaybackTextEntryTarget,
 } from "./playback.js";
 export {
+  getPlayableMediaContext,
+  type PlayableMediaItem,
+} from "./playable-media.js";
+export {
   dedupePlaybackQueue,
   getPlaybackQueueCapabilities,
   getPlaybackQueueIndex,

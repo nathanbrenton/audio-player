@@ -123,3 +123,25 @@ test("transport controller and queue navigation are shared without sharing host 
   assert.doesNotMatch(controller, /new Audio\(|hls\.js|fetch\(/);
   assert.match(player, /const audioRef = useRef<HTMLAudioElement \| null>\(null\)/);
 });
+
+
+test("playable media items normalize identity and host-owned resources without sharing engines", async () => {
+  const player = await source("src/components/AudioPlayer.tsx");
+  const sharedIndex = await source("packages/media-player/src/index.ts");
+  const playableMedia = await source("packages/media-player/src/playable-media.ts");
+
+  assert.match(sharedIndex, /\.\/playable-media\.js/);
+  assert.match(playableMedia, /export type PlayableMediaItem<TSource = unknown>/);
+  assert.match(playableMedia, /source: TSource/);
+  assert.match(playableMedia, /artworkUrl\?: string \| null/);
+  assert.match(playableMedia, /waveformUrl\?: string \| null/);
+  assert.match(playableMedia, /export function getPlayableMediaContext/);
+  assert.match(player, /type PlayableTrack = PlayableMediaItem<HiplingoPlayableMediaSource>/);
+  assert.match(player, /source: \{[\s\S]*url: getMediaUrl/);
+  assert.match(player, /waveformUrl: getMediaUrl/);
+  assert.match(player, /artworkUrl: getMediaUrl/);
+  assert.match(player, /const waveformUrl = selectedTrack\.waveformUrl/);
+  assert.match(player, /const audioSource =[\s\S]*selectedTrack\?\.source\.url/);
+  assert.match(player, /context=\{getPlayableMediaContext\(selectedTrack\)\}/);
+  assert.doesNotMatch(playableMedia, /new Audio\(|hls\.js|fetch\(/);
+});

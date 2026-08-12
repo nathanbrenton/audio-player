@@ -19,6 +19,8 @@ import {
   formatPlaybackTime,
   getPlaybackQueueIndex,
   getPlaybackQueueNeighbor,
+  getPlayableMediaContext,
+  type PlayableMediaItem,
   useSpacebarPlaybackShortcut,
 } from "@hiplingo/media-player";
 
@@ -109,8 +111,12 @@ type WaveformData = {
   ][];
 };
 
-type PlayableTrack = {
-  key: string;
+type HiplingoPlayableMediaSource = {
+  url: string | null;
+  protocol: ReturnType<typeof getTrackPlaybackProtocol>;
+};
+
+type PlayableTrack = PlayableMediaItem<HiplingoPlayableMediaSource> & {
   release: CatalogRelease;
   track: CatalogTrack;
 };
@@ -479,11 +485,33 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     return catalog.releases.flatMap((release) => {
       return release.tracks
         .filter((track) => track.playable)
-        .map((track) => ({
-          key: getTrackKey(release, track),
-          release,
-          track,
-        }));
+        .map((track) => {
+          const playbackPath = getTrackPlaybackPath(track);
+
+          return {
+            key: getTrackKey(release, track),
+            release,
+            track,
+            source: {
+              url: getMediaUrl(catalog.mediaBaseUrl, playbackPath),
+              protocol: getTrackPlaybackProtocol(track),
+            },
+            title: track.title,
+            artist:
+              track.metadata.resolved.primaryArtist.name ??
+              track.artist ??
+              "Unknown artist",
+            releaseTitle: release.title,
+            artworkUrl: getMediaUrl(
+              catalog.mediaBaseUrl,
+              track.artwork?.path ?? null,
+            ),
+            waveformUrl: getMediaUrl(
+              catalog.mediaBaseUrl,
+              track.assets.waveform,
+            ),
+          };
+        });
     });
   }, [catalog]);
 
@@ -536,14 +564,10 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   );
 
   const selectedArtist =
-    selectedTrack?.track.metadata.resolved
-      .primaryArtist.name ??
-    selectedTrack?.track.artist ??
-    "Unknown artist";
+    selectedTrack?.artist ?? "Unknown artist";
 
   const selectedReleaseTitle =
-    selectedTrack?.release.title ??
-    "Unknown release";
+    selectedTrack?.releaseTitle ?? "Unknown release";
 
   const displayedTrackNumber =
     selectedTrack?.track.trackNumber ??
@@ -983,10 +1007,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       };
     }
 
-    const waveformUrl = getMediaUrl(
-      catalog.mediaBaseUrl,
-      selectedTrack.track.assets.waveform,
-    );
+    const waveformUrl = selectedTrack.waveformUrl;
 
     if (!waveformUrl) {
       setLoadError(
@@ -1054,23 +1075,11 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     };
   }, [catalog, selectedTrack]);
 
-  const selectedPlaybackPath =
-    selectedTrack
-      ? getTrackPlaybackPath(selectedTrack.track)
-      : null;
-
   const selectedPlaybackProtocol =
-    selectedTrack
-      ? getTrackPlaybackProtocol(selectedTrack.track)
-      : null;
+    selectedTrack?.source.protocol ?? null;
 
   const audioSource =
-    catalog && selectedPlaybackPath
-      ? getMediaUrl(
-          catalog.mediaBaseUrl,
-          selectedPlaybackPath,
-        )
-      : null;
+    selectedTrack?.source.url ?? null;
 
   function destroyHlsPlayback() {
     hlsAutoplayTrackKeyRef.current = null;
@@ -1246,44 +1255,19 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   ]);
 
   const artworkSource =
-    catalog && selectedTrack
-      ? getMediaUrl(
-          catalog.mediaBaseUrl,
-          selectedTrack.track.artwork?.path ?? null,
-        )
-      : null;
+    selectedTrack?.artworkUrl ?? null;
 
   const previousArtworkSource =
-    catalog && previousTrack
-      ? getMediaUrl(
-          catalog.mediaBaseUrl,
-          previousTrack.track.artwork?.path ?? null,
-        )
-      : null;
+    previousTrack?.artworkUrl ?? null;
 
   const nextArtworkSource =
-    catalog && nextTrack
-      ? getMediaUrl(
-          catalog.mediaBaseUrl,
-          nextTrack.track.artwork?.path ?? null,
-        )
-      : null;
+    nextTrack?.artworkUrl ?? null;
 
   const previousPreviousArtworkSource =
-    catalog && previousPreviousTrack
-      ? getMediaUrl(
-          catalog.mediaBaseUrl,
-          previousPreviousTrack.track.artwork?.path ?? null,
-        )
-      : null;
+    previousPreviousTrack?.artworkUrl ?? null;
 
   const nextNextArtworkSource =
-    catalog && nextNextTrack
-      ? getMediaUrl(
-          catalog.mediaBaseUrl,
-          nextNextTrack.track.artwork?.path ?? null,
-        )
-      : null;
+    nextNextTrack?.artworkUrl ?? null;
 
 
   /*
@@ -1309,12 +1293,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       return;
     }
 
-    const destinationPlaybackPath =
-      getTrackPlaybackPath(destination.track);
-    const destinationAudioUrl = getMediaUrl(
-      catalog.mediaBaseUrl,
-      destinationPlaybackPath,
-    );
+    const destinationAudioUrl = destination.source.url;
 
     if (!destinationAudioUrl) {
       return;
@@ -1330,7 +1309,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       audio,
       trackKey,
       destinationAudioUrl,
-      getTrackPlaybackProtocol(destination.track),
+      destination.source.protocol,
       autoplay,
     );
   }
@@ -3338,14 +3317,8 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         <CompactNowPlayingBar
           artworkUrl={artworkSource}
           artworkFallback={<span aria-hidden="true">♪</span>}
-          title={selectedTrack.track.title}
-          context={
-            <>
-              <span>{selectedArtist}</span>
-              <span aria-hidden="true">·</span>
-              <span>{selectedReleaseTitle}</span>
-            </>
-          }
+          title={selectedTrack.title}
+          context={getPlayableMediaContext(selectedTrack)}
           transport={{
             currentTime,
             duration: waveform?.durationSeconds ?? 0,
