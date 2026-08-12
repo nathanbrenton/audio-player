@@ -13587,6 +13587,17 @@ body {
   z-index: 400;
 }
 
+/* The player's hamburger panel is rendered inside the player-header stacking
+ * context. Raise that complete context only while the menu is open so its
+ * backdrop, close trigger, and panel cannot be covered by Hiplingo's sticky
+ * site header. Keep it below the library sheet (950) and metadata modal
+ * (1000+) layers. */
+.hiplingo-player-page
+  .audio-player[data-menu-open="true"]
+  .audio-player__header {
+  z-index: 900;
+}
+
 .hiplingo-player-page .audio-player__header {
   top: 53px;
 }
@@ -14612,5 +14623,1096 @@ button.hiplingo-release-track:hover {
 
   .hiplingo-hero__actions {
     margin-top: 14px;
+  }
+}
+
+/* =========================================================
+   Hiplingo site-route mobile scrolling repair
+   ========================================================= */
+
+/*
+ * The persistent player inherits viewport-fit sizing from the original
+ * standalone /listen interface. In compact mode it must collapse to the
+ * visible transport instead of leaving an invisible fixed, viewport-height
+ * hit target over the page.
+ */
+.audio-player[data-display-mode="compact"] {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+/*
+ * The legacy mobile-landscape player intentionally locks the document so the
+ * full player fits in one viewport. Restore an ordinary scrolling document on
+ * every Hiplingo site route where the same player is mounted in compact mode.
+ * /listen remains unaffected because it uses data-display-mode="full".
+ */
+@media (orientation: landscape) and (max-width: 899px) {
+  body:has(.audio-player[data-display-mode="compact"]) {
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body:has(.audio-player[data-display-mode="compact"]) #root {
+    width: 100%;
+    height: auto;
+    min-height: 100dvh;
+    padding: 0;
+    overflow: visible;
+  }
+}
+
+/* =========================================================
+   Hiplingo H6 unified listening shell
+   ========================================================= */
+
+/* The public Hiplingo header is now the only application header. */
+.hiplingo-site-header {
+  grid-template-areas:
+    "brand actions"
+    "nav nav";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.hiplingo-site-brand {
+  grid-area: brand;
+}
+
+.hiplingo-site-nav {
+  grid-area: nav;
+}
+
+.hiplingo-site-actions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.hiplingo-site-browse,
+.hiplingo-site-menu {
+  min-height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ded8eb;
+  background: rgba(31, 25, 48, 0.88);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.hiplingo-site-browse {
+  padding: 8px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.hiplingo-site-browse:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.hiplingo-site-browse:not(:disabled):hover,
+.hiplingo-site-menu:hover {
+  border-color: rgba(163, 119, 234, 0.58);
+  color: #ffffff;
+  background: rgba(64, 43, 91, 0.9);
+}
+
+.hiplingo-site-browse:focus-visible,
+.hiplingo-site-menu:focus-visible {
+  outline: 2px solid #6ed7ef;
+  outline-offset: 2px;
+}
+
+.hiplingo-site-browse__wide {
+  display: none;
+}
+
+.hiplingo-site-menu {
+  position: relative;
+  display: grid;
+  width: 42px;
+  min-width: 42px;
+  padding: 0;
+  place-items: center;
+  border-radius: 9px;
+}
+
+.hiplingo-site-menu > span,
+.hiplingo-site-menu::before,
+.hiplingo-site-menu::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  width: 20px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+.hiplingo-site-menu > span {
+  transform: translate(-50%, -50%);
+}
+
+.hiplingo-site-menu::before {
+  transform: translate(-50%, calc(-50% - 5px));
+}
+
+.hiplingo-site-menu::after {
+  transform: translate(-50%, calc(-50% + 5px));
+}
+
+@media (min-width: 760px) {
+  .hiplingo-site-header {
+    grid-template-areas: "brand nav actions";
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 18px;
+  }
+
+  .hiplingo-site-nav {
+    min-width: 0;
+    justify-content: flex-end;
+  }
+
+  .hiplingo-site-browse__wide {
+    display: inline;
+  }
+
+  .hiplingo-site-browse__short {
+    display: none;
+  }
+}
+
+/* Short landscape phones also get one compact header row. */
+@media (max-width: 899px) and (orientation: landscape) {
+  .hiplingo-site-header {
+    grid-template-areas: "brand nav actions";
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    padding-block: 7px;
+  }
+
+  .hiplingo-site-brand span {
+    display: none;
+  }
+
+  .hiplingo-site-nav {
+    min-width: 0;
+    padding-bottom: 0;
+  }
+
+  .hiplingo-site-nav a {
+    padding: 6px 7px;
+    font-size: 0.66rem;
+  }
+
+  .hiplingo-site-browse {
+    min-height: 36px;
+    padding: 6px 9px;
+  }
+
+  .hiplingo-site-menu {
+    width: 38px;
+    min-width: 38px;
+    min-height: 36px;
+  }
+}
+
+/* The removed legacy player header no longer reserves viewport space. */
+.audio-player[data-display-mode="full"] {
+  --fixed-header-height: 0px !important;
+  padding-top: 8px !important;
+}
+
+/* Player settings now open from the single Hiplingo header. */
+.audio-player__settings-backdrop {
+  z-index: 900;
+  display: block;
+  padding: 0;
+}
+
+.audio-player__settings-panel {
+  position: fixed;
+  z-index: 910;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  width: min(calc(100vw - 20px), 420px);
+  max-height: calc(100dvh - 20px);
+  overflow: auto;
+  padding: 10px;
+}
+
+.audio-player__settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 4px 10px;
+}
+
+.audio-player__settings-header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.audio-player__settings-header span {
+  color: #817b88;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.audio-player__settings-header strong {
+  color: #f1edf5;
+  font-size: 0.9rem;
+}
+
+.audio-player__settings-close {
+  display: grid;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #45404b;
+  border-radius: 8px;
+  color: #f5f2f7;
+  background: #242027;
+  font-size: 1.35rem;
+  cursor: pointer;
+}
+
+.audio-player__settings-close:focus-visible {
+  outline: 2px solid #6ed7ef;
+  outline-offset: 2px;
+}
+
+/* Library browsing is an overlay everywhere: drawer on desktop, sheet on mobile. */
+.library-sheet__header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.library-sheet__backdrop {
+  padding-bottom: max(118px, calc(104px + env(safe-area-inset-bottom)));
+}
+
+@media (min-width: 900px) {
+  .library-sheet__backdrop {
+    /*
+     * An older standalone-player rule hides the mobile library sheet at
+     * desktop widths. H6 reuses that overlay as the desktop library drawer,
+     * so explicitly restore its grid display here.
+     */
+    display: grid;
+    place-items: stretch end;
+    padding:
+      66px
+      10px
+      max(112px, calc(96px + env(safe-area-inset-bottom)))
+      10px;
+  }
+
+  .library-sheet {
+    width: min(46vw, 590px);
+    max-height: none;
+    height: 100%;
+    border-radius: 14px;
+  }
+}
+
+/* The one global Now Playing dock stays usable above library/metadata overlays. */
+.audio-player__now-playing {
+  z-index: 1200 !important;
+}
+
+.audio-player[data-display-mode="compact"] {
+  z-index: 1200;
+}
+
+.hiplingo-compact-player {
+  position: relative;
+  z-index: 1200;
+}
+
+/* Metadata tabs are part of the Track Metadata header now. */
+.metadata-viewer__header {
+  align-items: center;
+  padding: 10px 12px;
+}
+
+.metadata-viewer__header-main {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.metadata-viewer__eyebrow {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.metadata-viewer__tabs--primary {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.metadata-viewer__tab-rows > .metadata-viewer__tabs {
+  border-top: 0;
+}
+
+@media (max-width: 640px) {
+  .metadata-viewer__header {
+    align-items: flex-start;
+  }
+
+  .metadata-viewer__header-main {
+    display: grid;
+    gap: 7px;
+  }
+
+  .metadata-viewer__tabs--primary {
+    width: 100%;
+  }
+
+  .metadata-viewer__tab {
+    min-height: 34px;
+    padding: 6px 9px;
+  }
+}
+
+/* Compact routes keep only the global dock plus explicitly opened overlays. */
+.audio-player[data-display-mode="compact"]
+  > .library-sheet__backdrop {
+  display: grid !important;
+}
+
+.audio-player[data-display-mode="compact"]
+  > .audio-player__settings-backdrop {
+  display: block !important;
+}
+
+/* ---------------------------------------------------------
+   Metadata overlay + persistent dock coordination
+   --------------------------------------------------------- */
+
+/*
+ * Track Metadata is a top-anchored workspace rather than a centered
+ * alert. Reserve the bottom of the viewport for the persistent player
+ * dock so metadata rows and the close control never sit underneath it.
+ */
+.metadata-viewer__backdrop {
+  box-sizing: border-box;
+  padding:
+    max(8px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right))
+    max(82px, calc(env(safe-area-inset-bottom) + 74px))
+    max(8px, env(safe-area-inset-left));
+  place-items: start center;
+  overflow: hidden;
+}
+
+.metadata-viewer {
+  max-height: 100%;
+}
+
+/*
+ * When metadata is open, collapse the full Now Playing dock to one
+ * transport row. The large waveform remains available again as soon as
+ * the overlay closes, while playback controls stay usable throughout.
+ */
+body:has(.metadata-viewer__backdrop)
+  .audio-player__now-playing {
+  grid-template-areas:
+    "artwork identity time transport metadata" !important;
+  grid-template-columns:
+    44px
+    minmax(0, 1fr)
+    max-content
+    auto
+    40px !important;
+  grid-template-rows: 54px !important;
+  gap: 8px 10px !important;
+  min-height: 0;
+  padding:
+    6px
+    max(10px, env(safe-area-inset-right))
+    max(6px, env(safe-area-inset-bottom))
+    max(10px, env(safe-area-inset-left)) !important;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .audio-player__now-playing-waveform,
+body:has(.metadata-viewer__backdrop)
+  .audio-player__volume-control {
+  display: none !important;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .audio-player__now-playing-artwork {
+  grid-area: artwork !important;
+  width: 42px !important;
+  min-width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .audio-player__now-playing-copy {
+  grid-area: identity !important;
+  min-width: 0;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .audio-player__now-playing-time {
+  grid-area: time !important;
+  display: flex !important;
+  justify-self: end;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .audio-player__now-playing-transport {
+  grid-area: transport !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .audio-player__now-playing-transport
+  > button:nth-child(1),
+body:has(.metadata-viewer__backdrop)
+  .audio-player__now-playing-transport
+  > button:nth-child(2),
+body:has(.metadata-viewer__backdrop)
+  .audio-player__now-playing-transport
+  > button:nth-child(3) {
+  grid-area: auto !important;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .audio-player__now-playing-metadata-button {
+  grid-area: metadata !important;
+  align-self: center;
+  justify-self: center;
+}
+
+/*
+ * Very narrow portrait screens prioritize identity + transport while
+ * metadata is already open. The dialog itself supplies the metadata UI,
+ * so the duplicate info button and elapsed time can temporarily hide.
+ */
+@media (max-width: 520px) {
+  .metadata-viewer__backdrop {
+    padding-bottom:
+      max(76px, calc(env(safe-area-inset-bottom) + 68px));
+  }
+
+  body:has(.metadata-viewer__backdrop)
+    .audio-player__now-playing {
+    grid-template-areas:
+      "artwork identity transport" !important;
+    grid-template-columns:
+      40px
+      minmax(0, 1fr)
+      auto !important;
+    grid-template-rows: 50px !important;
+    gap: 7px !important;
+  }
+
+  body:has(.metadata-viewer__backdrop)
+    .audio-player__now-playing-artwork {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+  }
+
+  body:has(.metadata-viewer__backdrop)
+    .audio-player__now-playing-time,
+  body:has(.metadata-viewer__backdrop)
+    .audio-player__now-playing-metadata-button {
+    display: none !important;
+  }
+}
+
+/* ---------------------------------------------------------
+   Desktop artwork / waveform centerline alignment
+   --------------------------------------------------------- */
+
+/*
+ * The artwork stack is taller than the primary waveform panel. Align
+ * the two full-player columns by their visual centerlines instead of
+ * their top edges so the listening workspace remains balanced after
+ * the unified Hiplingo header removed the legacy player header.
+ */
+@media (min-width: 900px) {
+  .audio-player[data-display-mode="full"] .player-layout {
+    align-items: center;
+  }
+
+  .audio-player[data-display-mode="full"] .artwork-panel,
+  .audio-player[data-display-mode="full"] .player-layout__main {
+    align-self: center;
+  }
+}
+
+/* ---------------------------------------------------------
+   H6.1 desktop library workspace
+   --------------------------------------------------------- */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.library-browser__desktop-workspace {
+  display: none;
+}
+
+.library-browser__mobile-workspace {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 900px) {
+  /*
+   * Browse Library is a listening workspace on desktop, not a narrow
+   * mobile sheet. Keep enough of /listen visible behind it to preserve
+   * overlay context while giving releases and tracks room to breathe.
+   */
+  .library-sheet {
+    width: min(1180px, calc(100vw - 48px));
+    min-width: min(920px, calc(100vw - 48px));
+  }
+
+  .library-sheet__content {
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .library-browser--mobile {
+    display: block;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .library-browser__mobile-workspace {
+    display: none;
+  }
+
+  .library-browser__desktop-workspace {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+    color: #dedbe4;
+    background: #111014;
+  }
+
+  .library-workspace__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #302d36;
+    background: #17151b;
+  }
+
+  .library-workspace__modes {
+    display: inline-flex;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid #35313d;
+    border-radius: 9px;
+    background: #111014;
+  }
+
+  .library-workspace__modes button {
+    min-height: 34px;
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 7px;
+    color: #918b99;
+    background: transparent;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  .library-workspace__modes button:hover {
+    color: #f2eef6;
+    background: #211d28;
+  }
+
+  .library-workspace__modes button[aria-selected="true"] {
+    color: #f7f2fb;
+    background: #34294a;
+    box-shadow: inset 0 0 0 1px rgba(164, 121, 229, 0.28);
+  }
+
+  .library-workspace__modes button:focus-visible,
+  .library-workspace__search input:focus-visible,
+  .library-workspace__release-row:focus-visible,
+  .library-workspace__play-release:focus-visible,
+  .library-workspace__track-play:focus-visible,
+  .library-workspace__track-main:focus-visible {
+    outline: 2px solid #6ed7ef;
+    outline-offset: 2px;
+  }
+
+  .library-workspace__search {
+    flex: 0 1 390px;
+    min-width: 240px;
+  }
+
+  .library-workspace__search input {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid #3a3542;
+    border-radius: 9px;
+    color: #f4f0f7;
+    background: #0f0e12;
+    font: inherit;
+    font-size: 0.76rem;
+  }
+
+  .library-workspace__search input::placeholder {
+    color: #716b78;
+  }
+
+  .library-workspace__release-layout {
+    display: grid;
+    grid-template-columns: 270px minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .library-workspace__release-nav {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+    border-right: 1px solid #302d36;
+    background: #121115;
+  }
+
+  .library-workspace__pane-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 38px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #2b2830;
+    color: #8b8590;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .library-workspace__release-list {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+  }
+
+  .library-workspace__release-row {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 78px;
+    padding: 8px 10px;
+    border: 0;
+    border-bottom: 1px solid #252229;
+    color: #b7b1bd;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .library-workspace__release-row:hover {
+    color: #f2eef5;
+    background: #1a171f;
+  }
+
+  .library-workspace__release-row[aria-pressed="true"] {
+    color: #ffffff;
+    background:
+      linear-gradient(
+        90deg,
+        rgba(115, 72, 164, 0.34),
+        rgba(60, 39, 80, 0.16)
+      );
+    box-shadow: inset 3px 0 0 #a77be5;
+  }
+
+  .library-workspace__release-thumb {
+    display: grid;
+    width: 64px;
+    height: 64px;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid #39343f;
+    border-radius: 8px;
+    color: #71697a;
+    background: #1b1820;
+    font-size: 0.7rem;
+    font-weight: 800;
+  }
+
+  .library-workspace__release-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .library-workspace__release-copy {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+  }
+
+  .library-workspace__release-copy strong,
+  .library-workspace__release-copy span,
+  .library-workspace__release-copy small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .library-workspace__release-copy strong {
+    color: inherit;
+    font-size: 0.78rem;
+  }
+
+  .library-workspace__release-copy span {
+    color: #96909c;
+    font-size: 0.68rem;
+  }
+
+  .library-workspace__release-copy small {
+    color: #6f6974;
+    font-size: 0.61rem;
+  }
+
+  .library-workspace__release-detail {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+    background:
+      radial-gradient(circle at 16% 0%, rgba(82, 50, 111, 0.13), transparent 35%),
+      #111014;
+  }
+
+  .library-workspace__release-hero {
+    display: grid;
+    grid-template-columns: 148px minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+    min-height: 176px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #2d2932;
+  }
+
+  .library-workspace__hero-artwork {
+    display: grid;
+    width: 148px;
+    height: 148px;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid #3e3945;
+    border-radius: 10px;
+    color: #756c7c;
+    background: #1a171f;
+    box-shadow: 0 12px 28px rgb(0 0 0 / 28%);
+  }
+
+  .library-workspace__hero-artwork img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .library-workspace__hero-copy {
+    display: grid;
+    justify-items: start;
+    min-width: 0;
+    gap: 4px;
+  }
+
+  .library-workspace__eyebrow {
+    color: #847d89;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .library-workspace__hero-copy h3 {
+    max-width: 100%;
+    margin: 2px 0 0;
+    overflow: hidden;
+    color: #f6f2f8;
+    font-size: clamp(1.3rem, 2vw, 1.8rem);
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .library-workspace__hero-copy p {
+    margin: 0;
+    color: #c2bbc7;
+    font-size: 0.82rem;
+  }
+
+  .library-workspace__hero-copy small {
+    color: #77717d;
+    font-size: 0.68rem;
+  }
+
+  .library-workspace__play-release {
+    min-height: 38px;
+    margin-top: 10px;
+    padding: 8px 13px;
+    border: 1px solid rgba(172, 128, 232, 0.42);
+    border-radius: 999px;
+    color: #f5eff9;
+    background: #322444;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .library-workspace__play-release:hover {
+    background: #49305f;
+  }
+
+  .library-workspace__track-table {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .library-workspace__track-header,
+  .library-workspace__track-row {
+    display: grid;
+    align-items: center;
+  }
+
+  .library-workspace__track-header {
+    grid-template-columns:
+      52px
+      minmax(260px, 2fr)
+      minmax(180px, 1fr)
+      54px;
+    min-height: 36px;
+    padding: 5px 16px;
+    border-bottom: 1px solid #2c2931;
+    color: #716b76;
+    background: #141217;
+    font-size: 0.61rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .library-workspace__track-header--all {
+    grid-template-columns:
+      52px
+      minmax(280px, 1.8fr)
+      minmax(180px, 0.9fr)
+      minmax(220px, 1.1fr)
+      54px;
+  }
+
+  .library-workspace__track-scroll {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+  }
+
+  .library-workspace__track-row {
+    grid-template-columns: minmax(0, 1fr) 54px;
+    min-height: 56px;
+    padding: 0 16px;
+    border-bottom: 1px solid #252229;
+    color: #a29ca7;
+    background: transparent;
+  }
+
+  .library-workspace__track-row:hover {
+    color: #ddd7e2;
+    background: #18151c;
+  }
+
+  .library-workspace__track-row[data-selected="true"] {
+    color: #e9e4ee;
+    background: rgba(79, 55, 101, 0.18);
+  }
+
+  .library-workspace__track-row[data-playing="true"] {
+    color: #ffffff;
+    background:
+      linear-gradient(
+        90deg,
+        rgba(82, 123, 145, 0.25),
+        rgba(63, 43, 83, 0.16)
+      );
+  }
+
+  .library-workspace__track-play {
+    grid-column: 2;
+    grid-row: 1;
+    display: grid;
+    box-sizing: border-box;
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    max-height: 36px;
+    aspect-ratio: 1 / 1;
+    justify-self: end;
+    align-self: center;
+    padding: 0;
+    place-items: center;
+    border: 1px solid #413c47;
+    border-radius: 50%;
+    color: #aaa3b0;
+    background: #1a171e;
+    font: inherit;
+    font-size: 0.62rem;
+    cursor: pointer;
+  }
+
+  .library-workspace__track-row[data-playing="true"]
+    .library-workspace__track-play {
+    border-color: #6ac6df;
+    color: #ffffff;
+    background: #285e73;
+  }
+
+  .library-workspace__track-main {
+    grid-column: 1;
+    grid-row: 1;
+    display: grid;
+    grid-template-columns:
+      52px
+      minmax(260px, 2fr)
+      minmax(180px, 1fr);
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    min-width: 0;
+    min-height: 55px;
+    padding: 5px 0;
+    border: 0;
+    color: inherit;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .library-workspace__track-table--all
+    .library-workspace__track-main {
+    grid-template-columns:
+      52px
+      minmax(280px, 1.8fr)
+      minmax(180px, 0.9fr)
+      minmax(220px, 1.1fr);
+  }
+
+  .library-workspace__track-main strong,
+  .library-workspace__track-main span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .library-workspace__track-main strong {
+    color: #ded9e3;
+    font-size: 0.82rem;
+    font-weight: 650;
+  }
+
+  .library-workspace__track-main span {
+    color: #8d8792;
+    font-size: 0.72rem;
+  }
+
+  .library-workspace__track-number {
+    color: #68626d !important;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .library-workspace__all-tracks {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .library-workspace__empty {
+    margin: 0;
+    padding: 18px;
+    color: #77717c;
+    font-size: 0.72rem;
+  }
+}
+
+/* Preserve the existing compact landscape sheet layout on phones. */
+@media (
+  orientation: landscape
+) and (max-height: 520px) and (max-width: 899px) {
+  .library-browser--mobile {
+    display: block;
+  }
+
+  .library-browser__mobile-workspace {
+    display: grid;
+    grid-template-columns: minmax(210px, 0.8fr) minmax(0, 1.4fr);
+    align-items: start;
+    gap: 10px;
   }
 }

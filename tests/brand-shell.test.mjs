@@ -23,7 +23,7 @@ test("ships responsive Hiplingo brand assets with the public app", async () => {
   assert.match(css, /hiplingo-banner-desktop\.webp/);
 });
 
-test("uses the current Hiplingo mark throughout the shell and player", async () => {
+test("uses one branded Hiplingo header without a duplicate player header", async () => {
   const app = await readFile(path.join(projectRoot, "src/App.tsx"), "utf8");
   const player = await readFile(
     path.join(projectRoot, "src/components/AudioPlayer.tsx"),
@@ -31,7 +31,7 @@ test("uses the current Hiplingo mark throughout the shell and player", async () 
   );
 
   assert.match(app, /\/brand\/hiplingo-logo-white\.webp/);
-  assert.match(player, /\/brand\/hiplingo-logo-white\.webp/);
+  assert.doesNotMatch(player, /<header className="audio-player__header">/);
   assert.doesNotMatch(player, /hl-logo-graphite\.svg/);
 });
 
@@ -41,5 +41,8 @@ test("homepage latest release can start the persistent queue in place", async ()
   assert.match(app, /const latestRelease = catalog\?\.releases\[0\]/);
   assert.match(app, /function FeaturedRelease/);
   assert.match(app, /onPlayQueue\(/);
-  assert.match(app, />\s*▶ Play release\s*</);
+  assert.match(app, /releaseActionLabel/);
+  assert.match(app, /onTogglePlayback\(\)/);
+  assert.match(app, /❚❚ Pause/);
+  assert.match(app, /▶ Resume/);
 });

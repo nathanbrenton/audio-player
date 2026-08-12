@@ -304,6 +304,14 @@ Producer-side media preparation scripts have been removed from this repository.
 `audio-player` has no supported workflow that writes to `published-media`.
 Publication changes must originate from `metadata-editor`.
 
+## Shared media-player source
+
+The repository also owns `packages/media-player/`, a small local package for player primitives that must behave identically in the Hiplingo public app and metadata-editor. Shared surfaces now include the compact seekable waveform renderer, the canonical 3Band/RGB/Blue/Monochrome color vocabulary, SVG previous/play/pause/next transport icons, player-facing time formatting, the global Spacebar transport shortcut contract, the compact Now Playing presentation skeleton, a queue-neutral transport-controller contract, and stable queue navigation/deduplication helpers used by both hosts.
+
+The package deliberately does **not** own an audio element, playback queue state, HLS/catalog loading, private Library APIs, metadata editing, publication, or deployment. Hiplingo keeps its public HLS/catalog playback engine; metadata-editor keeps its private application-shell preview engine. Both hosts render the same compact Now Playing structure and call the same transport/presentation primitives and queue-neutral helpers while supplying their own playable URLs, waveform data, playback state, engine callbacks, queue state, and host-specific trailing controls. This keeps one interaction source without allowing the public app to depend on the private Library.
+
+metadata-editor consumes the package through the sibling local dependency `file:../audio-player/packages/media-player`; this repository consumes the same package through `file:./packages/media-player`. Future player primitives should move into this package only when both hosts can use the same interface without host-specific filesystem or network assumptions.
+
 ## Development
 
 Install dependencies:
@@ -418,15 +426,47 @@ use the stable release identifier:
 ```
 
 Each release page presents public release metadata and its track list. Playable
-tracks open the established player through a catalog track key rather than
-creating a second playback implementation:
-
-```text
-/listen?track=<release-id>::<track-id>
-```
+tracks command the single persistent player in place; selecting a track does
+not require navigating to `/listen`. The full `/listen` route is the expanded
+presentation of that same playback session.
 
 The Hiplingo shell owns catalog loading and passes that catalog into
 `AudioPlayer`. `AudioPlayer` still retains a standalone catalog-loading fallback
 for reuse outside the shell. Shared catalog hydration, relative-resource resolution, artwork, artist, and
 identity handling lives in `src/lib/mediaCatalog.ts`, keeping the publication
 contract isolated from the player UI.
+
+
+## H6 unified listening shell
+
+Hiplingo uses one global application header. The legacy player-specific header
+was removed from `/listen`; the site header now owns primary navigation,
+`Browse Library`, and the player-settings menu. Short mobile-landscape layouts
+use the same single compact header row.
+
+`Browse Library` opens without changing routes. On desktop it presents as a
+right-side drawer; on mobile it remains a bottom/full-height sheet. Selecting a
+track from the browser establishes a queue from that release and begins
+playback while the current page remains in place.
+
+The global Now Playing dock remains interactive above library and metadata
+overlays. Metadata dialogs no longer render a second mini-player, and the
+library header no longer duplicates playback controls. The player-settings
+overlay intentionally retains its compact waveform preview and play/pause
+control because waveform appearance is edited there.
+
+Track Metadata places its primary `Overview`, `Credits`, and `Track Info` tabs
+in the modal title bar. Credits group `Recording & Editing` together and combine
+`Mixing & Mastering` into one production card.
+
+## H6.1 desktop library workspace
+
+Desktop `Browse Library` uses a wide two-pane listening workspace instead of
+reusing the compact artwork-wall browser. A dense release navigator occupies
+the left pane; the right pane presents the selected release, release-level
+playback, and its playable track list. `Releases` and `Tracks` modes plus local
+search provide fast catalog access without leaving the current Hiplingo route.
+
+The routed `/releases` experience remains the artwork-forward public discovery
+surface. Browse Library remains the playback utility overlay. Mobile portrait
+and landscape continue using the existing compact sheet/browser presentation.

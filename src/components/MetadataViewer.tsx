@@ -601,7 +601,7 @@ const creditRoleHierarchy: Record<
     { role: "Additional Recording Engineer" },
     { role: "Assistant Recording Engineer" },
     { role: "Assistant Engineer" },
-    { role: "Editor" },
+    { role: "Editor", aliases: ["Edited By"] },
     { role: "Additional Editor" },
   ],
   mixing: [
@@ -1065,6 +1065,11 @@ function CreditsMetadataView({
       : "",
   );
 
+  const mixingAndMasteringEntries = [
+    ...mixingEntries,
+    ...masteringEntries,
+  ];
+
   const writingEntries = sortCreditEntries(
     [
       ...songwriters,
@@ -1117,8 +1122,7 @@ function CreditsMetadataView({
     productionEntries,
     arrangementEntries,
     recordingEntries,
-    mixingEntries,
-    masteringEntries,
+    mixingAndMasteringEntries,
     writingEntries,
     otherContributors,
     remixers,
@@ -1161,28 +1165,21 @@ function CreditsMetadataView({
             />
 
             <CreditGroup
-              label="Recording and Editing"
+              label="Recording & Editing"
               entries={recordingEntries}
               roleFirst
               showSources={showSources}
             />
 
             <CreditGroup
-              label="Mixing"
-              entries={mixingEntries}
+              label="Mixing & Mastering"
+              entries={mixingAndMasteringEntries}
               roleFirst
               showSources={showSources}
             />
 
             <CreditGroup
-              label="Mastering"
-              entries={masteringEntries}
-              roleFirst
-              showSources={showSources}
-            />
-
-            <CreditGroup
-              label="Writing and Composition"
+              label="Writing & Composition"
               entries={writingEntries}
               roleFirst
               showSources={showSources}
@@ -1300,7 +1297,7 @@ function DetailedMetadataView({
       >
         <div className="metadata-viewer__section-heading">
           <h3 id="metadata-production-title">
-            Recording and mastering
+            Recording & Mastering
           </h3>
 
           <MetadataSourceList
@@ -1950,7 +1947,7 @@ export default function MetadataViewer({
     },
     {
       value: "track-info",
-      label: "Tab3",
+      label: "Track Info",
       theme: "default",
     },
     ...(audiophileMode
@@ -2171,12 +2168,53 @@ export default function MetadataViewer({
         onKeyDown={handleKeyDown}
       >
         <header className="metadata-viewer__header">
-          <div>
+          <div className="metadata-viewer__header-main">
             <span className="metadata-viewer__eyebrow">
               Track metadata
             </span>
 
-            
+            <div
+              className="metadata-viewer__tabs metadata-viewer__tabs--primary"
+              role="tablist"
+              aria-label="Metadata views"
+            >
+              {primaryMetadataViews.map((view, index) => {
+                const isSelected =
+                  verbosity === view.value;
+
+                return (
+                  <button
+                    key={view.value}
+                    id={`metadata-view-tab-${view.value}`}
+                    type="button"
+                    className={[
+                      "metadata-viewer__tab",
+                      view.theme !== "default"
+                        ? `metadata-viewer__tab--${view.theme}`
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    role="tab"
+                    aria-selected={isSelected}
+                    aria-controls="metadata-view-panel"
+                    tabIndex={isSelected ? 0 : -1}
+                    onClick={() => {
+                      onVerbosityChange(view.value);
+                    }}
+                    onKeyDown={(event) => {
+                      handleViewKeyDown(
+                        event,
+                        primaryMetadataViews,
+                        index,
+                      );
+                    }}
+                  >
+                    {view.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <button
@@ -2189,51 +2227,8 @@ export default function MetadataViewer({
           </button>
         </header>
 
-        <div className="metadata-viewer__tab-rows">
-          <div
-            className="metadata-viewer__tabs"
-            role="tablist"
-            aria-label="Metadata views"
-          >
-            {primaryMetadataViews.map((view, index) => {
-              const isSelected =
-                verbosity === view.value;
-
-              return (
-                <button
-                  key={view.value}
-                  id={`metadata-view-tab-${view.value}`}
-                  type="button"
-                  className={[
-                    "metadata-viewer__tab",
-                    view.theme !== "default"
-                      ? `metadata-viewer__tab--${view.theme}`
-                      : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  role="tab"
-                  aria-selected={isSelected}
-                  aria-controls="metadata-view-panel"
-                  tabIndex={isSelected ? 0 : -1}
-                  onClick={() => {
-                    onVerbosityChange(view.value);
-                  }}
-                  onKeyDown={(event) => {
-                    handleViewKeyDown(
-                      event,
-                      primaryMetadataViews,
-                      index,
-                    );
-                  }}
-                >
-                  {view.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {developerMetadataViews.length > 0 ? (
+        {developerMetadataViews.length > 0 ? (
+          <div className="metadata-viewer__tab-rows">
             <div
               className={[
                 "metadata-viewer__tabs",
@@ -2277,8 +2272,8 @@ export default function MetadataViewer({
                 },
               )}
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         <div
           id="metadata-view-panel"

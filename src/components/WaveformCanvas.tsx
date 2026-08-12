@@ -5,18 +5,9 @@ import {
   type RefObject,
 } from "react";
 
-/*
- * Supported waveform color modes.
- *
- * Additional modes will be added incrementally:
- * - 3Band
- * - Monochrome
- */
-export type WaveformColorMode =
-  | "rgb"
-  | "3band"
-  | "blue"
-  | "monochrome";
+import type { WaveformColorMode } from "@hiplingo/media-player";
+
+export type { WaveformColorMode } from "@hiplingo/media-player";
 
 /*
  * Version 2 waveform peak:

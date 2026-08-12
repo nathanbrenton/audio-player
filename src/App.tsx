@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import AudioPlayer, {
   type AudioPlayerHandle,
+  type PlaybackStateSnapshot,
 } from "./components/AudioPlayer";
 import ReleaseCatalog from "./components/ReleaseCatalog";
 import ReleaseDetail from "./components/ReleaseDetail";
@@ -123,7 +124,17 @@ function SiteLink({
   );
 }
 
-function SiteHeader({ currentRoute }: { currentRoute: SiteRoute }) {
+function SiteHeader({
+  currentRoute,
+  libraryAvailable,
+  onBrowseLibrary,
+  onTogglePlayerMenu,
+}: {
+  currentRoute: SiteRoute;
+  libraryAvailable: boolean;
+  onBrowseLibrary: () => void;
+  onTogglePlayerMenu: () => void;
+}) {
   return (
     <header className="hiplingo-site-header">
       <SiteLink
@@ -156,6 +167,29 @@ function SiteHeader({ currentRoute }: { currentRoute: SiteRoute }) {
           Jam Agreement
         </SiteLink>
       </nav>
+
+      <div className="hiplingo-site-actions">
+        <button
+          type="button"
+          className="hiplingo-site-browse"
+          disabled={!libraryAvailable}
+          onClick={onBrowseLibrary}
+          aria-haspopup="dialog"
+        >
+          <span className="hiplingo-site-browse__wide">Browse Library</span>
+          <span className="hiplingo-site-browse__short">Browse</span>
+        </button>
+
+        <button
+          type="button"
+          className="hiplingo-site-menu"
+          onClick={onTogglePlayerMenu}
+          aria-label="Open player settings"
+          aria-haspopup="dialog"
+        >
+          <span aria-hidden="true" />
+        </button>
+      </div>
     </header>
   );
 }
@@ -163,13 +197,17 @@ function SiteHeader({ currentRoute }: { currentRoute: SiteRoute }) {
 function FeaturedRelease({
   catalog,
   release,
+  playbackState,
   onOpenRelease,
   onPlayQueue,
+  onTogglePlayback,
 }: {
   catalog: MediaCatalog;
   release: CatalogRelease;
+  playbackState: PlaybackStateSnapshot;
   onOpenRelease: (releaseId: string) => void;
   onPlayQueue: (trackKey: string, queueTrackKeys: string[]) => void;
+  onTogglePlayback: () => void;
 }) {
   const artworkUrl = getMediaUrl(
     catalog.mediaBaseUrl,
@@ -182,6 +220,16 @@ function FeaturedRelease({
     getTrackKey(release, track),
   );
   const firstPlayableTrack = playableTracks[0] ?? null;
+  const releaseIsSelected = Boolean(
+    playbackState.hasSelection &&
+      playbackState.trackKey &&
+      queueTrackKeys.includes(playbackState.trackKey),
+  );
+  const releaseActionLabel = releaseIsSelected
+    ? playbackState.isPlaying
+      ? "❚❚ Pause"
+      : "▶ Resume"
+    : "▶ Play release";
 
   return (
     <section className="hiplingo-home-release" aria-labelledby="hiplingo-latest-release-title">
@@ -213,14 +261,20 @@ function FeaturedRelease({
             <button
               type="button"
               className="hiplingo-button hiplingo-button--primary"
-              onClick={() =>
+              onClick={() => {
+                if (releaseIsSelected) {
+                  onTogglePlayback();
+                  return;
+                }
+
                 onPlayQueue(
                   getTrackKey(release, firstPlayableTrack),
                   queueTrackKeys,
-                )
-              }
+                );
+              }}
+              aria-pressed={releaseIsSelected && playbackState.isPlaying}
             >
-              ▶ Play release
+              {releaseActionLabel}
             </button>
           ) : null}
           <button
@@ -241,15 +295,19 @@ function HomePage({
   catalog,
   loading,
   error,
+  playbackState,
   onOpenRelease,
   onPlayQueue,
+  onTogglePlayback,
 }: {
   currentRoute: SiteRoute;
   catalog: MediaCatalog | null;
   loading: boolean;
   error: string | null;
+  playbackState: PlaybackStateSnapshot;
   onOpenRelease: (releaseId: string) => void;
   onPlayQueue: (trackKey: string, queueTrackKeys: string[]) => void;
+  onTogglePlayback: () => void;
 }) {
   const latestRelease = catalog?.releases[0] ?? null;
 
@@ -294,8 +352,10 @@ function HomePage({
         <FeaturedRelease
           catalog={catalog}
           release={latestRelease}
+          playbackState={playbackState}
           onOpenRelease={onOpenRelease}
           onPlayQueue={onPlayQueue}
+          onTogglePlayback={onTogglePlayback}
         />
       ) : loading ? (
         <section className="hiplingo-home-release hiplingo-home-release--state" aria-live="polite">
@@ -369,6 +429,11 @@ export default function App() {
   const [catalog, setCatalog] = useState<MediaCatalog | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(true);
+  const [playbackState, setPlaybackState] = useState<PlaybackStateSnapshot>({
+    trackKey: null,
+    isPlaying: false,
+    hasSelection: false,
+  });
   const audioPlayerRef = useRef<AudioPlayerHandle | null>(null);
 
   const currentLocation = new URL(
@@ -438,6 +503,18 @@ export default function App() {
     });
   }
 
+  function requestTogglePlayback() {
+    audioPlayerRef.current?.togglePlayback();
+  }
+
+  function requestOpenLibrary() {
+    audioPlayerRef.current?.openLibrary();
+  }
+
+  function requestTogglePlayerMenu() {
+    audioPlayerRef.current?.toggleSettings();
+  }
+
   let content: ReactNode;
 
   switch (route.section) {
@@ -453,7 +530,9 @@ export default function App() {
           loading={catalogLoading}
           error={catalogError}
           onBack={() => navigateTo("/releases")}
+          playbackState={playbackState}
           onPlayQueue={requestPlayback}
+          onTogglePlayback={requestTogglePlayback}
         />
       ) : (
         <ReleaseCatalog
@@ -524,10 +603,12 @@ export default function App() {
           catalog={catalog}
           loading={catalogLoading}
           error={catalogError}
+          playbackState={playbackState}
           onOpenRelease={(releaseId) => {
             navigateTo(`/releases/${encodeURIComponent(releaseId)}`);
           }}
           onPlayQueue={requestPlayback}
+          onTogglePlayback={requestTogglePlayback}
         />
       );
       break;
@@ -538,7 +619,16 @@ export default function App() {
 
   return (
     <div className="hiplingo-site-shell">
-      <SiteHeader currentRoute={route.section} />
+      <SiteHeader
+        currentRoute={route.section}
+        libraryAvailable={Boolean(
+          catalog?.releases.some((release) =>
+            release.tracks.some((track) => track.playable),
+          ),
+        )}
+        onBrowseLibrary={requestOpenLibrary}
+        onTogglePlayerMenu={requestTogglePlayerMenu}
+      />
 
       <div className="hiplingo-route-content">
         {content}
@@ -555,6 +645,7 @@ export default function App() {
           initialTrackKey={requestedTrackKey}
           displayMode={playerDisplayMode}
           onOpenFullPlayer={() => navigateTo("/listen")}
+          onPlaybackStateChange={setPlaybackState}
         />
       </div>
 
