@@ -8,9 +8,9 @@ import {
 
 import type {
   WaveformColorMode,
-} from "./WaveformCanvas";
+} from "./waveform.js";
 
-type OscilloscopeCanvasProps = {
+export type OscilloscopeCanvasProps = {
   analyser: AnalyserNode | null;
   audioRef: RefObject<HTMLAudioElement | null>;
   isPlaying: boolean;
@@ -251,7 +251,7 @@ function getTraceColor(
   return `rgb(${red} ${green} ${blue})`;
 }
 
-export default function OscilloscopeCanvas({
+export function OscilloscopeCanvas({
   analyser,
   audioRef,
   isPlaying,

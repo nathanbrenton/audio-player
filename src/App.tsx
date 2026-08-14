@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
+import ArtistCatalog from "./components/ArtistCatalog";
+import ArtistDetail from "./components/ArtistDetail";
 import AudioPlayer, {
   type AudioPlayerHandle,
   type PlaybackStateSnapshot,
@@ -15,6 +17,7 @@ import {
   getReleaseDate,
   getTrackKey,
 } from "./lib/mediaCatalog";
+import { getArtistSlug } from "./lib/publicArtists";
 import type { CatalogRelease, MediaCatalog } from "./types/MediaCatalog";
 
 type SiteRoute =
@@ -29,6 +32,7 @@ type SiteRoute =
 type ParsedRoute = {
   section: SiteRoute;
   releaseId: string | null;
+  artistSlug: string | null;
 };
 
 const SITE_ROUTES = new Set<SiteRoute>([
@@ -48,6 +52,7 @@ function parseRoute(pathname: string): ParsedRoute {
     return {
       section: route as SiteRoute,
       releaseId: null,
+      artistSlug: null,
     };
   }
 
@@ -58,11 +63,31 @@ function parseRoute(pathname: string): ParsedRoute {
       return {
         section: "/releases",
         releaseId: decodeURIComponent(releaseMatch[1]),
+        artistSlug: null,
       };
     } catch {
       return {
         section: "/releases",
         releaseId: releaseMatch[1],
+        artistSlug: null,
+      };
+    }
+  }
+
+  const artistMatch = route.match(/^\/artists\/([^/]+)$/);
+
+  if (artistMatch) {
+    try {
+      return {
+        section: "/artists",
+        releaseId: null,
+        artistSlug: decodeURIComponent(artistMatch[1]),
+      };
+    } catch {
+      return {
+        section: "/artists",
+        releaseId: null,
+        artistSlug: artistMatch[1],
       };
     }
   }
@@ -70,6 +95,7 @@ function parseRoute(pathname: string): ParsedRoute {
   return {
     section: "/",
     releaseId: null,
+    artistSlug: null,
   };
 }
 
@@ -530,6 +556,11 @@ export default function App() {
           loading={catalogLoading}
           error={catalogError}
           onBack={() => navigateTo("/releases")}
+          onOpenArtist={(artistName) => {
+            navigateTo(
+              `/artists/${encodeURIComponent(getArtistSlug(artistName))}`,
+            );
+          }}
           playbackState={playbackState}
           onPlayQueue={requestPlayback}
           onTogglePlayback={requestTogglePlayback}
@@ -547,14 +578,26 @@ export default function App() {
       break;
 
     case "/artists":
-      content = (
-        <PlaceholderPage eyebrow="Roster" title="Artists">
-          <p>
-            Artist pages will combine biographies, releases, credits, images,
-            video, and editorial material without duplicating canonical release
-            metadata.
-          </p>
-        </PlaceholderPage>
+      content = route.artistSlug ? (
+        <ArtistDetail
+          catalog={catalog}
+          artistSlug={route.artistSlug}
+          loading={catalogLoading}
+          error={catalogError}
+          onBack={() => navigateTo("/artists")}
+          onOpenRelease={(releaseId) => {
+            navigateTo(`/releases/${encodeURIComponent(releaseId)}`);
+          }}
+        />
+      ) : (
+        <ArtistCatalog
+          catalog={catalog}
+          loading={catalogLoading}
+          error={catalogError}
+          onOpenArtist={(artistSlug) => {
+            navigateTo(`/artists/${encodeURIComponent(artistSlug)}`);
+          }}
+        />
       );
       break;
 

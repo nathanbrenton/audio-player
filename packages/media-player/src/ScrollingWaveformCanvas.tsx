@@ -5,9 +5,8 @@ import {
   type RefObject,
 } from "react";
 
-import type { WaveformColorMode } from "@hiplingo/media-player";
+import type { WaveformColorMode } from "./waveform.js";
 
-export type { WaveformColorMode } from "@hiplingo/media-player";
 
 /*
  * Version 2 waveform peak:
@@ -21,7 +20,7 @@ type WaveformPeak = [
   number,
 ];
 
-type WaveformCanvasProps = {
+export type ScrollingWaveformCanvasProps = {
   peaks: WaveformPeak[];
 
   audioRef: RefObject<HTMLAudioElement | null>;
@@ -50,6 +49,16 @@ type WaveformCanvasProps = {
    * controls can remain visually paused during audible previews.
    */
   onScrubbingChange?: (isScrubbing: boolean) => void;
+
+  /* Host callback used when a selected source is not loaded yet. */
+  onActivate?: () => void;
+
+  /* Optional viewport position while the selected source is inactive. */
+  currentTimeOverride?: number;
+
+  /* Allows scrubbing before HTML media metadata has loaded. */
+  durationSeconds?: number;
+
 };
 
 /*
@@ -334,7 +343,7 @@ function getWaveformStrokeStyle(
   return `rgb(${red}, ${green}, ${blue})`;
 }
 
-export default function WaveformCanvas({
+export function ScrollingWaveformCanvas({
   peaks,
   audioRef,
   isPlaying,
@@ -342,7 +351,10 @@ export default function WaveformCanvas({
   pixelsPerSecond = DEFAULT_PIXELS_PER_SECOND,
   peaksPerSecond = DEFAULT_PEAKS_PER_SECOND,
   onScrubbingChange,
-}: WaveformCanvasProps) {
+  onActivate,
+  currentTimeOverride,
+  durationSeconds,
+}: ScrollingWaveformCanvasProps) {
   // References used for drawing and animation.
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -495,6 +507,7 @@ export default function WaveformCanvas({
       );
       const currentTime =
         dragRef.current?.heldTime ??
+        currentTimeOverride ??
         audio?.currentTime ??
         0;
 
@@ -683,6 +696,7 @@ export default function WaveformCanvas({
   }, [
     audioRef,
     colorMode,
+    currentTimeOverride,
     isPlaying,
     peaks,
     peaksPerSecond,
@@ -706,6 +720,7 @@ export default function WaveformCanvas({
       scrubPreviewTimerRef.current = null;
     }
 
+
     audioRef.current?.pause();
   }
 
@@ -720,49 +735,67 @@ export default function WaveformCanvas({
     }
 
     /*
-     * Replace the previous preview and assign this movement a unique
-     * generation so older asynchronous work becomes harmless.
+     * Keep an active scrub preview running across pointer movement.
+     * Each movement invalidates older asynchronous work and re-arms
+     * the idle pause without tearing down/restarting playback.
      */
-    stopScrubPreview();
+    scrubPreviewGenerationRef.current += 1;
+
+    if (scrubPreviewTimerRef.current !== null) {
+      window.clearTimeout(
+        scrubPreviewTimerRef.current,
+      );
+      scrubPreviewTimerRef.current = null;
+    }
+
 
     const previewGeneration =
       scrubPreviewGenerationRef.current;
 
     audio.currentTime = previewTime;
 
+    const armIdlePause = () => {
+      if (
+        scrubPreviewGenerationRef.current !==
+          previewGeneration ||
+        !dragRef.current
+      ) {
+        return;
+      }
+
+      scrubPreviewTimerRef.current =
+        window.setTimeout(() => {
+          if (
+            scrubPreviewGenerationRef.current !==
+              previewGeneration ||
+            !dragRef.current
+          ) {
+            return;
+          }
+
+          audio.pause();
+
+          /*
+           * Return the media clock to the exact held position after
+           * the audible preview. The canvas remains visually fixed
+           * there for the complete pointer hold.
+           */
+          audio.currentTime =
+            dragRef.current.heldTime;
+
+          scrubPreviewTimerRef.current = null;
+          renderFrameRef.current?.();
+        }, 45);
+    };
+
+    if (!audio.paused) {
+      armIdlePause();
+      return;
+    }
+
     void audio.play()
       .then(() => {
-        if (
-          scrubPreviewGenerationRef.current !==
-            previewGeneration ||
-          !dragRef.current
-        ) {
-          return;
-        }
-
-        scrubPreviewTimerRef.current =
-          window.setTimeout(() => {
-            if (
-              scrubPreviewGenerationRef.current !==
-                previewGeneration ||
-              !dragRef.current
-            ) {
-              return;
-            }
-
-            audio.pause();
-
-            /*
-             * Return the media clock to the exact held position after
-             * the tiny audible preview. The canvas remains visually
-             * fixed there for the complete pointer hold.
-             */
-            audio.currentTime =
-              dragRef.current.heldTime;
-
-            scrubPreviewTimerRef.current = null;
-            renderFrameRef.current?.();
-          }, 45);
+        armIdlePause();
       })
       .catch(() => {
         if (
@@ -777,6 +810,8 @@ export default function WaveformCanvas({
   function handlePointerDown(
     event: ReactPointerEvent<HTMLCanvasElement>,
   ) {
+    onActivate?.();
+
     const canvas = canvasRef.current;
     const audio = audioRef.current;
 
@@ -846,9 +881,14 @@ export default function WaveformCanvas({
       drag.startTime -
       dragDistance / pixelsPerSecond;
 
-    const maximumTime = Number.isFinite(audio.duration)
-      ? audio.duration
-      : requestedTime;
+    const maximumTime =
+      Number.isFinite(audio.duration) && audio.duration > 0
+        ? audio.duration
+        : typeof durationSeconds === "number" &&
+            Number.isFinite(durationSeconds) &&
+            durationSeconds > 0
+          ? durationSeconds
+          : requestedTime;
 
     const clampedTime = Math.max(
       0,
@@ -856,7 +896,6 @@ export default function WaveformCanvas({
     );
 
     drag.heldTime = clampedTime;
-    audio.currentTime = clampedTime;
 
     // Redraw immediately at the exact held scrub position.
     renderFrameRef.current?.();
@@ -930,6 +969,7 @@ export default function WaveformCanvas({
           scrubPreviewTimerRef.current,
         );
       }
+
     };
   }, []);
 

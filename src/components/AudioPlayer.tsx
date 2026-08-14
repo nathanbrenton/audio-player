@@ -13,7 +13,9 @@ import type Hls from "hls.js";
 
 import {
   CompactNowPlayingBar,
+  PersistentMediaElement,
   MediaTransportIcon,
+  MediaVisualizationSurface,
   WAVEFORM_COLOR_OPTIONS,
   dedupePlaybackQueue,
   formatPlaybackTime,
@@ -21,7 +23,17 @@ import {
   getPlaybackQueueNeighbor,
   getPlayableMediaContext,
   type PlayableMediaItem,
+  type MediaSourceAdapter,
+  type MediaSourceAttachRequest,
+  type WaveformColorMode,
+  useMediaElementAnalyser,
   useSpacebarPlaybackShortcut,
+  useMediaElementVolume,
+  useMediaElementTimeline,
+  useMediaElementPlaybackState,
+  useMediaElementPlaybackEvents,
+  useMediaSourceSession,
+  usePersistentMediaElement,
 } from "@hiplingo/media-player";
 
 import CompactWaveformCanvas from "./CompactWaveformCanvas";
@@ -29,13 +41,6 @@ import LibraryBrowser from "./LibraryBrowser";
 import MetadataViewer, {
   type MetadataVerbosity,
 } from "./MetadataViewer";
-import OscilloscopeCanvas, {
-  captureOscilloscopeFrame,
-  seedOscilloscopeFrame,
-} from "./OscilloscopeCanvas";
-import WaveformCanvas, {
-  type WaveformColorMode,
-} from "./WaveformCanvas";
 
 import type {
   CatalogRelease,
@@ -121,23 +126,6 @@ type PlayableTrack = PlayableMediaItem<HiplingoPlayableMediaSource> & {
   track: CatalogTrack;
 };
 
-type WaveformViewMode =
-  | "waveform"
-  | "oscilloscope";
-
-/*
- * Convert the visible 0–100 slider into a non-linear amplitude.
- * Squaring gives quieter values more usable adjustment range.
- */
-function volumePercentToGain(percent: number): number {
-  const normalized = Math.max(
-    0,
-    Math.min(100, percent),
-  ) / 100;
-
-  return normalized * normalized;
-}
-
 function ArtworkTransportIcon({
   name,
 }: {
@@ -148,54 +136,6 @@ function ArtworkTransportIcon({
       name={name}
       className="artwork-stack__transport-icon"
     />
-  );
-}
-
-type VolumeIconLevel =
-  | "muted"
-  | "low"
-  | "medium"
-  | "high";
-
-/*
- * Show the current volume range without relying on text glyphs.
- */
-function VolumeIcon({
-  level,
-}: {
-  level: VolumeIconLevel;
-}) {
-  return (
-    <svg
-      className="audio-player__volume-icon"
-      viewBox="0 0 48 48"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="M8 20h8l10-8v24L16 28H8Z" />
-
-      {level === "low" ||
-      level === "medium" ||
-      level === "high" ? (
-        <path d="M31 20c2 2 2 6 0 8" />
-      ) : null}
-
-      {level === "medium" ||
-      level === "high" ? (
-        <path d="M35 16c5 5 5 11 0 16" />
-      ) : null}
-
-      {level === "high" ? (
-        <path d="M39 12c8 7 8 17 0 24" />
-      ) : null}
-
-      {level === "muted" ? (
-        <>
-          <path d="m32 19 10 10" />
-          <path d="m42 19-10 10" />
-        </>
-      ) : null}
-    </svg>
   );
 }
 
@@ -247,11 +187,10 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     },
     ref,
   ) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const mediaElement = usePersistentMediaElement();
+  const { audioRef } = mediaElement;
   const hlsRef = useRef<Hls | null>(null);
   const hlsAutoplayTrackKeyRef = useRef<string | null>(null);
-  const volumeControlRef = useRef<HTMLDivElement | null>(null);
-  const waveformPanelRef = useRef<HTMLDivElement | null>(null);
 
   /*
    * Preserve the pre-scrub playback indication while the pointer is
@@ -267,17 +206,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
 
   const scrubReleaseTimeoutRef =
     useRef<number | null>(null);
-
-  /*
-   * A MediaElementAudioSourceNode can only be created once for an
-   * audio element, so retain the complete Web Audio graph in refs.
-   */
-  const audioContextRef =
-    useRef<AudioContext | null>(null);
-  const mediaSourceRef =
-    useRef<MediaElementAudioSourceNode | null>(null);
-  const analyserRef =
-    useRef<AnalyserNode | null>(null);
 
   // Restore focus to these triggers after closing overlays.
   const metadataButtonRef =
@@ -331,15 +259,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     useState(false);
   const [isDeveloperMode, setIsDeveloperMode] =
     useState(false);
-
-  /*
-   * Track-loading actions update the audio element directly inside
-   * the originating click, double-click, or pointer gesture.
-   *
-   * This ref identifies the source already assigned imperatively so
-   * React effects do not reload it and abort a pending play request.
-   */
-  const loadedAudioTrackKeyRef = useRef("");
 
   // Track horizontal artwork drag gestures independently of playback.
   const artworkPointerIdRef = useRef<number | null>(null);
@@ -404,19 +323,8 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     useState("");
 
   // Player state.
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [hasPlaybackEnded, setHasPlaybackEnded] =
-    useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-
-  /*
-   * Store the user-facing percentage separately from the actual
-   * non-linear amplitude assigned to the media element.
-   */
-  const [volumePercent, setVolumePercent] =
-    useState(100);
-  const [isVolumeControlOpen, setIsVolumeControlOpen] =
     useState(false);
 
   // Waveform data and loading state.
@@ -430,47 +338,47 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   const [colorMode, setColorMode] =
     useState<WaveformColorMode>("3band");
 
-  // Horizontal waveform scale in canvas pixels per second.
-  const [pixelsPerSecond, setPixelsPerSecond] =
-    useState(100);
-
-  // Oscilloscope is the visualization stage beyond maximum zoom.
-  const [
-    waveformViewMode,
-    setWaveformViewMode,
-  ] = useState<WaveformViewMode>("waveform");
-
-  const [
-    analyserNode,
-    setAnalyserNode,
-  ] = useState<AnalyserNode | null>(null);
-
-  const lastWaveformZoomRef = useRef(100);
-
-  /*
-   * Mouse wheels and trackpads emit many small wheel events. Accumulate
-   * those deltas so one deliberate gesture advances one zoom step.
-   */
-  const waveformWheelDeltaRef = useRef(0);
-  const waveformWheelDirectionRef = useRef<-1 | 0 | 1>(0);
-
-  /*
-   * Smaller sample windows magnify progressively shorter slices of
-   * the live signal while leaving audio speed and pitch unchanged.
-   */
-  const oscilloscopeSampleWindows = [
-    2048,
-    1024,
-    512,
-    256,
-    128,
-  ] as const;
-
-  const [
-    oscilloscopeSampleWindow,
-    setOscilloscopeSampleWindow,
-  ] = useState<number>(
-    oscilloscopeSampleWindows[0],
+  const {
+    analyser: analyserNode,
+    ensureAnalyser: ensureAudioAnalyser,
+  } = useMediaElementAnalyser(
+    audioRef,
+    selectedTrackKey,
+  );
+  const {
+    volumePercent,
+    setVolumePercent,
+  } = useMediaElementVolume(audioRef);
+  const {
+    currentTime,
+    reset: resetTimeline,
+    syncCurrentTime,
+    seek: seekMediaTimeline,
+  } = useMediaElementTimeline(audioRef);
+  const playbackState =
+    useMediaElementPlaybackState(audioRef);
+  const {
+    isPlaying,
+    setPlaying: setIsPlaying,
+    syncPlaying: syncMediaPlaying,
+  } = playbackState;
+  const playbackEvents =
+    useMediaElementPlaybackEvents(playbackState);
+  const mediaSourceAdapter: MediaSourceAdapter<
+    HiplingoPlayableMediaSource
+  > = {
+    attach: configureAudioSource,
+    dispose: () => {
+      destroyHlsPlayback();
+    },
+  };
+  const {
+    attach: attachMediaSource,
+    dispose: disposeMediaSource,
+    isCurrent: isCurrentMediaSource,
+  } = useMediaSourceSession(
+    audioRef,
+    mediaSourceAdapter,
   );
 
   /*
@@ -612,15 +520,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     ? scrubDisplayPlayingRef.current
     : isPlaying;
 
-  const volumeIconLevel: VolumeIconLevel =
-    volumePercent <= 0
-      ? "muted"
-      : volumePercent < 34
-        ? "low"
-        : volumePercent < 67
-          ? "medium"
-          : "high";
-
   const headerStatus = isAudiophileMode
     ? audiophileHeaderStatus
     : displayLoadError
@@ -661,76 +560,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     selectedTrackIndex < activeQueue.length - 2
       ? activeQueue[selectedTrackIndex + 2]
       : null;
-
-  /*
-   * Apply the perceptual slider curve directly to the shared audio
-   * element. Track changes retain the selected volume.
-   */
-  useEffect(() => {
-    const audio = audioRef.current;
-
-    if (!audio) {
-      return;
-    }
-
-    audio.volume =
-      volumePercentToGain(volumePercent);
-  }, [volumePercent]);
-
-  /*
-   * Close the vertical volume control when interaction moves away
-   * from it or when Escape is pressed.
-   */
-  useEffect(() => {
-    if (!isVolumeControlOpen) {
-      return;
-    }
-
-    function handleVolumePointerDown(
-      event: PointerEvent,
-    ) {
-      const control = volumeControlRef.current;
-      const target = event.target;
-
-      if (
-        control &&
-        target instanceof Node &&
-        !control.contains(target)
-      ) {
-        setIsVolumeControlOpen(false);
-      }
-    }
-
-    function handleVolumeKeyDown(
-      event: KeyboardEvent,
-    ) {
-      if (event.key === "Escape") {
-        setIsVolumeControlOpen(false);
-      }
-    }
-
-    document.addEventListener(
-      "pointerdown",
-      handleVolumePointerDown,
-    );
-
-    document.addEventListener(
-      "keydown",
-      handleVolumeKeyDown,
-    );
-
-    return () => {
-      document.removeEventListener(
-        "pointerdown",
-        handleVolumePointerDown,
-      );
-
-      document.removeEventListener(
-        "keydown",
-        handleVolumeKeyDown,
-      );
-    };
-  }, [isVolumeControlOpen]);
 
   /*
    * Preserve normal desktop right-click behavior while suppressing
@@ -860,7 +689,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     setIsAppMenuOpen(false);
     setIsMetadataViewerOpen(false);
     setIsLibraryOpen(false);
-    setIsVolumeControlOpen(false);
   }, [displayMode]);
 
   /*
@@ -873,23 +701,14 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   }, []);
 
   /*
-   * Release Web Audio resources only when the complete player
-   * component is removed, not when individual tracks change.
+   * The shared source session owns element-to-adapter orchestration while
+   * Hiplingo's HLS/native implementation remains host-local.
    */
   useEffect(() => {
     return () => {
-      destroyHlsPlayback();
-
-      const audioContext = audioContextRef.current;
-
-      if (
-        audioContext &&
-        audioContext.state !== "closed"
-      ) {
-        void audioContext.close();
-      }
+      disposeMediaSource();
     };
-  }, []);
+  }, [disposeMediaSource]);
 
   // Load the generated release and track catalog when one was not supplied.
   useEffect(() => {
@@ -996,7 +815,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   useEffect(() => {
     const controller = new AbortController();
 
-    setCurrentTime(0);
+    resetTimeline();
     setHasPlaybackEnded(false);
     setWaveform(null);
     setLoadError(null);
@@ -1044,16 +863,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         const data =
           (await response.json()) as WaveformData;
 
-        /*
-         * Queue a waveform-derived oscilloscope placeholder before
-         * the track has produced any analyser samples.
-         */
-        seedOscilloscopeFrame(
-          resolvedTrackKey,
-          data.peaks,
-          data.sampleRate,
-        );
-
         setWaveform(data);
       } catch (error) {
         if (controller.signal.aborted) {
@@ -1073,7 +882,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     return () => {
       controller.abort();
     };
-  }, [catalog, selectedTrack]);
+  }, [catalog, resetTimeline, selectedTrack]);
 
   const selectedPlaybackProtocol =
     selectedTrack?.source.protocol ?? null;
@@ -1094,13 +903,21 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     hls.destroy();
   }
 
-  async function configureAudioSource(
-    audio: HTMLAudioElement,
-    trackKey: string,
-    source: string,
-    protocol: string | null,
-    autoplay: boolean,
-  ): Promise<boolean> {
+  async function configureAudioSource({
+    audio,
+    mediaKey: trackKey,
+    source,
+    autoplay,
+  }: MediaSourceAttachRequest<
+    HiplingoPlayableMediaSource
+  >): Promise<boolean> {
+    const sourceUrl = source.url;
+    const protocol = source.protocol;
+
+    if (!sourceUrl) {
+      return false;
+    }
+
     destroyHlsPlayback();
 
     audio.pause();
@@ -1110,11 +927,11 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     setLoadError(null);
     setIsPlaying(false);
     setHasPlaybackEnded(false);
-    setCurrentTime(0);
+    resetTimeline();
 
     const isHls =
       protocol?.toLowerCase() === "hls" ||
-      source.toLowerCase().includes(".m3u8");
+      sourceUrl.toLowerCase().includes(".m3u8");
 
     if (isHls) {
       /*
@@ -1127,7 +944,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
           "application/vnd.apple.mpegurl",
         )
       ) {
-        audio.src = source;
+        audio.src = sourceUrl;
         audio.load();
 
         if (autoplay) {
@@ -1146,7 +963,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       try {
         const { default: HlsRuntime } = await loadHlsModule();
 
-        if (loadedAudioTrackKeyRef.current !== trackKey) {
+        if (!isCurrentMediaSource(trackKey)) {
           return false;
         }
 
@@ -1170,7 +987,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
 
           hls.on(HlsRuntime.Events.MEDIA_ATTACHED, () => {
             if (hlsRef.current === hls) {
-              hls.loadSource(source);
+              hls.loadSource(sourceUrl);
             }
           });
 
@@ -1206,7 +1023,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       return false;
     }
 
-    audio.src = source;
+    audio.src = sourceUrl;
     audio.load();
 
     if (autoplay) {
@@ -1228,28 +1045,26 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
    * are deliberately left untouched.
    */
   useEffect(() => {
-    const audio = audioRef.current;
-
     if (
-      !audio ||
       !audioSource ||
       !selectedTrackKey ||
-      loadedAudioTrackKeyRef.current === selectedTrackKey
+      isCurrentMediaSource(selectedTrackKey)
     ) {
       return;
     }
 
-    loadedAudioTrackKeyRef.current = selectedTrackKey;
-
-    void configureAudioSource(
-      audio,
-      selectedTrackKey,
-      audioSource,
-      selectedPlaybackProtocol,
-      false,
-    );
+    void attachMediaSource({
+      mediaKey: selectedTrackKey,
+      source: {
+        url: audioSource,
+        protocol: selectedPlaybackProtocol,
+      },
+      autoplay: false,
+    });
   }, [
+    attachMediaSource,
     audioSource,
+    isCurrentMediaSource,
     selectedPlaybackProtocol,
     selectedTrackKey,
   ]);
@@ -1302,16 +1117,13 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     setLibraryTrackKey(trackKey);
     setHasPlaybackSelection(true);
 
-    loadedAudioTrackKeyRef.current = trackKey;
     setSelectedTrackKey(trackKey);
 
-    void configureAudioSource(
-      audio,
-      trackKey,
-      destinationAudioUrl,
-      destination.source.protocol,
+    void attachMediaSource({
+      mediaKey: trackKey,
+      source: destination.source,
       autoplay,
-    );
+    });
   }
 
   function playQueue(request: PlaybackQueueRequest) {
@@ -1705,70 +1517,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   }
 
   /*
-   * Lazily create the Web Audio graph after a user gesture. Browsers
-   * commonly prevent AudioContext startup before user interaction.
-   */
-  async function ensureAudioAnalyser(): Promise<
-    AnalyserNode | null
-  > {
-    const audio = audioRef.current;
-
-    if (!audio) {
-      return null;
-    }
-
-    const existingAnalyser = analyserRef.current;
-    const existingContext = audioContextRef.current;
-
-    if (existingAnalyser && existingContext) {
-      if (existingContext.state === "suspended") {
-        await existingContext.resume();
-      }
-
-      return existingAnalyser;
-    }
-
-    const AudioContextConstructor =
-      window.AudioContext ??
-      (
-        window as typeof window & {
-          webkitAudioContext?: typeof AudioContext;
-        }
-      ).webkitAudioContext;
-
-    if (!AudioContextConstructor) {
-      return null;
-    }
-
-    const audioContext =
-      new AudioContextConstructor();
-
-    const mediaSource =
-      audioContext.createMediaElementSource(audio);
-
-    const analyser =
-      audioContext.createAnalyser();
-
-    analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = 0.72;
-
-    mediaSource.connect(analyser);
-    analyser.connect(audioContext.destination);
-
-    audioContextRef.current = audioContext;
-    mediaSourceRef.current = mediaSource;
-    analyserRef.current = analyser;
-
-    setAnalyserNode(analyser);
-
-    if (audioContext.state === "suspended") {
-      await audioContext.resume();
-    }
-
-    return analyser;
-  }
-
-  /*
    * Compact overlay waveforms seek the existing audio element
    * directly without introducing a second playback state.
    */
@@ -1787,22 +1535,15 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       Math.max(0, Math.min(1, progress)) *
       waveform.durationSeconds;
 
-    audio.currentTime = nextTime;
-
-    /*
-     * The main waveform stops its animation loop while paused.
-     * Signal it to redraw immediately after any compact seek.
-     */
-    audio.dispatchEvent(
-      new Event("audioplayerseek"),
-    );
+    seekMediaTimeline(nextTime, {
+      upperBound: waveform.durationSeconds,
+      dispatchSeekEvent: true,
+    });
 
     setHasPlaybackEnded(
       nextTime >=
         waveform.durationSeconds - 0.05,
     );
-
-    setCurrentTime(nextTime);
   }
 
   function handleScrubbingChange(
@@ -1872,17 +1613,11 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
           return;
         }
 
-        const settledIsPlaying =
-          !settledAudio.paused &&
-          !settledAudio.ended &&
-          settledAudio.readyState >=
-            HTMLMediaElement.HAVE_CURRENT_DATA;
-
         /*
          * Update the underlying playback state before removing the
          * visual lock so only the final settled state is exposed.
          */
-        setIsPlaying(settledIsPlaying);
+        syncMediaPlaying(settledAudio);
 
         window.requestAnimationFrame(() => {
           /*
@@ -1917,8 +1652,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
           audio.currentTime >= audio.duration - 0.05
         )
       ) {
-        audio.currentTime = 0;
-        setCurrentTime(0);
+        seekMediaTimeline(0);
       }
 
       try {
@@ -1989,11 +1723,10 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
      * merely resume. This applies to desktop double-click and mobile
      * double-tap because both use playLibraryTrack().
      */
-    audio.currentTime = 0;
-    setCurrentTime(0);
+    seekMediaTimeline(0);
 
-    await audio.play();
     await ensureAudioAnalyser();
+    await audio.play();
   }
 
   /*
@@ -2056,238 +1789,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     previousArtworkProgress,
     nextArtworkProgress,
   );
-
-  // Keep dropdown and button zoom controls on the same fixed steps.
-  const waveformZoomSteps = [2, 3, 6, 12, 25, 50, 100, 200, 400, 800, 1600, 2400, 3200, 4000, 4800, 5600, 6400];
-  const waveformZoomIndex =
-    waveformZoomSteps.indexOf(pixelsPerSecond);
-
-  function decreaseWaveformZoom() {
-    if (waveformViewMode === "oscilloscope") {
-      const currentIndex =
-        oscilloscopeSampleWindows.indexOf(
-          oscilloscopeSampleWindow as
-            (typeof oscilloscopeSampleWindows)[number],
-        );
-
-      /*
-       * Widen the oscilloscope first. One more minus press from the
-       * widest stage returns to the saved scrolling waveform zoom.
-       */
-      if (currentIndex > 0) {
-        setOscilloscopeSampleWindow(
-          oscilloscopeSampleWindows[
-            currentIndex - 1
-          ],
-        );
-        return;
-      }
-
-      setWaveformViewMode("waveform");
-      setPixelsPerSecond(
-        lastWaveformZoomRef.current,
-      );
-      return;
-    }
-
-    const currentIndex =
-      waveformZoomIndex >= 0 ? waveformZoomIndex : 1;
-
-    const nextZoom =
-      waveformZoomSteps[
-        Math.max(0, currentIndex - 1)
-      ];
-
-    lastWaveformZoomRef.current = nextZoom;
-    setPixelsPerSecond(nextZoom);
-  }
-
-  function increaseWaveformZoom() {
-    if (waveformViewMode === "oscilloscope") {
-      const currentIndex =
-        oscilloscopeSampleWindows.indexOf(
-          oscilloscopeSampleWindow as
-            (typeof oscilloscopeSampleWindows)[number],
-        );
-
-      const maximumIndex =
-        oscilloscopeSampleWindows.length - 1;
-
-      if (
-        currentIndex >= 0 &&
-        currentIndex < maximumIndex
-      ) {
-        setOscilloscopeSampleWindow(
-          oscilloscopeSampleWindows[
-            currentIndex + 1
-          ],
-        );
-      }
-
-      return;
-    }
-
-    const currentIndex =
-      waveformZoomIndex >= 0 ? waveformZoomIndex : 1;
-
-    const maximumIndex =
-      waveformZoomSteps.length - 1;
-
-    /*
-     * Continue beyond maximum waveform zoom into the widest
-     * oscilloscope stage.
-     */
-    if (currentIndex >= maximumIndex) {
-      lastWaveformZoomRef.current =
-        pixelsPerSecond;
-
-      setOscilloscopeSampleWindow(
-        oscilloscopeSampleWindows[0],
-      );
-      setWaveformViewMode("oscilloscope");
-      return;
-    }
-
-    const nextZoom =
-      waveformZoomSteps[currentIndex + 1];
-
-    lastWaveformZoomRef.current = nextZoom;
-    setPixelsPerSecond(nextZoom);
-  }
-
-  /*
-   * Mouse wheels, trackpad scrolling, and trackpad pinch all arrive
-   * as wheel events in common desktop browsers. Handle them through
-   * a native non-passive listener so preventDefault() reliably stops
-   * page scrolling and browser zoom.
-   */
-  useEffect(() => {
-    const waveformPanel = waveformPanelRef.current;
-
-    if (!waveformPanel) {
-      return;
-    }
-
-    function handleWaveformWheel(event: WheelEvent) {
-      const horizontalMagnitude = Math.abs(event.deltaX);
-      const verticalMagnitude = Math.abs(event.deltaY);
-
-      if (
-        horizontalMagnitude === 0 &&
-        verticalMagnitude === 0
-      ) {
-        return;
-      }
-
-      /*
-       * The gesture began over the waveform, so reserve it entirely
-       * for waveform zoom.
-       */
-      event.preventDefault();
-      event.stopPropagation();
-
-      /*
-       * Browser-reported trackpad pinch normally arrives as a
-       * ctrlKey wheel event and uses deltaY.
-       *
-       * For ordinary scrolling, use whichever axis is dominant so
-       * small diagonal trackpad movement does not cause two zooms.
-       */
-      const isPinchGesture = event.ctrlKey;
-
-      const isHorizontalGesture =
-        !isPinchGesture &&
-        horizontalMagnitude > verticalMagnitude;
-
-      let shouldZoomIn: boolean;
-      let gestureMagnitude: number;
-
-      if (isPinchGesture) {
-        /*
-         * Browser convention:
-         * negative deltaY = spread/pinch out
-         * positive deltaY = pinch in
-         */
-        shouldZoomIn = event.deltaY < 0;
-        gestureMagnitude = verticalMagnitude;
-      } else if (isHorizontalGesture) {
-        /*
-         * Logic-style horizontal mapping:
-         * two-finger swipe left zooms in;
-         * two-finger swipe right zooms out.
-         */
-        shouldZoomIn = event.deltaX > 0;
-        gestureMagnitude = horizontalMagnitude;
-      } else {
-        /*
-         * Logic-style reversed vertical mapping:
-         * upward movement zooms out; downward movement zooms in.
-         */
-        shouldZoomIn = event.deltaY > 0;
-        gestureMagnitude = verticalMagnitude;
-      }
-
-      const direction: -1 | 1 =
-        shouldZoomIn ? 1 : -1;
-
-      /*
-       * Reset accumulated movement whenever the user reverses zoom
-       * direction.
-       */
-      if (
-        waveformWheelDirectionRef.current !== 0 &&
-        waveformWheelDirectionRef.current !== direction
-      ) {
-        waveformWheelDeltaRef.current = 0;
-      }
-
-      waveformWheelDirectionRef.current = direction;
-      waveformWheelDeltaRef.current += gestureMagnitude;
-
-      /*
-       * Pinching should feel immediate. Horizontal trackpad movement
-       * uses a medium threshold, while wheel/vertical scrolling stays
-       * conservative enough to avoid racing through zoom levels.
-       */
-      const activationThreshold =
-        isPinchGesture
-          ? 7
-          : isHorizontalGesture
-            ? 42
-            : 72;
-
-      if (
-        waveformWheelDeltaRef.current <
-        activationThreshold
-      ) {
-        return;
-      }
-
-      waveformWheelDeltaRef.current = 0;
-
-      if (shouldZoomIn) {
-        increaseWaveformZoom();
-        return;
-      }
-
-      decreaseWaveformZoom();
-    }
-
-    waveformPanel.addEventListener(
-      "wheel",
-      handleWaveformWheel,
-      {
-        passive: false,
-      },
-    );
-
-    return () => {
-      waveformPanel.removeEventListener(
-        "wheel",
-        handleWaveformWheel,
-      );
-    };
-  });
 
   /*
    * Outside the waveform, ordinary wheel and two-finger scrolling
@@ -2954,29 +2455,20 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         </aside>
 
         <div className="player-layout__main">
-      <audio
-        ref={audioRef}
+      <PersistentMediaElement
+        controller={mediaElement}
         preload="metadata"
         onPlay={() => {
           setHasPlaybackEnded(false);
         }}
         onPlaying={() => {
           setHasPlaybackEnded(false);
-          setIsPlaying(true);
+          playbackEvents.handlePlaying();
         }}
         onPause={(event) => {
           const audio = event.currentTarget;
 
-          /*
-           * Save the current analyser frame even when the regular
-           * waveform view is mounted and OscilloscopeCanvas is absent.
-           */
-          captureOscilloscopeFrame(
-            selectedTrackKey,
-            analyserRef.current,
-          );
-
-          setIsPlaying(false);
+          playbackEvents.handlePause();
 
           if (
             audio.ended ||
@@ -2991,24 +2483,17 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
           }
         }}
         onEnded={(event) => {
-          captureOscilloscopeFrame(
-            selectedTrackKey,
-            analyserRef.current,
-          );
-
           if (nextTrack) {
             setIsPlaying(false);
             setHasPlaybackEnded(false);
-            setCurrentTime(0);
+            resetTimeline();
             loadTrack(nextTrack.key, true);
             return;
           }
 
           setIsPlaying(false);
           setHasPlaybackEnded(true);
-          setCurrentTime(
-            event.currentTarget.duration,
-          );
+          syncCurrentTime(event.currentTarget);
         }}
         onSeeking={() => {
           /*
@@ -3031,29 +2516,20 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
 
             setHasPlaybackEnded(isAtEnd);
 
-            setIsPlaying(
-              !audio.paused &&
-              !audio.ended &&
-              audio.readyState >=
-                HTMLMediaElement.HAVE_CURRENT_DATA,
-            );
+            syncMediaPlaying(audio);
           });
         }}
         onEmptied={() => {
-          setIsPlaying(false);
+          playbackEvents.handleEmptied();
           setHasPlaybackEnded(false);
-          setCurrentTime(0);
+          resetTimeline();
         }}
-        onAbort={() => {
-          setIsPlaying(false);
-        }}
-        onError={() => {
-          setIsPlaying(false);
-        }}
+        onAbort={playbackEvents.handleAbort}
+        onError={playbackEvents.handleError}
         onTimeUpdate={(event) => {
           const audio = event.currentTarget;
 
-          setCurrentTime(audio.currentTime);
+          syncCurrentTime(audio);
 
           if (audio.paused || audio.ended) {
             setIsPlaying(false);
@@ -3170,140 +2646,37 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
 
       {waveform ? (
         <>
-          <div
-            ref={waveformPanelRef}
-            className="waveform-panel"
+          <MediaVisualizationSurface
+            peaks={waveform.peaks}
+            colorMode={colorMode}
+            audioRef={audioRef}
+            analyser={analyserNode}
+            ensureAnalyser={ensureAudioAnalyser}
+            trackKey={selectedTrackKey}
+            sampleRate={waveform.sampleRate}
+            waveformIsPlaying={displayedIsPlaying}
+            oscilloscopeIsPlaying={isPlaying}
+            peaksPerSecond={waveform.peaksPerSecond}
+            onScrubbingChange={handleScrubbingChange}
+            showZoomReadout={isAudiophileMode}
+            classNames={{
+              root: "waveform-panel",
+              zoomControls: "waveform-panel__zoom-controls",
+              zoomButton: "waveform-panel__zoom-button",
+              zoomIncreaseButton:
+                "waveform-panel__zoom-button--increase",
+              zoomDecreaseButton:
+                "waveform-panel__zoom-button--decrease",
+              zoomReadout: "waveform-panel__zoom-value",
+            }}
           >
-            {waveformViewMode === "oscilloscope" ? (
-              <OscilloscopeCanvas
-                analyser={analyserNode}
-                audioRef={audioRef}
-                isPlaying={isPlaying}
-                colorMode={colorMode}
-                trackKey={selectedTrackKey}
-                sampleRate={waveform.sampleRate}
-                sampleWindow={
-                  oscilloscopeSampleWindow
-                }
-              />
-            ) : (
-              <WaveformCanvas
-                peaks={waveform.peaks}
-                audioRef={audioRef}
-                isPlaying={displayedIsPlaying}
-                colorMode={colorMode}
-                pixelsPerSecond={pixelsPerSecond}
-                peaksPerSecond={waveform.peaksPerSecond}
-                onScrubbingChange={
-                  handleScrubbingChange
-                }
-              />
-            )}
-
             <output
               className="waveform-panel__current-time"
               aria-label="Current playback time"
             >
               {formatPlaybackTime(currentTime)}
             </output>
-
-          
-
-            <div
-              className="waveform-panel__zoom-controls"
-              aria-label="Waveform zoom controls"
-            >
-              {isAudiophileMode ? (
-                <output
-                  className="waveform-panel__zoom-value"
-                  aria-label="Current waveform zoom"
-                >
-                  {waveformViewMode === "oscilloscope"
-                    ? `${oscilloscopeSampleWindow} samples`
-                    : `${pixelsPerSecond} px/s`}
-                </output>
-              ) : null}
-
-              <button
-                type="button"
-                className="
-                  waveform-panel__zoom-button
-                  waveform-panel__zoom-button--increase
-                "
-                onClick={increaseWaveformZoom}
-                disabled={
-                  waveformViewMode === "oscilloscope" &&
-                  oscilloscopeSampleWindow ===
-                    oscilloscopeSampleWindows[
-                      oscilloscopeSampleWindows.length - 1
-                    ]
-                }
-                aria-label={
-                  waveformViewMode === "oscilloscope"
-                    ? oscilloscopeSampleWindow ===
-                        oscilloscopeSampleWindows[
-                          oscilloscopeSampleWindows.length - 1
-                        ]
-                      ? "Maximum oscilloscope magnification"
-                      : "Magnify oscilloscope"
-                    : pixelsPerSecond >=
-                        waveformZoomSteps[
-                          waveformZoomSteps.length - 1
-                        ]
-                      ? "Enter oscilloscope"
-                      : "Zoom waveform in"
-                }
-                title={
-                  waveformViewMode === "oscilloscope"
-                    ? oscilloscopeSampleWindow ===
-                        oscilloscopeSampleWindows[
-                          oscilloscopeSampleWindows.length - 1
-                        ]
-                      ? "Maximum oscilloscope magnification"
-                      : "Magnify oscilloscope"
-                    : pixelsPerSecond >=
-                        waveformZoomSteps[
-                          waveformZoomSteps.length - 1
-                        ]
-                      ? "Enter oscilloscope"
-                      : "Zoom waveform in"
-                }
-              >
-                +
-              </button>
-
-              <button
-                type="button"
-                className="
-                  waveform-panel__zoom-button
-                  waveform-panel__zoom-button--decrease
-                "
-                onClick={decreaseWaveformZoom}
-                disabled={
-                  waveformViewMode === "waveform" &&
-                  pixelsPerSecond <= waveformZoomSteps[0]
-                }
-                aria-label={
-                  waveformViewMode === "oscilloscope"
-                    ? oscilloscopeSampleWindow ===
-                        oscilloscopeSampleWindows[0]
-                      ? "Return to waveform"
-                      : "Widen oscilloscope"
-                    : "Zoom waveform out"
-                }
-                title={
-                  waveformViewMode === "oscilloscope"
-                    ? oscilloscopeSampleWindow ===
-                        oscilloscopeSampleWindows[0]
-                      ? "Return to waveform"
-                      : "Widen oscilloscope"
-                    : "Zoom waveform out"
-                }
-              >
-                −
-              </button>
-            </div>
-          </div>
+          </MediaVisualizationSurface>
 
         </>
       ) : !displayLoadError ? (
@@ -3319,78 +2692,34 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
           artworkFallback={<span aria-hidden="true">♪</span>}
           title={selectedTrack.title}
           context={getPlayableMediaContext(selectedTrack)}
-          transport={{
-            currentTime,
-            duration: waveform?.durationSeconds ?? 0,
-            isPlaying: displayedIsPlaying,
-            canToggle: Boolean(audioSource && waveform),
-            canPrevious: Boolean(previousTrack),
-            canNext: Boolean(nextTrack),
-            previous: selectPreviousTrack,
-            toggle: () => {
-              void togglePlayback();
+          controller={{
+            transport: {
+              currentTime,
+              duration: waveform?.durationSeconds ?? 0,
+              isPlaying: displayedIsPlaying,
+              canToggle: Boolean(audioSource && waveform),
+              canPrevious: Boolean(previousTrack),
+              canNext: Boolean(nextTrack),
+              previous: selectPreviousTrack,
+              toggle: () => {
+                void togglePlayback();
+              },
+              next: selectNextTrack,
+              seek:
+                waveform && waveform.durationSeconds > 0
+                  ? (seconds) =>
+                      seekCompactWaveform(
+                        seconds / waveform.durationSeconds,
+                      )
+                  : undefined,
             },
-            next: selectNextTrack,
-            seek:
-              waveform && waveform.durationSeconds > 0
-                ? (seconds) =>
-                    seekCompactWaveform(
-                      seconds / waveform.durationSeconds,
-                    )
-                : undefined,
+            volume: {
+              volumePercent,
+              setVolumePercent,
+            },
           }}
           waveformPeaks={waveform?.peaks ?? []}
           waveformColorMode={colorMode}
-          transportTrailing={
-            <div
-              ref={volumeControlRef}
-              className="audio-player__volume-control"
-              data-open={
-                isVolumeControlOpen ? "true" : "false"
-              }
-            >
-              <button
-                type="button"
-                className="audio-player__volume-button"
-                aria-label={`Volume ${volumePercent}%`}
-                aria-haspopup="true"
-                aria-expanded={isVolumeControlOpen}
-                title={`Volume ${volumePercent}%`}
-                onClick={() => {
-                  setIsVolumeControlOpen(
-                    (isOpen) => !isOpen,
-                  );
-                }}
-              >
-                <VolumeIcon level={volumeIconLevel} />
-              </button>
-
-              {isVolumeControlOpen ? (
-                <div
-                  className="audio-player__volume-popup"
-                  role="group"
-                  aria-label="Volume control"
-                >
-                  <div className="audio-player__volume-slider">
-                    <input
-                      id="now-playing-volume"
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={volumePercent}
-                      aria-label="Volume"
-                      onChange={(event) => {
-                        setVolumePercent(
-                          Number(event.currentTarget.value),
-                        );
-                      }}
-                    />
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          }
           endControls={
             <button
               ref={metadataButtonRef}
@@ -3418,6 +2747,11 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
             transport: "audio-player__now-playing-transport",
             playButton: "audio-player__now-playing-play",
             transportIcon: "artwork-stack__transport-icon",
+            volumeControl: "audio-player__volume-control",
+            volumeButton: "audio-player__volume-button",
+            volumeIcon: "audio-player__volume-icon",
+            volumePopup: "audio-player__volume-popup",
+            volumeSlider: "audio-player__volume-slider",
           }}
         />
       ) : null}

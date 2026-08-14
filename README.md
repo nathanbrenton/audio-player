@@ -306,9 +306,9 @@ Publication changes must originate from `metadata-editor`.
 
 ## Shared media-player source
 
-The repository also owns `packages/media-player/`, a small local package for player primitives that must behave identically in the Hiplingo public app and metadata-editor. Shared surfaces now include the compact seekable waveform renderer, the canonical 3Band/RGB/Blue/Monochrome color vocabulary, SVG previous/play/pause/next transport icons, player-facing time formatting, the global Spacebar transport shortcut contract, the compact Now Playing presentation skeleton, a queue-neutral transport-controller contract, stable queue navigation/deduplication helpers, and one host-neutral playable-media item shape for title/artist/release identity, artwork, waveform, and host-owned source descriptors.
+The repository also owns `packages/media-player/`, a local package for player behavior that must remain identical in the Hiplingo public app and metadata-editor. The package now owns the complete full-size visualization surface: fixed-center scrolling/audible scrubbing, the 2–6400 px/s zoom ladder, transition into the 2048–128-sample oscilloscope, hold-to-freeze inspection, cached per-track frames, optional zoom readout, and the reusable Web Audio media/analyser adapter. It also owns the compact whole-track seekable waveform, canonical 3Band/RGB/Blue/Monochrome color vocabulary, SVG transport icons, player-facing time formatting, Spacebar transport contract, compact Now Playing presentation shell, the speaker-button/vertical 0–100 volume interaction and perceptual volume curve, queue-neutral transport-controller helpers, and the host-neutral playable-media item shape.
 
-The package deliberately does **not** own an audio element, playback queue state, HLS/catalog loading, private Library APIs, metadata editing, publication, or deployment. Hiplingo keeps its public HLS/catalog playback engine; metadata-editor keeps its private application-shell preview engine. Both hosts normalize the selected media into the same playable-item contract, render the same compact Now Playing structure, and call the same transport/presentation primitives and queue-neutral helpers while supplying their own source descriptors, waveform data, playback state, engine callbacks, queue state, and host-specific trailing controls. This keeps one interaction source without allowing the public app to depend on the private Library.
+The package deliberately does **not** own the persistent audio element, playback queue state, HLS/catalog loading, private Library APIs, metadata editing, publication, or deployment. Hiplingo keeps its public HLS/catalog source adapter; metadata-editor keeps its private application-shell preview/source adapter. Both hosts now attach their persistent HTML audio element to the same shared analyser lifecycle and render the same visualization surface and compact transport/volume shell while supplying source descriptors, waveform data, playback state, queue state, navigation, and host-specific actions. This keeps one player interaction implementation without allowing the public app to depend on the private Library.
 
 metadata-editor consumes the package through the sibling local dependency `file:../audio-player/packages/media-player`; this repository consumes the same package through `file:./packages/media-player`. Future player primitives should move into this package only when both hosts can use the same interface without host-specific filesystem or network assumptions.
 
@@ -351,8 +351,10 @@ git --no-pager diff
 ```text
 src/components/AudioPlayer.tsx
 src/components/LibraryBrowser.tsx
-src/components/WaveformCanvas.tsx
-src/components/OscilloscopeCanvas.tsx
+packages/media-player/src/MediaVisualizationSurface.tsx
+packages/media-player/src/ScrollingWaveformCanvas.tsx
+packages/media-player/src/OscilloscopeCanvas.tsx
+packages/media-player/src/useMediaElementAnalyser.ts
 src/components/MetadataViewer.tsx
 src/index.css
 vite.config.mjs
@@ -470,3 +472,19 @@ search provide fast catalog access without leaving the current Hiplingo route.
 The routed `/releases` experience remains the artwork-forward public discovery
 surface. Browse Library remains the playback utility overlay. Mobile portrait
 and landscape continue using the existing compact sheet/browser presentation.
+
+Shared player visualization owns fixed-center audible scrubbing, the 2–6400 px/s waveform zoom ladder, the 2048–128-sample oscilloscope stages, hold-to-freeze inspection, cached per-track oscilloscope frames, optional Audiophile zoom readout, and the reusable media/analyser graph lifecycle; Hiplingo still owns HLS/public source attachment and catalog navigation.
+
+The compact Now Playing shell now receives one shared `PlaybackShellController` for transport and volume. Both Hiplingo and metadata-editor also use shared `useMediaElementVolume()` state and perceptual gain application; host-specific source attachment remains outside the package.
+
+Persistent media timeline state is now shared through `useMediaElementTimeline()`: current time, finite-duration normalization, direct seeking, and the shared waveform redraw notification live in `@hiplingo/media-player`, while Hiplingo keeps HLS/source and playback-event policy.
+
+Persistent play/pause/loading state now comes from shared `useMediaElementPlaybackState()`. Hiplingo still owns scrub-aware media event reconciliation, ended behavior, and HLS source policy, so this step changes state ownership without changing playback semantics.
+
+Ordinary HTML-media event transitions now use shared `useMediaElementPlaybackEvents()`: play/playing, pause, waiting, canplay, abort, error, and emptied update the common persistent playback state. Hiplingo still owns HLS/source policy, scrub/seek reconciliation, and ended/queue behavior.
+
+Playback source attachment now crosses the shared `MediaSourceAdapter<TSource>` contract. Hiplingo's adapter implementation remains local to `AudioPlayer`: it still owns native HLS detection, lazy `hls.js` loading, fatal stream errors, autoplay-after-manifest behavior, and HLS teardown.
+
+Source attachment is now orchestrated by shared `useMediaSourceSession()`: the session supplies the persistent audio element to Hiplingo's local adapter, tracks the current media key, suppresses stale async HLS completion, and centralizes adapter disposal. HLS/native-HLS behavior itself remains Hiplingo-owned.
+
+The persistent HTML audio element itself now uses shared `usePersistentMediaElement()` ownership and the shared `PersistentMediaElement` renderer. Hiplingo still supplies its event policy and HLS source adapter, but the element reference consumed by timeline, volume, analyser, playback-state, and source-session hooks is created through the common player package.

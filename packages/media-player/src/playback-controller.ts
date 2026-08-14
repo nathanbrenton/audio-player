@@ -4,6 +4,12 @@ export type PlaybackQueueEntry =
   | string
   | { key: string };
 
+export type PlaybackVolumeController = {
+  volumePercent: number;
+  setVolumePercent: (volumePercent: number) => void;
+  disabled?: boolean;
+};
+
 export type PlaybackTransportController = {
   currentTime: number;
   duration: number;
@@ -16,6 +22,11 @@ export type PlaybackTransportController = {
   toggle: () => void;
   next?: () => void;
   seek?: (seconds: number) => void;
+};
+
+export type PlaybackShellController = {
+  transport: PlaybackTransportController;
+  volume?: PlaybackVolumeController;
 };
 
 export function getPlaybackQueueKey(

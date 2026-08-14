@@ -2,8 +2,11 @@ import type { ReactNode } from "react";
 
 import { CompactWaveformCanvas } from "./CompactWaveformCanvas.js";
 import { MediaTransportIcon } from "./MediaTransportIcon.js";
+import { MediaVolumeControl } from "./MediaVolumeControl.js";
 import { formatPlaybackTime } from "./playback.js";
-import type { PlaybackTransportController } from "./playback-controller.js";
+import type {
+  PlaybackShellController,
+} from "./playback-controller.js";
 import type {
   WaveformColorMode,
   WaveformPeak,
@@ -22,6 +25,11 @@ export type CompactNowPlayingBarClassNames = {
   transport?: string;
   playButton?: string;
   transportIcon?: string;
+  volumeControl?: string;
+  volumeButton?: string;
+  volumeIcon?: string;
+  volumePopup?: string;
+  volumeSlider?: string;
   endControls?: string;
   error?: string;
 };
@@ -29,15 +37,16 @@ export type CompactNowPlayingBarClassNames = {
 export type CompactNowPlayingBarProps = {
   artworkUrl?: string | null;
   artworkFallback?: ReactNode;
+  onArtworkClick?: () => void;
+  artworkActionLabel?: string;
   title: string;
   context?: ReactNode;
   detail?: ReactNode;
-  transport: PlaybackTransportController;
+  controller: PlaybackShellController;
   waveformPeaks?: WaveformPeak[] | null;
   waveformColorMode: WaveformColorMode;
   waveformFallback?: ReactNode;
   seekLabel?: string;
-  transportTrailing?: ReactNode;
   endControls?: ReactNode;
   error?: ReactNode;
   ariaLabel?: string;
@@ -47,20 +56,22 @@ export type CompactNowPlayingBarProps = {
 export function CompactNowPlayingBar({
   artworkUrl,
   artworkFallback = "♪",
+  onArtworkClick,
+  artworkActionLabel = "Open current item",
   title,
   context,
   detail,
-  transport,
+  controller,
   waveformPeaks,
   waveformColorMode,
   waveformFallback,
   seekLabel = "Seek within current track",
-  transportTrailing,
   endControls,
   error,
   ariaLabel = "Now playing",
   classNames = {},
 }: CompactNowPlayingBarProps) {
+  const { transport, volume } = controller;
   const {
     currentTime,
     duration,
@@ -89,15 +100,31 @@ export function CompactNowPlayingBar({
       aria-label={ariaLabel}
       data-shared-now-playing="true"
     >
-      <div
-        className={joinClassNames(
-          "shared-now-playing__artwork",
-          classNames.artwork,
-        )}
-        aria-hidden="true"
-      >
-        {artworkUrl ? <img src={artworkUrl} alt="" /> : artworkFallback}
-      </div>
+      {onArtworkClick ? (
+        <button
+          type="button"
+          className={joinClassNames(
+            "shared-now-playing__artwork",
+            "shared-now-playing__artwork-action",
+            classNames.artwork,
+          )}
+          onClick={onArtworkClick}
+          aria-label={artworkActionLabel}
+          title={artworkActionLabel}
+        >
+          {artworkUrl ? <img src={artworkUrl} alt="" /> : artworkFallback}
+        </button>
+      ) : (
+        <div
+          className={joinClassNames(
+            "shared-now-playing__artwork",
+            classNames.artwork,
+          )}
+          aria-hidden="true"
+        >
+          {artworkUrl ? <img src={artworkUrl} alt="" /> : artworkFallback}
+        </div>
+      )}
 
       <div
         className={joinClassNames(
@@ -238,7 +265,22 @@ export function CompactNowPlayingBar({
             )}
           />
         </button>
-        {transportTrailing}
+        {volume ? (
+          <MediaVolumeControl
+            volumePercent={volume.volumePercent}
+            onVolumePercentChange={
+              volume.setVolumePercent
+            }
+            disabled={volume.disabled}
+            classNames={{
+              root: classNames.volumeControl,
+              button: classNames.volumeButton,
+              icon: classNames.volumeIcon,
+              popup: classNames.volumePopup,
+              slider: classNames.volumeSlider,
+            }}
+          />
+        ) : null}
       </div>
 
       {endControls ? (

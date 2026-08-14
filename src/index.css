@@ -15716,3 +15716,171 @@ body:has(.metadata-viewer__backdrop)
     gap: 10px;
   }
 }
+
+/* =========================================================
+   Hiplingo PT4 public artist navigation
+   ========================================================= */
+
+.hiplingo-artist-grid,
+.hiplingo-artist-release-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 12px;
+}
+
+.hiplingo-artist-card,
+.hiplingo-artist-release {
+  display: grid;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hiplingo-artist-card__artwork,
+.hiplingo-artist-release__artwork {
+  display: grid;
+  overflow: hidden;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid #272727;
+  border-radius: 10px;
+  background:
+    linear-gradient(145deg, rgba(92, 137, 159, 0.18), transparent 58%),
+    #151515;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease;
+}
+
+.hiplingo-artist-card:hover .hiplingo-artist-card__artwork,
+.hiplingo-artist-release:hover .hiplingo-artist-release__artwork {
+  transform: translateY(-2px);
+  border-color: #4d6673;
+}
+
+.hiplingo-artist-card__artwork img,
+.hiplingo-artist-release__artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hiplingo-artist-card__copy,
+.hiplingo-artist-release__copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  padding: 10px 2px 0;
+}
+
+.hiplingo-artist-card__copy strong,
+.hiplingo-artist-card__copy span,
+.hiplingo-artist-card__copy small,
+.hiplingo-artist-release__copy strong,
+.hiplingo-artist-release__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hiplingo-artist-card__copy strong,
+.hiplingo-artist-release__copy strong {
+  color: #ededed;
+  font-size: 0.9rem;
+}
+
+.hiplingo-artist-card__copy span {
+  color: #858585;
+  font-size: 0.72rem;
+}
+
+.hiplingo-artist-card__copy small,
+.hiplingo-artist-release__copy small {
+  color: #626262;
+  font-size: 0.65rem;
+  text-transform: capitalize;
+}
+
+.hiplingo-artist-card:focus-visible,
+.hiplingo-artist-release:focus-visible,
+.hiplingo-release-detail__artist:focus-visible {
+  outline: 2px solid #8fd3ff;
+  outline-offset: 3px;
+}
+
+.hiplingo-artist-detail-page {
+  padding-top: 26px;
+}
+
+.hiplingo-artist-detail__heading {
+  max-width: 780px;
+  margin-bottom: 38px;
+}
+
+.hiplingo-artist-detail__heading h1 {
+  margin: 0;
+  color: #f5f5f5;
+  font-size: clamp(2.7rem, 12vw, 5.8rem);
+  font-weight: 780;
+  letter-spacing: -0.055em;
+  line-height: 0.92;
+  overflow-wrap: anywhere;
+}
+
+.hiplingo-artist-detail__heading p {
+  margin: 14px 0 0;
+  color: #747474;
+  font-size: 0.74rem;
+}
+
+.hiplingo-artist-discography {
+  padding-top: 24px;
+  border-top: 1px solid #252525;
+}
+
+.hiplingo-artist-discography__heading {
+  margin-bottom: 18px;
+}
+
+.hiplingo-artist-discography__heading h2 {
+  margin: 0;
+  color: #dedede;
+  font-size: 1.2rem;
+}
+
+button.hiplingo-release-detail__artist {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: clamp(1rem, 4vw, 1.3rem);
+  font-weight: 660;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.hiplingo-release-detail__artist:hover {
+  color: #d9edf7;
+}
+
+@media (min-width: 640px) {
+  .hiplingo-artist-grid,
+  .hiplingo-artist-release-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 30px 18px;
+  }
+}
+
+@media (min-width: 980px) {
+  .hiplingo-artist-grid,
+  .hiplingo-artist-release-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 34px 22px;
+  }
+}

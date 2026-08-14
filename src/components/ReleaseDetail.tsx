@@ -16,6 +16,7 @@ type ReleaseDetailProps = {
   loading: boolean;
   error: string | null;
   onBack: () => void;
+  onOpenArtist: (artistName: string) => void;
   playbackState: PlaybackStateSnapshot;
   onPlayQueue: (trackKey: string, queueTrackKeys: string[]) => void;
   onTogglePlayback: () => void;
@@ -50,6 +51,7 @@ export default function ReleaseDetail({
   loading,
   error,
   onBack,
+  onOpenArtist,
   playbackState,
   onPlayQueue,
   onTogglePlayback,
@@ -126,7 +128,13 @@ export default function ReleaseDetail({
         <div className="hiplingo-release-detail__intro">
           <span className="hiplingo-kicker">{type ?? "Release"}</span>
           <h1>{release.title}</h1>
-          <p className="hiplingo-release-detail__artist">{artist}</p>
+          <button
+            type="button"
+            className="hiplingo-release-detail__artist"
+            onClick={() => onOpenArtist(artist)}
+          >
+            {artist}
+          </button>
           <p className="hiplingo-release-detail__meta">
             {[date, `${release.trackCount} ${release.trackCount === 1 ? "track" : "tracks"}`]
               .filter(Boolean)
