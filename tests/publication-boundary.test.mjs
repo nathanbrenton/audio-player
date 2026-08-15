@@ -382,3 +382,31 @@ test("keeps the browser catalog on the public /media route", async () => {
     /fetch\(["']\/published-media\//,
   );
 });
+
+test("keeps Hiplingo public metadata on the browser-native UTF-8 JSON path", async () => {
+  const html = await readFile(
+    path.join(projectRoot, "index.html"),
+    "utf8",
+  );
+  const catalogSource = await readFile(
+    path.join(projectRoot, "src/lib/mediaCatalog.ts"),
+    "utf8",
+  );
+  const metadataViewerSource = await readFile(
+    path.join(projectRoot, "src/components/MetadataViewer.tsx"),
+    "utf8",
+  );
+
+  assert.match(
+    html.slice(0, 1024),
+    /<meta\s+charset=["']UTF-8["']\s*\/>/i,
+  );
+  assert.match(catalogSource, /return response\.json\(\);/);
+  assert.match(catalogSource, /await response\.json\(\)/);
+  assert.doesNotMatch(catalogSource, /TextDecoder\s*\(/);
+  assert.doesNotMatch(catalogSource, /Buffer\.from\s*\(/);
+  assert.match(
+    metadataViewerSource,
+    /JSON\.stringify\(rawMetadata, null, 2\)/,
+  );
+});
