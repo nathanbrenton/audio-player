@@ -6,20 +6,43 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
 /*
- * Resolve media outside the frontend repository.
+ * Resolve the sanitized public package outside the frontend repository.
  *
  * Default: ../published-media
- * Override: MEDIA_LIBRARY_ROOT=/path/to/alternate-public-media
+ * Override: PUBLISHED_MEDIA_ROOT=/path/to/alternate-public-package
+ *
+ * The canonical private Library and ingest roots are deliberately rejected.
  */
 const projectRoot = path.dirname(
   fileURLToPath(import.meta.url),
 );
-const configuredMediaRoot =
-  process.env.MEDIA_LIBRARY_ROOT ?? "../published-media";
-const mediaRoot = path.resolve(
+const configuredPublishedMediaRoot =
+  process.env.PUBLISHED_MEDIA_ROOT ?? "../published-media";
+const publishedMediaRoot = path.resolve(
   projectRoot,
-  configuredMediaRoot,
+  configuredPublishedMediaRoot,
 );
+
+const canonicalPrivateRoots = [
+  path.resolve(projectRoot, "../media-library"),
+  path.resolve(projectRoot, "../ingest-drop"),
+];
+
+function pathIsInside(root, candidate) {
+  return (
+    candidate === root ||
+    candidate.startsWith(`${root}${path.sep}`)
+  );
+}
+
+for (const privateRoot of canonicalPrivateRoots) {
+  if (pathIsInside(privateRoot, publishedMediaRoot)) {
+    throw new Error(
+      "Hiplingo public media root must not point at media-library or " +
+        "ingest-drop. Use metadata-editor published-media output instead.",
+    );
+  }
+}
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -40,9 +63,9 @@ const mimeTypes = {
 
 /*
  * Serve the configured media root from /media/* during development and
- * `vite preview`, without copying the library into dist/.
+ * `vite preview`, without copying the public package into dist/.
  */
-function mediaLibraryPlugin() {
+function publishedMediaPlugin() {
   async function serveMedia(request, response, next) {
     const requestUrl = request.url;
 
@@ -61,12 +84,12 @@ function mediaLibraryPlugin() {
     }
 
     const relativePath = pathname.slice("/media/".length);
-    const filePath = path.resolve(mediaRoot, relativePath);
+    const filePath = path.resolve(publishedMediaRoot, relativePath);
 
     // Prevent URLs from escaping the configured media root.
     if (
-      filePath !== mediaRoot &&
-      !filePath.startsWith(`${mediaRoot}${path.sep}`)
+      filePath !== publishedMediaRoot &&
+      !filePath.startsWith(`${publishedMediaRoot}${path.sep}`)
     ) {
       response.statusCode = 403;
       response.end("Forbidden");
@@ -103,7 +126,7 @@ function mediaLibraryPlugin() {
   }
 
   return {
-    name: "media-library-server",
+    name: "published-media-server",
 
     configureServer(server) {
       server.middlewares.use(serveMedia);
@@ -134,6 +157,6 @@ export default defineConfig({
   publicDir: "public",
 
   plugins: [
-    mediaLibraryPlugin(),
+    publishedMediaPlugin(),
   ],
 });

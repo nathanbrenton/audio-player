@@ -613,6 +613,18 @@ async function hydrateRelease(
   return release;
 }
 
+export function getReleaseArtistId(
+  release: CatalogRelease,
+): string | null {
+  const releaseMetadata =
+    release.metadata.resolved.release;
+  const primaryArtist = getObjectValue(
+    releaseMetadata?.primary_artist,
+  );
+
+  return getStringValue(primaryArtist?.id);
+}
+
 export function getReleaseArtist(
   release: CatalogRelease,
 ): string {
@@ -656,6 +668,14 @@ export function getReleaseType(
 ): string | null {
   return getStringValue(
     release.metadata.resolved.release?.type,
+  );
+}
+
+export function getReleaseDescription(
+  release: CatalogRelease,
+): string | null {
+  return getStringValue(
+    release.metadata.resolved.release?.description,
   );
 }
 

@@ -26,7 +26,6 @@ type SiteRoute =
   | "/listen"
   | "/releases"
   | "/artists"
-  | "/journal"
   | "/jam"
   | "/about";
 
@@ -41,7 +40,6 @@ const SITE_ROUTES = new Set<SiteRoute>([
   "/listen",
   "/releases",
   "/artists",
-  "/journal",
   "/jam",
   "/about",
 ]);
@@ -186,9 +184,6 @@ function SiteHeader({
         </SiteLink>
         <SiteLink route="/artists" currentRoute={currentRoute}>
           Artists
-        </SiteLink>
-        <SiteLink route="/journal" currentRoute={currentRoute}>
-          Journal
         </SiteLink>
         <SiteLink route="/jam" currentRoute={currentRoute}>
           Jam Agreement
@@ -351,8 +346,8 @@ function HomePage({
             <span className="hiplingo-kicker">Independent record label</span>
             <h1>Music first. Context included.</h1>
             <p>
-              Releases, artists, sessions, and the stories around them—built
-              around a focused listening experience.
+              Releases, artists, and the context around them—built around a
+              focused listening experience.
             </p>
 
             <div className="hiplingo-hero__actions">
@@ -402,15 +397,10 @@ function HomePage({
           <strong>Artist presentations</strong>
           <p>Profiles, releases, credits, media, and long-form context.</p>
         </SiteLink>
-        <SiteLink route="/journal" className="hiplingo-feature-card">
-          <span>Journal</span>
-          <strong>Stories behind the work</strong>
-          <p>Sessions, production notes, announcements, and label writing.</p>
-        </SiteLink>
         <SiteLink route="/jam" className="hiplingo-feature-card">
-          <span>Collaborate</span>
+          <span>Coming soon</span>
           <strong>Jam Agreement</strong>
-          <p>A clear participant-facing path into collaborative sessions.</p>
+          <p>Under construction.</p>
         </SiteLink>
       </section>
     </main>
@@ -602,28 +592,10 @@ export default function App() {
       );
       break;
 
-    case "/journal":
-      content = (
-        <PlaceholderPage eyebrow="Stories" title="Journal">
-          <p>
-            A home for session notes, production stories, release context,
-            announcements, and other blog-style presentations.
-          </p>
-        </PlaceholderPage>
-      );
-      break;
-
     case "/jam":
       content = (
-        <PlaceholderPage eyebrow="Collaborate" title="Jam Agreement">
-          <p>
-            Hiplingo is preparing a participant-facing agreement flow for
-            musicians and artists joining collaborative creative sessions.
-          </p>
-          <p>
-            The private rights, provenance, session, and commercial-clearance
-            manager remains an administrative tool and is not exposed here.
-          </p>
+        <PlaceholderPage eyebrow="Coming soon" title="Jam Agreement">
+          <p>Under construction.</p>
         </PlaceholderPage>
       );
       break;

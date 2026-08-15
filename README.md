@@ -278,7 +278,7 @@ the older audio-player catalog shape so a previously overwritten
 For temporary testing only, an alternate read-only root can be selected:
 
 ```sh
-MEDIA_LIBRARY_ROOT=../some-test-media npm run dev
+PUBLISHED_MEDIA_ROOT=../some-public-package npm run dev
 ```
 
 ### Publication ownership
@@ -396,15 +396,15 @@ the established playback engine:
 /listen
 /releases
 /artists
-/journal
 /jam
 /about
 ```
 
-`/listen` hosts the existing AudioPlayer. The Releases, Artists, Journal, and
-Jam Agreement routes are intentionally lightweight boundaries for later
-milestones rather than duplicate implementations of metadata-editor or
-jam-agreement-manager.
+`/listen` hosts the existing AudioPlayer. Releases and Artists consume the
+sanitized Web Package. Journal is intentionally not part of Hiplingo for now;
+that writing will live on nathanbrenton.com. Jam Agreement remains a public
+route with a simple Coming soon / Under construction placeholder until its
+participant-facing workflow is ready.
 
 The private `jam-agreement-manager` remains a separate administrative
 application. The eventual `/jam` participant experience should talk to a
@@ -489,3 +489,38 @@ Playback source attachment now crosses the shared `MediaSourceAdapter<TSource>` 
 Source attachment is now orchestrated by shared `useMediaSourceSession()`: the session supplies the persistent audio element to Hiplingo's local adapter, tracks the current media key, suppresses stale async HLS completion, and centralizes adapter disposal. HLS/native-HLS behavior itself remains Hiplingo-owned.
 
 The persistent HTML audio element itself now uses shared `usePersistentMediaElement()` ownership and the shared `PersistentMediaElement` renderer. Hiplingo still supplies its event policy and HLS source adapter, but the element reference consumed by timeline, volume, analyser, playback-state, and source-session hooks is created through the common player package.
+
+## PT5 first-class published Artists
+
+Hiplingo reads Artist identity and imagery from metadata-editor's sanitized
+published Artist snapshot:
+
+```text
+/media/artists.json
+/media/artists/<slug>/artist.json
+/media/artists/<slug>/assets/<asset-id>.webp
+```
+
+Artist publication membership is not reconstructed from display names.
+Release-to-Artist association uses the stable `release.primary_artist.id`
+stored in sanitized release metadata and matches that ID to `artists.json`.
+
+Release artwork remains release artwork. Artist cards and Artist identity views
+use authored Artist photos. The Hiplingo mark is only neutral UI fallback when
+no authored Artist photo is present.
+
+## Public bios and release descriptions
+
+Hiplingo treats short public text as authored canonical metadata.
+
+- Artist bio: `artist.toml` → `artist.bio` → published `artist.json.bio`.
+- Release description: `release.toml` → `release.description` → published
+  `release.json.metadata.description`.
+
+Artist bios appear on Artist detail pages. Release descriptions appear on
+Release detail pages. Missing text is valid and simply leaves the section
+hidden.
+
+Journal is intentionally absent from Hiplingo for now. Journal-style work will
+live on nathanbrenton.com later. Jam Agreement remains visible as a simple
+Coming soon / Under construction placeholder.

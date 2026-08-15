@@ -5,6 +5,7 @@ import {
   getReleaseArtist,
   getReleaseArtworkPath,
   getReleaseDate,
+  getReleaseDescription,
   getReleaseType,
   getTrackArtist,
   getTrackKey,
@@ -101,6 +102,7 @@ export default function ReleaseDetail({
   const artist = getReleaseArtist(release);
   const date = getReleaseDate(release);
   const type = getReleaseType(release);
+  const description = getReleaseDescription(release);
   const playableTrackKeys = release.tracks
     .filter((track) => track.playable)
     .map((track) => getTrackKey(release, track));
@@ -165,6 +167,17 @@ export default function ReleaseDetail({
           )}
         </div>
       </section>
+
+      {description ? (
+        <section
+          className="hiplingo-public-summary hiplingo-release-description"
+          aria-labelledby="release-description-heading"
+        >
+          <span className="hiplingo-kicker">About this release</span>
+          <h2 id="release-description-heading">Release notes</h2>
+          <p>{description}</p>
+        </section>
+      ) : null}
 
       <section className="hiplingo-release-tracklist" aria-labelledby="release-tracklist-heading">
         <div className="hiplingo-release-tracklist__heading">

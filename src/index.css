@@ -13977,15 +13977,25 @@ button.hiplingo-release-track:hover {
   margin: 0;
 }
 
+/* =========================================================
+   Hiplingo compact player canonical layout
+   One layout source; later sections may theme or coordinate overlays,
+   but should not redefine the compact dock geometry.
+   ========================================================= */
+
 .audio-player[data-display-mode="compact"] {
   position: fixed;
   z-index: 520;
-  right: max(10px, env(safe-area-inset-right));
-  bottom: max(10px, env(safe-area-inset-bottom));
-  left: max(10px, env(safe-area-inset-left));
-  width: auto;
-  max-width: 760px;
-  margin: 0 auto;
+  right: auto;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  left: 50%;
+  width: min(960px, calc(100vw - 32px));
+  max-width: none;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  overflow: visible;
+  transform: translateX(-50%);
 }
 
 /* The full player remains mounted so its audio/HLS/Web Audio objects survive
@@ -14000,25 +14010,25 @@ button.hiplingo-release-track:hover {
 
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  min-height: 66px;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  min-height: 70px;
   overflow: hidden;
-  padding: 8px;
-  border: 1px solid rgba(143, 211, 255, 0.2);
-  border-radius: 14px;
-  background: rgba(17, 20, 22, 0.96);
+  gap: 14px;
+  padding: 8px 10px;
+  border: 1px solid rgba(169, 140, 255, 0.3);
+  border-radius: 18px;
+  background: rgba(14, 11, 20, 0.975);
   box-shadow:
-    0 14px 42px rgba(0, 0, 0, 0.42),
-    0 2px 10px rgba(0, 0, 0, 0.26);
+    0 18px 54px rgba(0, 0, 0, 0.55),
+    0 0 34px rgba(128, 87, 187, 0.09);
   backdrop-filter: blur(18px);
 }
 
 .hiplingo-compact-player__open {
   display: grid;
   min-width: 0;
-  grid-template-columns: 48px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
   padding: 0;
   border: 0;
@@ -14031,12 +14041,12 @@ button.hiplingo-release-track:hover {
 
 .hiplingo-compact-player__artwork {
   display: grid;
-  width: 48px;
-  height: 48px;
+  width: 54px;
+  height: 54px;
   overflow: hidden;
   place-items: center;
-  border: 1px solid #30383c;
-  border-radius: 8px;
+  border: 1px solid rgba(169, 140, 255, 0.24);
+  border-radius: 10px;
   color: #7895a4;
   background: #15191b;
   font-size: 0.7rem;
@@ -14053,7 +14063,8 @@ button.hiplingo-release-track:hover {
 .hiplingo-compact-player__copy {
   display: grid;
   min-width: 0;
-  gap: 3px;
+  align-content: center;
+  gap: 4px;
 }
 
 .hiplingo-compact-player__copy strong,
@@ -14064,39 +14075,73 @@ button.hiplingo-release-track:hover {
 }
 
 .hiplingo-compact-player__copy strong {
-  color: #f0f0f0;
-  font-size: 0.78rem;
-  font-weight: 720;
+  color: #f5f1fa;
+  font-size: 0.88rem;
+  font-weight: 760;
+  letter-spacing: 0.005em;
 }
 
 .hiplingo-compact-player__copy small {
-  color: #858f94;
-  font-size: 0.66rem;
+  color: #9891a1;
+  font-size: 0.72rem;
 }
 
 .hiplingo-compact-player__transport {
-  display: flex;
+  position: static !important;
+  display: grid !important;
+  grid-template-columns: 40px 46px 40px;
+  width: max-content !important;
+  min-width: max-content !important;
+  flex: 0 0 auto !important;
+  justify-self: end !important;
+  align-self: center !important;
   align-items: center;
-  gap: 3px;
+  justify-items: center;
+  gap: 5px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(169, 140, 255, 0.18);
 }
 
 .hiplingo-compact-player__transport button {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
+  position: relative !important;
+  inset: auto !important;
+  display: grid !important;
+  float: none !important;
+  flex: 0 0 40px !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  place-self: center !important;
+  place-items: center !important;
+  order: initial !important;
+  transform: none !important;
+  border: 0 !important;
+  border-radius: 10px !important;
   color: #b8c7cf;
-  background: transparent;
+  background: transparent !important;
+  box-shadow: none !important;
   cursor: pointer;
+}
+
+.hiplingo-compact-player__transport > button:nth-child(1) {
+  grid-column: 1;
+}
+
+.hiplingo-compact-player__transport > button:nth-child(2) {
+  grid-column: 2;
+}
+
+.hiplingo-compact-player__transport > button:nth-child(3) {
+  grid-column: 3;
 }
 
 .hiplingo-compact-player__transport button:hover:not(:disabled),
 .hiplingo-compact-player__transport button:focus-visible {
-  color: #f4fbff;
-  background: rgba(112, 170, 199, 0.14);
+  color: #fffaff;
+  background: rgba(169, 140, 255, 0.12) !important;
 }
 
 .hiplingo-compact-player__transport button:focus-visible,
@@ -14106,18 +14151,69 @@ button.hiplingo-release-track:hover {
 }
 
 .hiplingo-compact-player__transport button:disabled {
-  opacity: 0.28;
+  opacity: 0.24;
   cursor: default;
 }
 
 .hiplingo-compact-player__transport svg {
+  display: block;
   width: 19px;
   height: 19px;
 }
 
-.hiplingo-compact-player__play {
+.hiplingo-compact-player__transport
+  .artwork-stack__transport-icon {
+  position: static !important;
+  inset: auto !important;
+  z-index: auto;
+  display: grid !important;
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  place-items: center;
+  color: inherit;
+  pointer-events: none;
+  transform: none !important;
+}
+
+.hiplingo-compact-player__transport
+  .artwork-stack__transport-icon::before {
+  display: none !important;
+  content: none !important;
+}
+
+.hiplingo-compact-player__transport
+  .artwork-stack__transport-icon svg {
+  position: static !important;
+  inset: auto !important;
+  display: block;
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  fill: none;
+  stroke: currentColor;
+  filter: none;
+  transform: none !important;
+}
+
+.hiplingo-compact-player__transport
+  button.hiplingo-compact-player__play {
+  flex: 0 0 46px !important;
+  width: 46px !important;
+  min-width: 46px !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  border: 1px solid rgba(169, 140, 255, 0.34) !important;
+  border-radius: 50% !important;
   color: #f3fbff !important;
-  background: #29434f !important;
+  background: rgba(81, 58, 112, 0.72) !important;
+}
+
+.hiplingo-compact-player__transport
+  button.hiplingo-compact-player__play:hover:not(:disabled),
+.hiplingo-compact-player__transport
+  button.hiplingo-compact-player__play:focus-visible {
+  background: rgba(93, 66, 130, 0.94) !important;
 }
 
 .hiplingo-compact-player__progress {
@@ -14125,59 +14221,102 @@ button.hiplingo-release-track:hover {
   right: 0;
   bottom: 0;
   left: 0;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.07);
+  height: 3px;
+  background: rgba(255, 255, 255, 0.055);
 }
 
 .hiplingo-compact-player__progress::after {
   display: block;
   width: var(--hiplingo-progress);
   height: 100%;
-  background: #86c8e8;
+  background: linear-gradient(
+    90deg,
+    rgba(128, 87, 187, 0.92),
+    rgba(110, 215, 239, 0.92)
+  );
   content: "";
   transition: width 120ms linear;
 }
 
 .hiplingo-site-shell:has(.hiplingo-compact-player) {
-  padding-bottom: 92px;
+  padding-bottom:
+    max(
+      122px,
+      calc(104px + env(safe-area-inset-bottom))
+    );
 }
 
-@media (max-width: 520px) {
+@media (max-width: 640px) {
   .audio-player[data-display-mode="compact"] {
-    right: max(6px, env(safe-area-inset-right));
-    bottom: max(6px, env(safe-area-inset-bottom));
-    left: max(6px, env(safe-area-inset-left));
+    right: max(7px, env(safe-area-inset-right));
+    bottom: max(7px, env(safe-area-inset-bottom));
+    left: max(7px, env(safe-area-inset-left));
+    width: auto;
+    transform: none;
   }
 
   .hiplingo-compact-player {
-    grid-template-columns: minmax(0, 1fr) auto;
     min-height: 62px;
-    padding: 6px;
-    border-radius: 12px;
+    gap: 6px;
+    padding: 6px 7px;
+    border-radius: 14px;
   }
 
   .hiplingo-compact-player__open {
-    grid-template-columns: 46px minmax(0, 1fr);
-    gap: 8px;
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 9px;
   }
 
   .hiplingo-compact-player__artwork {
-    width: 46px;
-    height: 46px;
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+  }
+
+  .hiplingo-compact-player__copy strong {
+    font-size: 0.8rem;
+  }
+
+  .hiplingo-compact-player__copy small {
+    font-size: 0.66rem;
   }
 
   .hiplingo-compact-player__transport {
-    gap: 0;
+    grid-template-columns: 32px 38px 32px;
+    gap: 1px;
+    padding-left: 4px;
   }
 
   .hiplingo-compact-player__transport button {
-    width: 34px;
-    height: 38px;
+    flex-basis: 32px !important;
+    width: 32px !important;
+    min-width: 32px !important;
+    height: 36px !important;
+    min-height: 36px !important;
   }
 
-  .hiplingo-compact-player__transport svg {
+  .hiplingo-compact-player__transport
+    button.hiplingo-compact-player__play {
+    flex-basis: 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+  }
+
+  .hiplingo-compact-player__transport svg,
+  .hiplingo-compact-player__transport
+    .artwork-stack__transport-icon {
     width: 17px;
     height: 17px;
+  }
+
+  .hiplingo-site-shell:has(.hiplingo-compact-player) {
+    padding-bottom:
+      max(
+        98px,
+        calc(84px + env(safe-area-inset-bottom))
+      );
   }
 }
 
@@ -15883,4 +16022,64 @@ button.hiplingo-release-detail__artist:hover {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 34px 22px;
   }
+}
+
+/* =========================================================
+   Hiplingo PT5 first-class Artist snapshot
+   ========================================================= */
+
+.hiplingo-artist-card__artwork--photo {
+  aspect-ratio: 16 / 9;
+}
+
+.hiplingo-artist-card__artwork--photo img {
+  object-fit: contain;
+}
+
+.hiplingo-artist-detail__heading--with-photo {
+  max-width: 960px;
+}
+
+.hiplingo-artist-detail__photo {
+  display: grid;
+  width: min(100%, 720px);
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 28px;
+  place-items: center;
+  border: 1px solid #272727;
+  border-radius: 14px;
+  background: #151515;
+}
+
+.hiplingo-artist-detail__photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* =========================================================
+   Hiplingo PT5 public summaries
+   ========================================================= */
+
+.hiplingo-public-summary {
+  width: min(100%, 820px);
+  margin: 0 0 38px;
+  padding: 22px 0 0;
+  border-top: 1px solid var(--hiplingo-border, #26232e);
+}
+
+.hiplingo-public-summary h2 {
+  margin: 0 0 10px;
+  color: #f0edf6;
+  font-size: clamp(1.05rem, 1.6vw, 1.35rem);
+}
+
+.hiplingo-public-summary p {
+  margin: 0;
+  color: #a8a3b0;
+  font-size: 0.92rem;
+  line-height: 1.7;
+  white-space: pre-line;
 }

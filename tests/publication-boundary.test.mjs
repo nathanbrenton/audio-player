@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
@@ -37,7 +38,7 @@ test("serves published-media read-only by default on IPv4 loopback", async () =>
 
   assert.match(
     viteSource,
-    /process\.env\.MEDIA_LIBRARY_ROOT\s*\?\?\s*"\.\.\/published-media"/,
+    /process\.env\.PUBLISHED_MEDIA_ROOT\s*\?\?\s*"\.\.\/published-media"/,
   );
   assert.match(viteSource, /host:\s*"127\.0\.0\.1"/);
   assert.match(viteSource, /port:\s*5173/);
@@ -295,5 +296,89 @@ test("uses a two-pane desktop library workspace without changing mobile browsing
     css,
     /\.library-workspace__release-layout\s*\{[\s\S]*?grid-template-columns:\s*\d+px minmax\(0, 1fr\);/,
     "desktop library should keep a fixed release navigator beside a flexible detail pane",
+  );
+});
+
+test("refuses canonical private roots as Hiplingo public media", async () => {
+  const viteSource = await readFile(
+    path.join(projectRoot, "vite.config.mjs"),
+    "utf8",
+  );
+
+  assert.doesNotMatch(
+    viteSource,
+    /process\.env\.MEDIA_LIBRARY_ROOT/,
+  );
+  assert.match(
+    viteSource,
+    /process\.env\.PUBLISHED_MEDIA_ROOT/,
+  );
+  assert.match(
+    viteSource,
+    /path\.resolve\(projectRoot,\s*"\.\.\/media-library"\)/,
+  );
+  assert.match(
+    viteSource,
+    /path\.resolve\(projectRoot,\s*"\.\.\/ingest-drop"\)/,
+  );
+
+  for (const privateRoot of [
+    "../media-library",
+    "../ingest-drop",
+  ]) {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        'await import("./vite.config.mjs");',
+      ],
+      {
+        cwd: projectRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          PUBLISHED_MEDIA_ROOT: privateRoot,
+        },
+      },
+    );
+
+    assert.notEqual(
+      result.status,
+      0,
+      `${privateRoot} must be rejected`,
+    );
+
+    assert.match(
+      result.stderr,
+      /must not point at media-library or ingest-drop/,
+    );
+  }
+});
+
+test("keeps the browser catalog on the public /media route", async () => {
+  const catalogSource = await readFile(
+    path.join(projectRoot, "src/lib/mediaCatalog.ts"),
+    "utf8",
+  );
+
+  assert.match(
+    catalogSource,
+    /MEDIA_BASE_URL\s*=\s*["']\/media["']/,
+  );
+
+  assert.match(
+    catalogSource,
+    /fetch\(`\$\{MEDIA_BASE_URL\}\/catalog\.json`/,
+  );
+
+  assert.doesNotMatch(
+    catalogSource,
+    /fetch\(["']\/catalog\.json["']/,
+  );
+
+  assert.doesNotMatch(
+    catalogSource,
+    /fetch\(["']\/published-media\//,
   );
 });
