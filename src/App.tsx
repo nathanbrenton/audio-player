@@ -1,3 +1,4 @@
+import { hiplingoLogoUrl } from "@hiplingo/brand";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -169,7 +170,7 @@ function SiteHeader({
         className="hiplingo-site-brand"
       >
         <img
-          src="/brand/hiplingo-logo-white.webp"
+          src={hiplingoLogoUrl}
           alt=""
           aria-hidden="true"
         />
@@ -343,7 +344,7 @@ function HomePage({
         <div className="hiplingo-hero__banner" aria-hidden="true" />
         <div className="hiplingo-hero__identity">
           <div className="hiplingo-hero__logo" aria-hidden="true">
-            <img src="/brand/hiplingo-logo-white.webp" alt="" />
+            <img src={hiplingoLogoUrl} alt="" />
           </div>
 
           <div className="hiplingo-hero__copy">

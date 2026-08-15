@@ -8,7 +8,7 @@ const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(testDirectory, "..");
 
 const brandAssets = [
-  "public/brand/hiplingo-logo-white.webp",
+  "packages/brand/src/hiplingo-logo.png",
   "public/brand/hiplingo-banner-mobile.webp",
   "public/brand/hiplingo-banner-desktop.webp",
 ];
@@ -30,7 +30,7 @@ test("uses one branded Hiplingo header without a duplicate player header", async
     "utf8",
   );
 
-  assert.match(app, /\/brand\/hiplingo-logo-white\.webp/);
+  assert.match(app, /import \{ hiplingoLogoUrl \} from "@hiplingo\/brand"/);
   assert.doesNotMatch(player, /<header className="audio-player__header">/);
   assert.doesNotMatch(player, /hl-logo-graphite\.svg/);
 });

@@ -221,27 +221,28 @@ Metadata provenance indicators distinguish values that are:
 
 Developer Mode is hidden during normal use and can be revealed through the About interaction.
 
-## Public brand assets
+## Shared brand assets
 
-Hiplingo keeps brand artwork separate from release media. Static site identity
-assets live under `public/brand/` and are copied into the Vite production build.
-The responsive landing experience expects:
+The canonical Hiplingo logo source is owned once by the shared package:
+
+```text
+packages/brand/src/hiplingo-logo.png
+```
+
+`@hiplingo/brand` exports `hiplingoLogoUrl`. Hiplingo and the sibling
+metadata-editor consume that same source, so replacing one file and rebuilding
+both applications updates their branding and neutral no-artwork fallbacks.
+
+Site-specific background textures remain under:
 
 ```text
 public/brand/
-├── hiplingo-logo-white.webp
 ├── hiplingo-banner-mobile.webp
 └── hiplingo-banner-desktop.webp
 ```
 
-The banner files are treated as background texture only. The Hiplingo logo is
-rendered separately by the interface so its size and placement can respond
-independently from banner cropping. Mobile portrait uses the dedicated mobile
-texture; desktop and short landscape use the wide desktop texture.
-
-The homepage surfaces the newest release from the hydrated published catalog.
-Its Play action sends the release queue directly to the persistent player, so
-playback begins without navigating away from the landing page.
+The shared logo is application chrome, not release or Artist media. A missing
+artwork slot may display it without claiming that logo as authored artwork.
 
 ## Published-media contract
 

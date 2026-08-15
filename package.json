@@ -19,7 +19,8 @@
     "hls.js": "1.6.17",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "@hiplingo/media-player": "file:./packages/media-player"
+    "@hiplingo/media-player": "file:./packages/media-player",
+    "@hiplingo/brand": "file:./packages/brand"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
