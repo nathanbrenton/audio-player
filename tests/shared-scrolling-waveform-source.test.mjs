@@ -3,15 +3,15 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const sharedSource = await readFile(
-  new URL("../packages/media-player/src/ScrollingWaveformCanvas.tsx", import.meta.url),
+  new URL("../../packages/media-player/src/ScrollingWaveformCanvas.tsx", import.meta.url),
   "utf8",
 );
 const surfaceSource = await readFile(
-  new URL("../packages/media-player/src/MediaVisualizationSurface.tsx", import.meta.url),
+  new URL("../../packages/media-player/src/MediaVisualizationSurface.tsx", import.meta.url),
   "utf8",
 );
 const indexSource = await readFile(
-  new URL("../packages/media-player/src/index.ts", import.meta.url),
+  new URL("../../packages/media-player/src/index.ts", import.meta.url),
   "utf8",
 );
 const audioPlayerSource = await readFile(
@@ -19,7 +19,7 @@ const audioPlayerSource = await readFile(
   "utf8",
 );
 
-test("audio-player consumes the shared full visualization surface directly", () => {
+test("Hiplingo consumes the shared full visualization surface directly", () => {
   assert.match(audioPlayerSource, /<MediaVisualizationSurface/);
   assert.match(surfaceSource, /<ScrollingWaveformCanvas/);
   assert.match(indexSource, /ScrollingWaveformCanvas/);
@@ -68,10 +68,10 @@ test("shared scrub preview keeps playback active across pointer movement", () =>
 
 
 test("shared zoom oscilloscope exports preserve frozen-frame helpers", async () => {
-  const sharedIndex = await readFile(new URL("../packages/media-player/src/index.ts", import.meta.url), "utf8");
-  const sharedOscilloscope = await readFile(new URL("../packages/media-player/src/OscilloscopeCanvas.tsx", import.meta.url), "utf8");
-  const sharedZoom = await readFile(new URL("../packages/media-player/src/waveform-zoom.ts", import.meta.url), "utf8");
-  const sharedAnalyser = await readFile(new URL("../packages/media-player/src/useMediaElementAnalyser.ts", import.meta.url), "utf8");
+  const sharedIndex = await readFile(new URL("../../packages/media-player/src/index.ts", import.meta.url), "utf8");
+  const sharedOscilloscope = await readFile(new URL("../../packages/media-player/src/OscilloscopeCanvas.tsx", import.meta.url), "utf8");
+  const sharedZoom = await readFile(new URL("../../packages/media-player/src/waveform-zoom.ts", import.meta.url), "utf8");
+  const sharedAnalyser = await readFile(new URL("../../packages/media-player/src/useMediaElementAnalyser.ts", import.meta.url), "utf8");
   const player = await readFile(new URL("../src/components/AudioPlayer.tsx", import.meta.url), "utf8");
   assert.match(sharedIndex, /captureOscilloscopeFrame/);
   assert.match(sharedIndex, /seedOscilloscopeFrame/);

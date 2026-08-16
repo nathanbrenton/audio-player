@@ -4,7 +4,7 @@ import test from "node:test";
 
 const source = await readFile(
   new URL(
-    "../packages/media-player/src/CompactNowPlayingBar.tsx",
+    "../../packages/media-player/src/CompactNowPlayingBar.tsx",
     import.meta.url,
   ),
   "utf8",

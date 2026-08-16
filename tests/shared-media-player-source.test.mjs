@@ -13,11 +13,11 @@ async function source(relativePath) {
 
 test("Hiplingo and metadata-editor can consume one shared compact waveform package", async () => {
   const packageJson = await source("package.json");
-  const sharedPackage = await source("packages/media-player/package.json");
+  const sharedPackage = await source("../packages/media-player/package.json");
   const compactWrapper = await source("src/components/CompactWaveformCanvas.tsx");
-  const sharedCanvas = await source("packages/media-player/src/CompactWaveformCanvas.tsx");
+  const sharedCanvas = await source("../packages/media-player/src/CompactWaveformCanvas.tsx");
 
-  assert.match(packageJson, /"@hiplingo\/media-player": "file:\.\/packages\/media-player"/);
+  assert.match(packageJson, /"@hiplingo\/media-player": "file:\.\.\/packages\/media-player"/);
   assert.match(sharedPackage, /"name": "@hiplingo\/media-player"/);
   assert.match(compactWrapper, /CompactWaveformCanvas as default/);
   assert.match(compactWrapper, /@hiplingo\/media-player/);
@@ -28,8 +28,8 @@ test("Hiplingo and metadata-editor can consume one shared compact waveform packa
 
 test("waveform color choices are defined once in the shared package", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
-  const surface = await source("packages/media-player/src/MediaVisualizationSurface.tsx");
-  const vocabulary = await source("packages/media-player/src/waveform.ts");
+  const surface = await source("../packages/media-player/src/MediaVisualizationSurface.tsx");
+  const vocabulary = await source("../packages/media-player/src/waveform.ts");
 
   assert.match(player, /WAVEFORM_COLOR_OPTIONS/);
   assert.match(player, /type WaveformColorMode/);
@@ -43,8 +43,8 @@ test("waveform color choices are defined once in the shared package", async () =
 
 
 test("shared waveform renderer is self-contained without a host stylesheet contract", async () => {
-  const sharedPackage = await source("packages/media-player/package.json");
-  const sharedCanvas = await source("packages/media-player/src/CompactWaveformCanvas.tsx");
+  const sharedPackage = await source("../packages/media-player/package.json");
+  const sharedCanvas = await source("../packages/media-player/src/CompactWaveformCanvas.tsx");
   const main = await source("src/main.tsx");
 
   assert.doesNotMatch(sharedPackage, /waveform\.css/);
@@ -56,10 +56,10 @@ test("shared waveform renderer is self-contained without a host stylesheet contr
 
 test("transport interaction primitives are shared without moving either host audio engine", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
-  const sharedIndex = await source("packages/media-player/src/index.ts");
-  const sharedPlayback = await source("packages/media-player/src/playback.ts");
-  const sharedShortcut = await source("packages/media-player/src/useSpacebarPlaybackShortcut.ts");
-  const sharedTransport = await source("packages/media-player/src/MediaTransportIcon.tsx");
+  const sharedIndex = await source("../packages/media-player/src/index.ts");
+  const sharedPlayback = await source("../packages/media-player/src/playback.ts");
+  const sharedShortcut = await source("../packages/media-player/src/useSpacebarPlaybackShortcut.ts");
+  const sharedTransport = await source("../packages/media-player/src/MediaTransportIcon.tsx");
 
   assert.match(player, /MediaTransportIcon/);
   assert.match(player, /formatPlaybackTime/);
@@ -85,8 +85,8 @@ test("transport interaction primitives are shared without moving either host aud
 
 test("compact Now Playing presentation is shared while host playback engines remain separate", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
-  const sharedIndex = await source("packages/media-player/src/index.ts");
-  const sharedNowPlaying = await source("packages/media-player/src/CompactNowPlayingBar.tsx");
+  const sharedIndex = await source("../packages/media-player/src/index.ts");
+  const sharedNowPlaying = await source("../packages/media-player/src/CompactNowPlayingBar.tsx");
   const readme = await source("README.md");
 
   assert.match(player, /<CompactNowPlayingBar/);
@@ -109,9 +109,9 @@ test("compact Now Playing presentation is shared while host playback engines rem
 
 test("transport controller and queue navigation are shared without sharing host engines", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
-  const sharedIndex = await source("packages/media-player/src/index.ts");
-  const controller = await source("packages/media-player/src/playback-controller.ts");
-  const sharedNowPlaying = await source("packages/media-player/src/CompactNowPlayingBar.tsx");
+  const sharedIndex = await source("../packages/media-player/src/index.ts");
+  const controller = await source("../packages/media-player/src/playback-controller.ts");
+  const sharedNowPlaying = await source("../packages/media-player/src/CompactNowPlayingBar.tsx");
 
   assert.match(sharedIndex, /\.\/playback-controller\.js/);
   assert.match(controller, /export type PlaybackTransportController/);
@@ -130,8 +130,8 @@ test("transport controller and queue navigation are shared without sharing host 
 
 test("playable media items normalize identity and host-owned resources without sharing engines", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
-  const sharedIndex = await source("packages/media-player/src/index.ts");
-  const playableMedia = await source("packages/media-player/src/playable-media.ts");
+  const sharedIndex = await source("../packages/media-player/src/index.ts");
+  const playableMedia = await source("../packages/media-player/src/playable-media.ts");
 
   assert.match(sharedIndex, /\.\/playable-media\.js/);
   assert.match(playableMedia, /export type PlayableMediaItem<TSource = unknown>/);
@@ -151,7 +151,7 @@ test("playable media items normalize identity and host-owned resources without s
 
 test("Hiplingo uses the shared media-element analyser instead of a host-local Web Audio graph", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
-  const analyser = await source("packages/media-player/src/useMediaElementAnalyser.ts");
+  const analyser = await source("../packages/media-player/src/useMediaElementAnalyser.ts");
 
   assert.match(player, /useMediaElementAnalyser/);
   assert.match(player, /ensureAnalyser: ensureAudioAnalyser/);
@@ -165,8 +165,8 @@ test("Hiplingo uses the shared media-element analyser instead of a host-local We
 
 test("Hiplingo renders the shared waveform and oscilloscope as one visualization surface", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
-  const surface = await source("packages/media-player/src/MediaVisualizationSurface.tsx");
-  const sharedIndex = await source("packages/media-player/src/index.ts");
+  const surface = await source("../packages/media-player/src/MediaVisualizationSurface.tsx");
+  const sharedIndex = await source("../packages/media-player/src/index.ts");
 
   assert.match(player, /<MediaVisualizationSurface/);
   assert.match(player, /showZoomReadout=\{isAudiophileMode\}/);
@@ -181,13 +181,13 @@ test("Hiplingo renders the shared waveform and oscilloscope as one visualization
 
 test("compact player volume interaction state and media gain are shared", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
-  const sharedIndex = await source("packages/media-player/src/index.ts");
-  const sharedVolume = await source("packages/media-player/src/MediaVolumeControl.tsx");
+  const sharedIndex = await source("../packages/media-player/src/index.ts");
+  const sharedVolume = await source("../packages/media-player/src/MediaVolumeControl.tsx");
   const sharedVolumeLifecycle = await source(
-    "packages/media-player/src/useMediaElementVolume.ts",
+    "../packages/media-player/src/useMediaElementVolume.ts",
   );
-  const sharedNowPlaying = await source("packages/media-player/src/CompactNowPlayingBar.tsx");
-  const controller = await source("packages/media-player/src/playback-controller.ts");
+  const sharedNowPlaying = await source("../packages/media-player/src/CompactNowPlayingBar.tsx");
+  const controller = await source("../packages/media-player/src/playback-controller.ts");
 
   assert.match(sharedIndex, /\.\/MediaVolumeControl\.js/);
   assert.match(sharedIndex, /\.\/useMediaElementVolume\.js/);
@@ -213,9 +213,9 @@ test("compact player volume interaction state and media gain are shared", async 
 
 test("persistent media timeline state and direct seeking are shared", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
-  const sharedIndex = await source("packages/media-player/src/index.ts");
+  const sharedIndex = await source("../packages/media-player/src/index.ts");
   const timeline = await source(
-    "packages/media-player/src/useMediaElementTimeline.ts",
+    "../packages/media-player/src/useMediaElementTimeline.ts",
   );
 
   assert.match(sharedIndex, /\.\/useMediaElementTimeline\.js/);
@@ -234,9 +234,9 @@ test("persistent media timeline state and direct seeking are shared", async () =
 
 test("persistent media playback state is shared while host event policy remains separate", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
-  const sharedIndex = await source("packages/media-player/src/index.ts");
+  const sharedIndex = await source("../packages/media-player/src/index.ts");
   const playbackState = await source(
-    "packages/media-player/src/useMediaElementPlaybackState.ts",
+    "../packages/media-player/src/useMediaElementPlaybackState.ts",
   );
 
   assert.match(sharedIndex, /\.\/useMediaElementPlaybackState\.js/);
@@ -255,9 +255,9 @@ test("persistent media playback state is shared while host event policy remains 
 
 test("ordinary persistent media event transitions are shared while ended and source policy remain host-owned", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
-  const sharedIndex = await source("packages/media-player/src/index.ts");
+  const sharedIndex = await source("../packages/media-player/src/index.ts");
   const playbackEvents = await source(
-    "packages/media-player/src/useMediaElementPlaybackEvents.ts",
+    "../packages/media-player/src/useMediaElementPlaybackEvents.ts",
   );
 
   assert.match(sharedIndex, /\.\/useMediaElementPlaybackEvents\.js/);
@@ -280,9 +280,9 @@ test("ordinary persistent media event transitions are shared while ended and sou
 
 test("source attachment crosses one shared adapter contract while Hiplingo keeps HLS implementation", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
-  const sharedIndex = await source("packages/media-player/src/index.ts");
+  const sharedIndex = await source("../packages/media-player/src/index.ts");
   const sourceAdapter = await source(
-    "packages/media-player/src/media-source-adapter.ts",
+    "../packages/media-player/src/media-source-adapter.ts",
   );
 
   assert.match(sharedIndex, /\.\/media-source-adapter\.js/);
@@ -311,9 +311,9 @@ test("source attachment crosses one shared adapter contract while Hiplingo keeps
 });
 
 test("shared source session owns element/key orchestration without source implementation", async () => {
-  const sharedIndex = await source("packages/media-player/src/index.ts");
+  const sharedIndex = await source("../packages/media-player/src/index.ts");
   const sourceSession = await source(
-    "packages/media-player/src/useMediaSourceSession.ts",
+    "../packages/media-player/src/useMediaSourceSession.ts",
   );
 
   assert.match(sharedIndex, /\.\/useMediaSourceSession\.js/);
@@ -332,12 +332,12 @@ test("shared source session owns element/key orchestration without source implem
 
 test("persistent media-element reference and renderer are shared across hosts", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
-  const sharedIndex = await source("packages/media-player/src/index.ts");
+  const sharedIndex = await source("../packages/media-player/src/index.ts");
   const persistentElement = await source(
-    "packages/media-player/src/PersistentMediaElement.tsx",
+    "../packages/media-player/src/PersistentMediaElement.tsx",
   );
   const sourceSession = await source(
-    "packages/media-player/src/useMediaSourceSession.ts",
+    "../packages/media-player/src/useMediaSourceSession.ts",
   );
 
   assert.match(sharedIndex, /\.\/PersistentMediaElement\.js/);

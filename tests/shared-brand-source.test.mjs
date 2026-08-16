@@ -13,13 +13,14 @@ async function source(relativePath) {
 
 test("Hiplingo brand logo is source-owned once by @hiplingo/brand", async () => {
   const packageSource = await source("package.json");
-  const brandPackage = await source("packages/brand/package.json");
-  const brandIndex = await source("packages/brand/src/index.ts");
+  const brandPackage = await source("../packages/brand/package.json");
+  const brandIndex = await source("../packages/brand/src/index.ts");
   const indexHtml = await source("index.html");
+  const mainSource = await source("src/main.tsx");
 
   assert.match(
     packageSource,
-    /"@hiplingo\/brand": "file:\.\/packages\/brand"/,
+    /"@hiplingo\/brand": "file:\.\.\/packages\/brand"/,
   );
   assert.match(brandPackage, /"name": "@hiplingo\/brand"/);
   assert.match(
@@ -29,9 +30,10 @@ test("Hiplingo brand logo is source-owned once by @hiplingo/brand", async () => 
   assert.match(brandIndex, /export \{ hiplingoLogoUrl \}/);
   assert.doesNotMatch(brandIndex, /new URL\(/);
   assert.match(
-    indexHtml,
-    /\/packages\/brand\/src\/hiplingo-logo\.png/,
+    mainSource,
+    /import \{ hiplingoLogoUrl \} from "@hiplingo\/brand"/,
   );
+  assert.match(mainSource, /favicon\.href = hiplingoLogoUrl/);
   assert.doesNotMatch(
     indexHtml,
     /\/brand\/hiplingo-logo-white\.webp/,
@@ -40,7 +42,7 @@ test("Hiplingo brand logo is source-owned once by @hiplingo/brand", async () => 
   await access(
     path.join(
       projectRoot,
-      "packages/brand/src/hiplingo-logo.png",
+      "../packages/brand/src/hiplingo-logo.png",
     ),
   );
 

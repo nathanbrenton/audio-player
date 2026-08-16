@@ -35,17 +35,19 @@ test("public Release detail reads authored release.description", async () => {
   assert.match(detail, /Release notes/);
 });
 
-test("Journal is removed and Jam Agreement is a simple construction placeholder", async () => {
+test("Journal is removed and Licensing is the public rights entry point", async () => {
   const app = await source("src/App.tsx");
   const readme = await source("README.md");
 
   assert.doesNotMatch(app, /["']\/journal["']/);
   assert.doesNotMatch(readme, /\/journal/);
   assert.doesNotMatch(app, />\s*Journal\s*</);
-  assert.match(app, /title="Jam Agreement"/);
-  assert.match(app, /eyebrow="Coming soon"/);
-  assert.match(app, /<span>Coming soon<\/span>/);
-  assert.match(app, /<p>Under construction\.<\/p>/);
+  assert.doesNotMatch(app, /route="\/jam"/);
+  assert.match(app, /route="\/licensing"/);
+  assert.match(app, /route="\/licensing\/inquiry"/);
+  assert.match(app, /route="\/licensing\/jam"/);
+  assert.match(app, /title="General licensing inquiry"/);
+  assert.match(app, /title="Jam participant agreement"/);
 });
 
 test("compact site player has one canonical visual layout", async () => {

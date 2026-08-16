@@ -226,7 +226,7 @@ Developer Mode is hidden during normal use and can be revealed through the About
 The canonical Hiplingo logo source is owned once by the shared package:
 
 ```text
-packages/brand/src/hiplingo-logo.png
+../packages/brand/src/hiplingo-logo.png
 ```
 
 `@hiplingo/brand` exports `hiplingoLogoUrl`. Hiplingo and the sibling
@@ -302,16 +302,16 @@ Hiplingo owns:
 - Playback state and public-site UI
 
 Producer-side media preparation scripts have been removed from this repository.
-`audio-player` has no supported workflow that writes to `published-media`.
+The Hiplingo public app has no supported workflow that writes to `published-media`.
 Publication changes must originate from `metadata-editor`.
 
 ## Shared media-player source
 
-The repository also owns `packages/media-player/`, a local package for player behavior that must remain identical in the Hiplingo public app and metadata-editor. The package now owns the complete full-size visualization surface: fixed-center scrolling/audible scrubbing, the 2–6400 px/s zoom ladder, transition into the 2048–128-sample oscilloscope, hold-to-freeze inspection, cached per-track frames, optional zoom readout, and the reusable Web Audio media/analyser adapter. It also owns the compact whole-track seekable waveform, canonical 3Band/RGB/Blue/Monochrome color vocabulary, SVG transport icons, player-facing time formatting, Spacebar transport contract, compact Now Playing presentation shell, the speaker-button/vertical 0–100 volume interaction and perceptual volume curve, queue-neutral transport-controller helpers, and the host-neutral playable-media item shape.
+The sibling `../packages/media-player/` package is the canonical source for player behavior shared by the Hiplingo public app and metadata-editor. The package now owns the complete full-size visualization surface: fixed-center scrolling/audible scrubbing, the 2–6400 px/s zoom ladder, transition into the 2048–128-sample oscilloscope, hold-to-freeze inspection, cached per-track frames, optional zoom readout, and the reusable Web Audio media/analyser adapter. It also owns the compact whole-track seekable waveform, canonical 3Band/RGB/Blue/Monochrome color vocabulary, SVG transport icons, player-facing time formatting, Spacebar transport contract, compact Now Playing presentation shell, the speaker-button/vertical 0–100 volume interaction and perceptual volume curve, queue-neutral transport-controller helpers, and the host-neutral playable-media item shape.
 
 The package deliberately does **not** own the persistent audio element, playback queue state, HLS/catalog loading, private Library APIs, metadata editing, publication, or deployment. Hiplingo keeps its public HLS/catalog source adapter; metadata-editor keeps its private application-shell preview/source adapter. Both hosts now attach their persistent HTML audio element to the same shared analyser lifecycle and render the same visualization surface and compact transport/volume shell while supplying source descriptors, waveform data, playback state, queue state, navigation, and host-specific actions. This keeps one player interaction implementation without allowing the public app to depend on the private Library.
 
-metadata-editor consumes the package through the sibling local dependency `file:../audio-player/packages/media-player`; this repository consumes the same package through `file:./packages/media-player`. Future player primitives should move into this package only when both hosts can use the same interface without host-specific filesystem or network assumptions.
+metadata-editor and this repository both consume the same sibling package through `file:../packages/media-player`. Future player primitives should move into this package only when both hosts can use the same interface without host-specific filesystem or network assumptions.
 
 ## Development
 
@@ -352,10 +352,10 @@ git --no-pager diff
 ```text
 src/components/AudioPlayer.tsx
 src/components/LibraryBrowser.tsx
-packages/media-player/src/MediaVisualizationSurface.tsx
-packages/media-player/src/ScrollingWaveformCanvas.tsx
-packages/media-player/src/OscilloscopeCanvas.tsx
-packages/media-player/src/useMediaElementAnalyser.ts
+../packages/media-player/src/MediaVisualizationSurface.tsx
+../packages/media-player/src/ScrollingWaveformCanvas.tsx
+../packages/media-player/src/OscilloscopeCanvas.tsx
+../packages/media-player/src/useMediaElementAnalyser.ts
 src/components/MetadataViewer.tsx
 src/index.css
 vite.config.mjs
@@ -365,7 +365,7 @@ docs/runbooks/start-app.md
 
 ## Project Scope
 
-This repository is the audio-player application only.
+This repository is the Hiplingo public web application only.
 
 `metadata-editor` owns metadata editing, private-library management, validation,
 derivative preparation, and publication. Hiplingo consumes the resulting
@@ -396,20 +396,22 @@ the established playback engine:
 /listen
 /releases
 /artists
-/jam
+/licensing
+/licensing/inquiry
+/licensing/jam
 /about
 ```
 
 `/listen` hosts the existing AudioPlayer. Releases and Artists consume the
 sanitized Web Package. Journal is intentionally not part of Hiplingo for now;
-that writing will live on nathanbrenton.com. Jam Agreement remains a public
-route with a simple Coming soon / Under construction placeholder until its
-participant-facing workflow is ready.
+that writing will live on nathanbrenton.com. Licensing is the public rights-and-permissions entry point.
+`/licensing/inquiry` is reserved for general music-licensing requests and
+`/licensing/jam` for the streamlined Jam participant agreement workflow.
 
-The private `jam-agreement-manager` remains a separate administrative
-application. The eventual `/jam` participant experience should talk to a
-purpose-built public API surface and must not expose the administrative UI or
-its unrestricted rights-management endpoints.
+The private `licensing` application remains a separate administrative
+application. Public licensing and Jam-participant experiences must talk only
+to purpose-built restricted API surfaces and must not expose the
+administrative UI or its unrestricted rights-management endpoints.
 
 ### Static hosting requirement
 
@@ -521,6 +523,6 @@ Artist bios appear on Artist detail pages. Release descriptions appear on
 Release detail pages. Missing text is valid and simply leaves the section
 hidden.
 
-Journal is intentionally absent from Hiplingo for now. Journal-style work will
-live on nathanbrenton.com later. Jam Agreement remains visible as a simple
-Coming soon / Under construction placeholder.
+Journal is intentionally absent from Hiplingo for now. Journal-style work
+will live on nathanbrenton.com later. Licensing is the public umbrella for
+general rights inquiries and Jam participant agreements.

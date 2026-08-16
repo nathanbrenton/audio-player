@@ -26,7 +26,9 @@ type SiteRoute =
   | "/listen"
   | "/releases"
   | "/artists"
-  | "/jam"
+  | "/licensing"
+  | "/licensing/inquiry"
+  | "/licensing/jam"
   | "/about";
 
 type ParsedRoute = {
@@ -40,7 +42,9 @@ const SITE_ROUTES = new Set<SiteRoute>([
   "/listen",
   "/releases",
   "/artists",
-  "/jam",
+  "/licensing",
+  "/licensing/inquiry",
+  "/licensing/jam",
   "/about",
 ]);
 
@@ -124,11 +128,15 @@ function SiteLink({
   className,
   currentRoute,
 }: SiteLinkProps) {
+  const isCurrent =
+    currentRoute === route ||
+    (route === "/licensing" && currentRoute?.startsWith("/licensing/"));
+
   return (
     <a
       href={route}
       className={className}
-      aria-current={currentRoute === route ? "page" : undefined}
+      aria-current={isCurrent ? "page" : undefined}
       onClick={(event) => {
         if (
           event.button !== 0 ||
@@ -185,8 +193,8 @@ function SiteHeader({
         <SiteLink route="/artists" currentRoute={currentRoute}>
           Artists
         </SiteLink>
-        <SiteLink route="/jam" currentRoute={currentRoute}>
-          Jam Agreement
+        <SiteLink route="/licensing" currentRoute={currentRoute}>
+          Licensing
         </SiteLink>
       </nav>
 
@@ -397,11 +405,57 @@ function HomePage({
           <strong>Artist presentations</strong>
           <p>Profiles, releases, credits, media, and long-form context.</p>
         </SiteLink>
-        <SiteLink route="/jam" className="hiplingo-feature-card">
-          <span>Coming soon</span>
-          <strong>Jam Agreement</strong>
-          <p>Under construction.</p>
+        <SiteLink route="/licensing" className="hiplingo-feature-card">
+          <span>Rights &amp; permissions</span>
+          <strong>Licensing</strong>
+          <p>Licensing inquiries and Jam participant agreements.</p>
         </SiteLink>
+      </section>
+    </main>
+  );
+}
+
+
+function LicensingPage() {
+  return (
+    <main className="hiplingo-page hiplingo-placeholder-page">
+      <section className="hiplingo-placeholder-card">
+        <span className="hiplingo-kicker">Rights &amp; permissions</span>
+        <h1>Licensing</h1>
+        <div className="hiplingo-placeholder-copy">
+          <p>
+            Request permission to use Hiplingo music or enter the participant
+            workflow for a recorded Jam.
+          </p>
+        </div>
+
+        <div
+          className="hiplingo-feature-grid"
+          aria-label="Licensing options"
+        >
+          <SiteLink
+            route="/licensing/inquiry"
+            className="hiplingo-feature-card"
+          >
+            <span>Music licensing</span>
+            <strong>General licensing inquiry</strong>
+            <p>
+              Ask about synchronization, master use, excerpts, or other
+              permissions.
+            </p>
+          </SiteLink>
+
+          <SiteLink
+            route="/licensing/jam"
+            className="hiplingo-feature-card"
+          >
+            <span>Participants</span>
+            <strong>Jam participant agreement</strong>
+            <p>
+              Review the applicable terms and record participation acceptance.
+            </p>
+          </SiteLink>
+        </div>
       </section>
     </main>
   );
@@ -592,10 +646,37 @@ export default function App() {
       );
       break;
 
-    case "/jam":
+    case "/licensing":
+      content = <LicensingPage />;
+      break;
+
+    case "/licensing/inquiry":
       content = (
-        <PlaceholderPage eyebrow="Coming soon" title="Jam Agreement">
-          <p>Under construction.</p>
+        <PlaceholderPage
+          eyebrow="Licensing"
+          title="General licensing inquiry"
+        >
+          <p>
+            A public licensing-request form is being prepared. It will collect
+            only the information needed to evaluate the requested use and will
+            remain separate from private rights administration.
+          </p>
+        </PlaceholderPage>
+      );
+      break;
+
+    case "/licensing/jam":
+      content = (
+        <PlaceholderPage
+          eyebrow="Participants"
+          title="Jam participant agreement"
+        >
+          <p>
+            A streamlined participant flow is being prepared to present the
+            applicable published Master Jam Agreement and record acceptance
+            against that exact version. The private licensing administration
+            interface will not be exposed publicly.
+          </p>
         </PlaceholderPage>
       );
       break;

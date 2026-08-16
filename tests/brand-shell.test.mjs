@@ -8,7 +8,7 @@ const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(testDirectory, "..");
 
 const brandAssets = [
-  "packages/brand/src/hiplingo-logo.png",
+  "../packages/brand/src/hiplingo-logo.png",
   "public/brand/hiplingo-banner-mobile.webp",
   "public/brand/hiplingo-banner-desktop.webp",
 ];

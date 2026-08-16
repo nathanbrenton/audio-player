@@ -1,7 +1,7 @@
 # Start Hiplingo locally
 
 ```sh
-cd ~/Desktop/record-label/audio-player || exit 1;
+cd ~/Desktop/record-label/hiplingo.com || exit 1;
 npm run dev;
 ```
 
