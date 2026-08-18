@@ -63,7 +63,7 @@ function getResponsiveRadius(
   );
 }
 
-const ACTIVE_BACKGROUND_FPS = 20;
+const ACTIVE_BACKGROUND_FPS = 12;
 const RESTING_BACKGROUND_FPS = 12;
 const ACTIVE_FRAME_INTERVAL_MS = 1000 / ACTIVE_BACKGROUND_FPS;
 const RESTING_FRAME_INTERVAL_MS = 1000 / RESTING_BACKGROUND_FPS;
@@ -81,6 +81,25 @@ const MACRO_LENS_SPEED_DIVISOR = 8;
 const MACRO_SECONDARY_LENS_SPEED_DIVISOR = 7.25;
 const GLOBAL_BASS_MIN_HZ = 20;
 const GLOBAL_BASS_MAX_HZ = 110;
+
+/*
+ * The current production composition intentionally paints only the primary
+ * desktop lens. Keep the auxiliary implementation available in source, but
+ * do not mutate its hidden compositor surfaces every animation frame.
+ */
+const ENABLE_AUXILIARY_LENS_RUNTIME = false;
+
+/*
+ * Playback changes are intentionally filtered through a long visual
+ * envelope. Brief pause/play state changes during source handoff should
+ * barely affect the background, while deliberate pause/resume gestures
+ * ease gently between resting drift and full motion.
+ */
+const PLAYBACK_MOTION_ATTACK_SECONDS = 14;
+const PLAYBACK_MOTION_RELEASE_SECONDS = 24;
+const RESTING_MOTION_RATE = 0.35;
+const LENS_ZOOM_ATTACK_SECONDS = 2.2;
+const LENS_ZOOM_RELEASE_SECONDS = 7;
 const RESTING_BAND_ENERGY: BandEnergy = {
   low: 0.08,
   mid: 0.045,
@@ -191,6 +210,34 @@ function followGlobalBass(
   return current + (target - current) * amount;
 }
 
+function followPlaybackMotion(
+  current: number,
+  target: number,
+  deltaSeconds: number,
+) {
+  const timeConstant =
+    target > current
+      ? PLAYBACK_MOTION_ATTACK_SECONDS
+      : PLAYBACK_MOTION_RELEASE_SECONDS;
+  const amount = 1 - Math.exp(-deltaSeconds / timeConstant);
+
+  return current + (target - current) * amount;
+}
+
+function followLensZoom(
+  current: number,
+  target: number,
+  deltaSeconds: number,
+) {
+  const timeConstant =
+    target > current
+      ? LENS_ZOOM_ATTACK_SECONDS
+      : LENS_ZOOM_RELEASE_SECONDS;
+  const amount = 1 - Math.exp(-deltaSeconds / timeConstant);
+
+  return current + (target - current) * amount;
+}
+
 type LocalClusterZone = "outer" | "near" | "center";
 
 function getLocalClusterZone(index: number): LocalClusterZone {
@@ -230,15 +277,42 @@ export default function AudioReactiveListenBackground({
   mode,
 }: AudioReactiveListenBackgroundProps) {
   const backgroundRef = useRef<HTMLDivElement | null>(null);
+  const runtimeStateRef = useRef({
+    analyser,
+    peaks,
+    peaksPerSecond,
+    isPlaying,
+    isMetadataViewerOpen,
+    mode,
+  });
+  runtimeStateRef.current = {
+    analyser,
+    peaks,
+    peaksPerSecond,
+    isPlaying,
+    isMetadataViewerOpen,
+    mode,
+  };
+  const styleValueCacheRef = useRef<Map<string, string>>(new Map());
   const smoothedEnergyRef = useRef<BandEnergy>({
     low: RESTING_BAND_ENERGY.low,
     mid: RESTING_BAND_ENERGY.mid,
     high: RESTING_BAND_ENERGY.high,
   });
   const smoothedGlobalBassRef = useRef(RESTING_BAND_ENERGY.low);
+  const smoothedLensZoomBassRef = useRef(RESTING_BAND_ENERGY.low);
+  const playbackMotionEnvelopeRef = useRef(isPlaying ? 1 : 0);
   const frequencyDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
   const visualClockRef = useRef(0);
-  const viewportSizeRef = useRef({ width: 1, height: 1 });
+  const viewportSizeRef = useRef({
+    width: 1,
+    height: 1,
+    lensRadius: 113.333,
+    secondaryLensRadius: 84,
+    tertiaryLensRadius: 72,
+    macroLensRadius: 453.333,
+    macroSecondaryLensRadius: 312,
+  });
   const primaryLensSeedRef = useRef<LensMotionSeed>(
     createLensMotionSeed(),
   );
@@ -263,9 +337,22 @@ export default function AudioReactiveListenBackground({
       "(prefers-reduced-motion: reduce)",
     );
     const syncViewportSize = () => {
+      const width = Math.max(1, background.clientWidth);
+      const height = Math.max(1, background.clientHeight);
+
       viewportSizeRef.current = {
-        width: Math.max(1, background.clientWidth),
-        height: Math.max(1, background.clientHeight),
+        width,
+        height,
+        lensRadius: getResponsiveRadius(width, 113.333, 0.1, 240),
+        secondaryLensRadius: getResponsiveRadius(width, 84, 0.07, 176),
+        tertiaryLensRadius: getResponsiveRadius(width, 72, 0.06, 150),
+        macroLensRadius: getResponsiveRadius(width, 453.333, 0.4, 960),
+        macroSecondaryLensRadius: getResponsiveRadius(
+          width,
+          312,
+          0.27,
+          680,
+        ),
       };
     };
     const resizeObserver = new ResizeObserver(syncViewportSize);
@@ -276,8 +363,17 @@ export default function AudioReactiveListenBackground({
     let isDocumentVisible = document.visibilityState !== "hidden";
     let previousFrameTime = performance.now();
     let previousPaintTime = -Infinity;
+    const styleValueCache = styleValueCacheRef.current;
+    const setBackgroundStyle = (property: string, value: string) => {
+      if (styleValueCache.get(property) === value) return;
+
+      background.style.setProperty(property, value);
+      styleValueCache.set(property, value);
+    };
 
     const paint = (frameTime: number) => {
+      const { analyser, peaks, peaksPerSecond, isPlaying, mode } =
+        runtimeStateRef.current;
       const audio = audioRef.current;
       const currentTime = audio?.currentTime ?? 0;
       const sampledEnergy = sampleBandEnergy(
@@ -285,6 +381,23 @@ export default function AudioReactiveListenBackground({
         peaksPerSecond,
         currentTime,
       );
+      const deltaSeconds = Math.max(
+        1 / 120,
+        Math.min(0.1, (frameTime - previousFrameTime) / 1000),
+      );
+      previousFrameTime = frameTime;
+
+      const playbackMotion = followPlaybackMotion(
+        playbackMotionEnvelopeRef.current,
+        isPlaying ? 1 : 0,
+        deltaSeconds,
+      );
+      playbackMotionEnvelopeRef.current = playbackMotion;
+
+      /*
+       * Slow transport easing governs only background travel.
+       * Music energy remains immediately responsive while playing.
+       */
       const rawEnergy = isPlaying
         ? {
             low: clampUnit(
@@ -298,12 +411,16 @@ export default function AudioReactiveListenBackground({
             ),
           }
         : RESTING_BAND_ENERGY;
-      const deltaSeconds = Math.max(
-        1 / 120,
-        Math.min(0.1, (frameTime - previousFrameTime) / 1000),
-      );
-      previousFrameTime = frameTime;
-      visualClockRef.current += deltaSeconds;
+
+      /*
+       * Never snap the lens/orbit clock between playing and paused.
+       * Paused playback retains a slow ambient drift; resuming gradually
+       * accelerates the exact same continuous clock.
+       */
+      const motionRate =
+        RESTING_MOTION_RATE +
+        playbackMotion * (1 - RESTING_MOTION_RATE);
+      visualClockRef.current += deltaSeconds * motionRate;
       const motionTime = visualClockRef.current;
 
       const previousEnergy = smoothedEnergyRef.current;
@@ -359,6 +476,13 @@ export default function AudioReactiveListenBackground({
         deltaSeconds,
       );
       smoothedGlobalBassRef.current = globalBass;
+
+      const lensZoomBass = followLensZoom(
+        smoothedLensZoomBassRef.current,
+        globalBass,
+        deltaSeconds,
+      );
+      smoothedLensZoomBassRef.current = lensZoomBass;
 
       const orbitRadians =
         (motionTime / ORBIT_SECONDS) * Math.PI * 2;
@@ -475,38 +599,15 @@ export default function AudioReactiveListenBackground({
         ) *
           72;
 
-      const { width: viewportWidth, height: viewportHeight } =
-        viewportSizeRef.current;
-      const lensRadius = getResponsiveRadius(
-        viewportWidth,
-        113.333,
-        0.1,
-        240,
-      );
-      const secondaryLensRadius = getResponsiveRadius(
-        viewportWidth,
-        84,
-        0.07,
-        176,
-      );
-      const tertiaryLensRadius = getResponsiveRadius(
-        viewportWidth,
-        72,
-        0.06,
-        150,
-      );
-      const macroLensRadius = getResponsiveRadius(
-        viewportWidth,
-        453.333,
-        0.4,
-        960,
-      );
-      const macroSecondaryLensRadius = getResponsiveRadius(
-        viewportWidth,
-        312,
-        0.27,
-        680,
-      );
+      const {
+        width: viewportWidth,
+        height: viewportHeight,
+        lensRadius,
+        secondaryLensRadius,
+        tertiaryLensRadius,
+        macroLensRadius,
+        macroSecondaryLensRadius,
+      } = viewportSizeRef.current;
       const lensCenterX = (lensX / 100) * viewportWidth;
       const lensCenterY = (lensY / 100) * viewportHeight;
       const secondaryLensCenterX =
@@ -526,20 +627,20 @@ export default function AudioReactiveListenBackground({
 
       const wateryMode = mode === "watery";
       const lensScale = wateryMode
-        ? 1.08 + globalBass * 0.035
-        : 1.2 + globalBass * 0.08;
+        ? 1.08 + lensZoomBass * 0.035
+        : 1.2 + lensZoomBass * 0.08;
       const secondaryLensScale = wateryMode
-        ? 1.06 + globalBass * 0.03
-        : 1.16 + globalBass * 0.06;
+        ? 1.06 + lensZoomBass * 0.03
+        : 1.16 + lensZoomBass * 0.06;
       const tertiaryLensScale = wateryMode
-        ? 1.055 + globalBass * 0.028
-        : 1.145 + globalBass * 0.055;
+        ? 1.055 + lensZoomBass * 0.028
+        : 1.145 + lensZoomBass * 0.055;
       const macroLensScale = wateryMode
-        ? 1.03 + globalBass * 0.018
-        : 1.09 + globalBass * 0.042;
+        ? 1.03 + lensZoomBass * 0.018
+        : 1.09 + lensZoomBass * 0.042;
       const macroSecondaryLensScale = wateryMode
-        ? 1.025 + globalBass * 0.016
-        : 1.075 + globalBass * 0.036;
+        ? 1.025 + lensZoomBass * 0.016
+        : 1.075 + lensZoomBass * 0.036;
       const lensDriftAmplitude = wateryMode
         ? 2 + nextEnergy.mid * 5
         : 0.7 + nextEnergy.mid * 1.5;
@@ -567,215 +668,219 @@ export default function AudioReactiveListenBackground({
         ? Math.cos(motionTime * 0.49) * (0.065 + nextEnergy.high * 0.28)
         : Math.cos(motionTime * 0.38) * (0.016 + nextEnergy.high * 0.1);
 
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-x",
         `${x.toFixed(3)}%`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-y",
         `${y.toFixed(3)}%`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-scale",
         scale.toFixed(4),
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-global-bass",
         globalBass.toFixed(4),
       );
-      background.style.setProperty(
-        "--listen-bg-cluster-scale-outer",
-        clusterOuterScale.toFixed(4),
-      );
-      background.style.setProperty(
+      if (!isPlaying) {
+        setBackgroundStyle(
+          "--listen-bg-cluster-scale-outer",
+          clusterOuterScale.toFixed(4),
+        );
+      setBackgroundStyle(
         "--listen-bg-cluster-scale-near",
         clusterNearScale.toFixed(4),
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-cluster-scale-center",
         clusterCenterScale.toFixed(4),
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-cluster-rotation-outer",
         `${clusterOuterRotation.toFixed(3)}deg`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-cluster-rotation-near",
         `${clusterNearRotation.toFixed(3)}deg`,
       );
-      background.style.setProperty(
-        "--listen-bg-cluster-rotation-center",
-        `${clusterCenterRotation.toFixed(3)}deg`,
-      );
-      background.style.setProperty(
+        setBackgroundStyle(
+          "--listen-bg-cluster-rotation-center",
+          `${clusterCenterRotation.toFixed(3)}deg`,
+        );
+      }
+      setBackgroundStyle(
         "--listen-bg-lens-x-px",
         `${lensCenterX.toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-lens-y-px",
         `${lensCenterY.toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-lens-bg-x",
         `${(lensRadius - lensCenterX).toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-lens-bg-y",
         `${(lensRadius - lensCenterY).toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-lens-scale",
         lensScale.toFixed(4),
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-lens-drift-x",
         `${(Math.sin(motionTime * 1.72) * lensDriftAmplitude).toFixed(3)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-lens-drift-y",
         `${(Math.cos(motionTime * 1.28) * lensVerticalDriftAmplitude).toFixed(3)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-lens-rotation",
         `${lensRotation.toFixed(3)}deg`,
       );
-      background.style.setProperty(
-        "--listen-bg-secondary-lens-x-px",
+      if (ENABLE_AUXILIARY_LENS_RUNTIME) {
+        setBackgroundStyle(
+          "--listen-bg-secondary-lens-x-px",
         `${secondaryLensCenterX.toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-secondary-lens-y-px",
         `${secondaryLensCenterY.toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-secondary-lens-bg-x",
         `${(secondaryLensRadius - secondaryLensCenterX).toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-secondary-lens-bg-y",
         `${(secondaryLensRadius - secondaryLensCenterY).toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-secondary-lens-scale",
         secondaryLensScale.toFixed(4),
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-secondary-lens-drift-x",
         `${(Math.sin(motionTime * 1.84 + secondaryLensSeed.xPhase) * lensDriftAmplitude * 0.82).toFixed(3)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-secondary-lens-drift-y",
         `${(Math.cos(motionTime * 1.46 + secondaryLensSeed.yPhase) * lensVerticalDriftAmplitude * 0.82).toFixed(3)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-secondary-lens-rotation",
         `${secondaryLensRotation.toFixed(3)}deg`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-tertiary-lens-x-px",
         `${tertiaryLensCenterX.toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-tertiary-lens-y-px",
         `${tertiaryLensCenterY.toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-tertiary-lens-bg-x",
         `${(tertiaryLensRadius - tertiaryLensCenterX).toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-tertiary-lens-bg-y",
         `${(tertiaryLensRadius - tertiaryLensCenterY).toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-tertiary-lens-scale",
         tertiaryLensScale.toFixed(4),
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-tertiary-lens-drift-x",
         `${(Math.sin(motionTime * 1.57 + tertiaryLensSeed.xPhase) * lensDriftAmplitude * 0.72).toFixed(3)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-tertiary-lens-drift-y",
         `${(Math.cos(motionTime * 1.31 + tertiaryLensSeed.yPhase) * lensVerticalDriftAmplitude * 0.72).toFixed(3)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-tertiary-lens-rotation",
         `${tertiaryLensRotation.toFixed(3)}deg`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-lens-x-px",
         `${macroLensCenterX.toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-lens-y-px",
         `${macroLensCenterY.toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-lens-bg-x",
         `${(macroLensRadius - macroLensCenterX).toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-lens-bg-y",
         `${(macroLensRadius - macroLensCenterY).toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-lens-scale",
         macroLensScale.toFixed(4),
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-secondary-lens-x-px",
         `${macroSecondaryLensCenterX.toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-secondary-lens-y-px",
         `${macroSecondaryLensCenterY.toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-secondary-lens-bg-x",
         `${(macroSecondaryLensRadius - macroSecondaryLensCenterX).toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-secondary-lens-bg-y",
         `${(macroSecondaryLensRadius - macroSecondaryLensCenterY).toFixed(2)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-secondary-lens-scale",
         macroSecondaryLensScale.toFixed(4),
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-lens-drift-x",
         `${(Math.sin(motionTime * 0.66) * macroDriftAmplitude).toFixed(3)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-lens-drift-y",
         `${(Math.cos(motionTime * 0.58) * macroDriftAmplitude).toFixed(3)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-lens-rotation",
         `${macroLensRotation.toFixed(3)}deg`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-secondary-lens-drift-x",
         `${(Math.cos(motionTime * 0.61 + macroSecondaryLensSeed.xPhase) * macroDriftAmplitude * 0.82).toFixed(3)}px`,
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-macro-secondary-lens-drift-y",
         `${(Math.sin(motionTime * 0.53 + macroSecondaryLensSeed.yPhase) * macroDriftAmplitude * 0.82).toFixed(3)}px`,
       );
-      background.style.setProperty(
-        "--listen-bg-macro-secondary-lens-rotation",
-        `${macroSecondaryLensRotation.toFixed(3)}deg`,
-      );
-      background.style.setProperty(
+        setBackgroundStyle(
+          "--listen-bg-macro-secondary-lens-rotation",
+          `${macroSecondaryLensRotation.toFixed(3)}deg`,
+        );
+      }
+      setBackgroundStyle(
         "--listen-bg-low",
         nextEnergy.low.toFixed(4),
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-mid",
         nextEnergy.mid.toFixed(4),
       );
-      background.style.setProperty(
+      setBackgroundStyle(
         "--listen-bg-high",
         nextEnergy.high.toFixed(4),
       );
@@ -800,6 +905,8 @@ export default function AudioReactiveListenBackground({
         return;
       }
 
+      const { isPlaying, isMetadataViewerOpen } =
+        runtimeStateRef.current;
       const frameInterval = isPlaying && !isMetadataViewerOpen
         ? ACTIVE_FRAME_INTERVAL_MS
         : RESTING_FRAME_INTERVAL_MS;
@@ -846,21 +953,14 @@ export default function AudioReactiveListenBackground({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [
-    analyser,
-    audioRef,
-    isMetadataViewerOpen,
-    isPlaying,
-    mode,
-    peaks,
-    peaksPerSecond,
-  ]);
+  }, [audioRef]);
 
   return (
     <div
       ref={backgroundRef}
       className="listen-reactive-background"
       data-background-mode={mode}
+      data-playback-active={isPlaying ? "true" : "false"}
       aria-hidden="true"
     >
       <div className="listen-reactive-background__field">

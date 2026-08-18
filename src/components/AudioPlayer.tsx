@@ -19,6 +19,7 @@ import {
   MediaTransportIcon,
   MediaVisualizationSurface,
   WAVEFORM_COLOR_OPTIONS,
+  decodeWaveformPayload,
   dedupePlaybackQueue,
   formatPlaybackTime,
   getPlaybackQueueIndex,
@@ -27,6 +28,7 @@ import {
   type PlayableMediaItem,
   type MediaSourceAdapter,
   type MediaSourceAttachRequest,
+  type WaveformBinaryData,
   type WaveformColorMode,
   useMediaElementAnalyser,
   useSpacebarPlaybackShortcut,
@@ -72,54 +74,7 @@ function loadHlsModule() {
   return hlsModulePromise;
 }
 
-type WaveformData = {
-  version: number;
-  durationSeconds: number;
-  sampleRate: number;
-  sourceChannels: number;
-  waveformChannels: number;
-  bitsPerSample: number;
-  peaksPerSecond: number;
-
-  analysis: {
-    fftSize: number;
-    window: string;
-
-    bandsHz: {
-      low: [number, number];
-      mid: [number, number];
-      high: [number, number];
-    };
-
-    peakFields: string[];
-
-    normalization: {
-      method: string;
-      percentile: number;
-      compression: string;
-
-      references: {
-        low: number;
-        mid: number;
-        high: number;
-      };
-    };
-  };
-
-  peakCount: number;
-
-  /*
-   * Peak format:
-   * [minimum, maximum, low, mid, high]
-   */
-  peaks: [
-    number,
-    number,
-    number,
-    number,
-    number,
-  ][];
-};
+type WaveformData = WaveformBinaryData;
 
 type ListenBackgroundMode = "watery" | "magnify";
 
@@ -782,8 +737,9 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
           );
         }
 
-        const data =
-          (await response.json()) as WaveformData;
+        const data = decodeWaveformPayload(
+          await response.arrayBuffer(),
+        );
 
         setWaveform(data);
       } catch (error) {

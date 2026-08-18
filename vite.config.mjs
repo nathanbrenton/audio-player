@@ -139,6 +139,16 @@ function publishedMediaPlugin() {
 }
 
 export default defineConfig({
+  /*
+   * The linked @hiplingo/media-player workspace can resolve React from the
+   * sibling packages/node_modules tree. Force the application and all linked
+   * packages to share Hiplingo's React runtime so production builds do not
+   * bundle a second React instance.
+   */
+  resolve: {
+    dedupe: ["react", "react-dom"],
+  },
+
   server: {
     host: "127.0.0.1",
     port: 5173,

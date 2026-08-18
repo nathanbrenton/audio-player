@@ -33,7 +33,7 @@ test("drives the desktop Listen background from published waveform band energy a
   assert.match(backgroundSource, /interpolate\(3\)/);
   assert.match(backgroundSource, /interpolate\(4\)/);
   assert.match(backgroundSource, /ORBIT_SECONDS = 36/);
-  assert.match(backgroundSource, /ACTIVE_BACKGROUND_FPS = 20/);
+  assert.match(backgroundSource, /ACTIVE_BACKGROUND_FPS = 12/);
   assert.match(backgroundSource, /RESTING_BACKGROUND_FPS = 12/);
   assert.match(backgroundSource, /ACTIVE_FRAME_INTERVAL_MS = 1000 \/ ACTIVE_BACKGROUND_FPS/);
   assert.match(backgroundSource, /RESTING_FRAME_INTERVAL_MS = 1000 \/ RESTING_BACKGROUND_FPS/);
@@ -72,6 +72,37 @@ test("reuses the shared analyser for a calmer low-bass global envelope and keeps
   assert.match(backgroundSource, /RESTING_BAND_ENERGY\.low \+ sampledEnergy\.low \* 0\.88/);
   assert.match(backgroundSource, /RESTING_BAND_ENERGY\.mid \+ sampledEnergy\.mid \* 0\.84/);
   assert.match(backgroundSource, /RESTING_BAND_ENERGY\.high \+ sampledEnergy\.high \* 0\.8/);
+  assert.ok(
+    backgroundSource.includes(
+      "const PLAYBACK_MOTION_ATTACK_SECONDS = 14;",
+    ),
+  );
+  assert.ok(
+    backgroundSource.includes(
+      "const PLAYBACK_MOTION_RELEASE_SECONDS = 24;",
+    ),
+  );
+  assert.ok(
+    backgroundSource.includes(
+      "const RESTING_MOTION_RATE = 0.35;",
+    ),
+  );
+  assert.ok(
+    backgroundSource.includes(
+      "function followPlaybackMotion(",
+    ),
+  );
+  assert.ok(
+    backgroundSource.includes(
+      "const playbackMotionEnvelopeRef = useRef(isPlaying ? 1 : 0);",
+    ),
+  );
+  assert.ok(
+    backgroundSource.includes(
+      "visualClockRef.current += deltaSeconds * motionRate;",
+    ),
+  );
+
   assert.match(backgroundSource, /globalBassTarget = clampUnit\(0\.08 \+ rawEnergy\.low \* 0\.72\)/);
   assert.match(backgroundSource, /horizontalTravel = 2\.1 \+ globalBass \* 0\.92/);
   assert.match(backgroundSource, /verticalTravel = 1\.45 \+ globalBass \* 0\.64/);
@@ -152,8 +183,8 @@ test("supports softer watery edges and slightly reduced macro magnification with
     "utf8",
   );
 
-  assert.match(backgroundSource, /const macroLensScale = wateryMode\s*\? 1\.03 \+ globalBass \* 0\.018\s*:\s*1\.09 \+ globalBass \* 0\.042/);
-  assert.match(backgroundSource, /const macroSecondaryLensScale = wateryMode\s*\? 1\.025 \+ globalBass \* 0\.016\s*:\s*1\.075 \+ globalBass \* 0\.036/);
+  assert.match(backgroundSource, /const macroLensScale = wateryMode\s*\? 1\.03 \+ lensZoomBass \* 0\.018\s*:\s*1\.09 \+ lensZoomBass \* 0\.042/);
+  assert.match(backgroundSource, /const macroSecondaryLensScale = wateryMode\s*\? 1\.025 \+ lensZoomBass \* 0\.016\s*:\s*1\.075 \+ lensZoomBass \* 0\.036/);
   assert.match(css, /data-background-mode="watery"/);
   assert.match(css, /#000 0 38%/);
   assert.match(css, /rgba\(0, 0, 0, 0\.46\) 84%/);
@@ -187,7 +218,7 @@ test("bounds lens compositor surfaces and suspends hidden-tab work without dropp
     "utf8",
   );
 
-  assert.match(backgroundSource, /ACTIVE_BACKGROUND_FPS = 20/);
+  assert.match(backgroundSource, /ACTIVE_BACKGROUND_FPS = 12/);
   assert.match(backgroundSource, /RESTING_BACKGROUND_FPS = 12/);
   assert.match(backgroundSource, /const frameInterval = isPlaying && !isMetadataViewerOpen[\s\S]*?ACTIVE_FRAME_INTERVAL_MS[\s\S]*?RESTING_FRAME_INTERVAL_MS/);
   assert.match(backgroundSource, /document\.visibilityState !== "hidden"/);
@@ -233,4 +264,15 @@ test("uses transform-only motion and disables reactive travel for reduced motion
     css,
     /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.listen-reactive-background__lens-mask,[\s\S]*?\.listen-reactive-background__secondary-lens-mask,[\s\S]*?\.listen-reactive-background__tertiary-lens-mask,[\s\S]*?\.listen-reactive-background__macro-lens-mask,[\s\S]*?\.listen-reactive-background__macro-secondary-lens-mask[\s\S]*?display:\s*none/,
   );
+});
+
+test("keeps slow transport easing independent from live music response", async () => {
+  const backgroundSource = await readBackgroundSource();
+
+  assert.ok(backgroundSource.includes("const PLAYBACK_MOTION_ATTACK_SECONDS = 14;"));
+  assert.ok(backgroundSource.includes("const PLAYBACK_MOTION_RELEASE_SECONDS = 24;"));
+  assert.ok(backgroundSource.includes("const rawEnergy = isPlaying"));
+  assert.ok(backgroundSource.includes("RESTING_BAND_ENERGY.low + sampledEnergy.low * 0.88"));
+  assert.ok(!backgroundSource.includes("sampledEnergy.low * 0.88 * playbackMotion"));
+  assert.ok(backgroundSource.includes("visualClockRef.current += deltaSeconds * motionRate;"));
 });

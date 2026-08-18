@@ -137,6 +137,8 @@ Where:
 Current analysis settings:
 
 - Schema version: 2
+- Storage: `waveform-peaks.wfp` compact binary format v1
+- Peak record: 10 bytes — signed Int16 `min`/`max`, unsigned 16-bit `low`/`mid`/`high`
 - Peaks per second: 400
 - FFT size: 1024
 - Window: Hann
@@ -263,7 +265,7 @@ Vite maps that directory to the same URL contract used in production:
 /media/releases/<release-id>/release.json
 /media/releases/<release-id>/tracks/<track-id>/track.json
 /media/releases/<release-id>/tracks/<track-id>/stream/index.m3u8
-/media/releases/<release-id>/tracks/<track-id>/waveform-peaks.json
+/media/releases/<release-id>/tracks/<track-id>/waveform-peaks.wfp
 ```
 
 `catalog.json` is intentionally small. Hiplingo follows each catalog

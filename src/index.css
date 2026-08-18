@@ -418,9 +418,8 @@ canvas {
 .artwork-stack__item--next {
   z-index: 1;
   cursor: pointer;
-  opacity: 0.72;
+  opacity: 1;
   transition:
-    opacity 160ms ease,
     transform 160ms ease;
 }
 
@@ -445,7 +444,7 @@ canvas {
 .artwork-stack__item--previous:hover,
 .artwork-stack__item--next:hover {
   z-index: 2;
-  opacity: 0.95;
+  opacity: 1;
 }
 
 .artwork-stack__item--previous:hover {
@@ -8601,6 +8600,89 @@ button.hiplingo-release-detail__artist:hover {
   }
 }
 
+/*
+ * Responsive Listen backgrounds. Mobile keeps the moving base plane but
+ * omits the expensive cluster/lens compositor stack. The orientation crops
+ * are derived from the desktop-wide source master without scaling.
+ */
+@media (max-width: 899px) {
+  .listen-reactive-background {
+    display: block;
+    background:
+      radial-gradient(
+        circle at 50% 42%,
+        rgba(13, 10, 17, 0.22),
+        rgba(7, 6, 9, 0.74) 72%
+      );
+  }
+
+  .listen-reactive-background__field {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    opacity: 0.72;
+    transform:
+      translate3d(
+        var(--listen-bg-x),
+        var(--listen-bg-y),
+        0
+      )
+      scale(var(--listen-bg-scale));
+    transform-origin: center;
+    will-change: transform;
+  }
+
+  .listen-reactive-background__backplate {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background-color: #151219;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+
+  .listen-reactive-background__clusters,
+  .listen-reactive-background__macro-lens-mask,
+  .listen-reactive-background__macro-secondary-lens-mask,
+  .listen-reactive-background__lens-mask,
+  .listen-reactive-background__secondary-lens-mask,
+  .listen-reactive-background__tertiary-lens-mask {
+    display: none;
+  }
+
+  .listen-reactive-background::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+    background:
+      linear-gradient(
+        180deg,
+        rgba(9, 8, 16, 0.3),
+        transparent 24%,
+        transparent 68%,
+        rgba(9, 8, 16, 0.48)
+      ),
+      radial-gradient(
+        ellipse at center,
+        transparent 20%,
+        rgba(5, 4, 7, 0.4) 88%
+      );
+  }
+}
+
+@media (max-width: 899px) and (orientation: landscape) {
+  .listen-reactive-background__backplate {
+    background-image: url("/brand/hiplingo-listen-background-mobile-landscape.webp");
+  }
+}
+
+@media (max-width: 899px) and (orientation: portrait) {
+  .listen-reactive-background__backplate {
+    background-image: url("/brand/hiplingo-listen-background-mobile-portrait.webp");
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .listen-reactive-background__field {
     transform: none;
@@ -11218,4 +11300,60 @@ button.hiplingo-release-detail__artist:hover {
   .hiplingo-site-shell--listen .listen-track-queue__filters {
     display: none;
   }
+}
+
+/* =========================================================
+   Desktop primary-lens-only performance budget
+   ========================================================= */
+
+/*
+ * Keep the base plane and primary lens reactive, but permanently remove the
+ * four auxiliary masked image surfaces from desktop painting/compositing.
+ *
+ * This is deliberately NOT tied to playback state. Play/Pause/track handoff
+ * therefore cannot cause lenses to disappear/reappear or jiggle.
+ */
+@media (min-width: 900px) {
+  .listen-reactive-background__secondary-lens-mask,
+  .listen-reactive-background__tertiary-lens-mask,
+  .listen-reactive-background__macro-lens-mask,
+  .listen-reactive-background__macro-secondary-lens-mask {
+    display: none;
+  }
+}
+
+/* =========================================================
+   Desktop playback compositor budget
+   ========================================================= */
+/*
+ * Keep every lens surface continuously mounted through playback-state and
+ * source handoffs so its smoothed position/zoom cannot pop or jiggle.
+ * The 18 tint clusters remain the playback-only compositor sacrifice.
+ */
+@media (min-width: 900px) {
+  .listen-reactive-background[data-playback-active="true"]
+    .listen-reactive-background__clusters {
+    display: none;
+  }
+}
+
+/* =========================================================
+   Hero artwork stays fully opaque
+   ========================================================= */
+
+/*
+ * Preserve the artwork slider's scale, rotation, position and stacking
+ * choreography, but do not fade album covers during resting or swipe states.
+ */
+.audio-player[data-display-mode="full"]
+  .artwork-stack__item--current,
+.audio-player[data-display-mode="full"]
+  .artwork-stack__item--previous,
+.audio-player[data-display-mode="full"]
+  .artwork-stack__item--next,
+.audio-player[data-display-mode="full"]
+  .artwork-stack__item--far-previous,
+.audio-player[data-display-mode="full"]
+  .artwork-stack__item--far-next {
+  opacity: 1 !important;
 }
