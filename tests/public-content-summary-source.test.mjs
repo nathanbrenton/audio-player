@@ -22,7 +22,8 @@ test("public Artist detail reads authored bio from artist.json", async () => {
 
   assert.match(model, /bio:\s*stringValue\(raw\.bio\)/);
   assert.match(detail, /artist\.bio/);
-  assert.match(detail, /Artist bio/);
+  assert.match(detail, /hiplingo-kicker">About/);
+  assert.doesNotMatch(detail, /Artist bio/);
 });
 
 test("public Release detail reads authored release.description", async () => {

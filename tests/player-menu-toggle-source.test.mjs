@@ -42,9 +42,17 @@ test("hamburger remains the menu toggle while the settings panel clears the stic
     playerSource,
     /window\.setTimeout\(\(\) => \{[\s\S]*?\}, DEVELOPER_CONTROL_HOLD_MS\);/,
   );
-  assert.match(
+  assert.doesNotMatch(
     playerSource,
     /title="Press and hold 4 seconds to show or hide Developer Mode"/,
+  );
+  assert.match(
+    playerSource,
+    /onPointerDown=\{handleAboutPointerDown\}/,
+  );
+  assert.match(
+    playerSource,
+    /onPointerUp=\{finishAboutPointer\}/,
   );
   assert.match(
     playerSource,

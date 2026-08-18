@@ -103,9 +103,13 @@ test(
       detailSource,
       /artist\.releases\.map/,
     );
-    assert.match(
+    assert.doesNotMatch(
       detailSource,
       /Published releases/,
+    );
+    assert.match(
+      detailSource,
+      /id="artist-discography-heading"[\s\S]*?className="hiplingo-kicker"[\s\S]*?>\s*Discography\s*</,
     );
 
     assert.match(

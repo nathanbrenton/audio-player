@@ -1,6 +1,7 @@
 import type { CatalogRelease, MediaCatalog } from "../types/MediaCatalog";
 import {
   getMediaUrl,
+  formatPublicDate,
   getReleaseArtist,
   getReleaseArtworkPath,
   getReleaseDate,
@@ -47,7 +48,6 @@ export default function ReleaseCatalog({
     <main className="hiplingo-page hiplingo-releases-page">
       <header className="hiplingo-catalog-heading">
         <div>
-          <span className="hiplingo-kicker">Catalog</span>
           <h1>Releases</h1>
         </div>
 
@@ -85,7 +85,7 @@ export default function ReleaseCatalog({
         <section className="hiplingo-release-grid" aria-label="Hiplingo releases">
           {catalog.releases.map((release) => {
             const artist = getReleaseArtist(release);
-            const date = getReleaseDate(release);
+            const date = formatPublicDate(getReleaseDate(release));
             const type = getReleaseType(release);
 
             return (

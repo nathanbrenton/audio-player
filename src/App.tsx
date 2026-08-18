@@ -8,11 +8,14 @@ import AudioPlayer, {
   type AudioPlayerHandle,
   type PlaybackStateSnapshot,
 } from "./components/AudioPlayer";
+import SiteAmbientBackground from "./components/SiteAmbientBackground";
+import LandingHeroBanner from "./components/LandingHeroBanner";
 import ReleaseCatalog from "./components/ReleaseCatalog";
 import ReleaseDetail from "./components/ReleaseDetail";
 import {
   fetchMediaCatalog,
   getMediaUrl,
+  formatPublicDate,
   getReleaseArtist,
   getReleaseArtworkPath,
   getReleaseDate,
@@ -266,7 +269,7 @@ function FeaturedRelease({
     getReleaseArtworkPath(release),
   );
   const artist = getReleaseArtist(release);
-  const date = getReleaseDate(release);
+  const date = formatPublicDate(getReleaseDate(release));
   const playableTracks = release.tracks.filter((track) => track.playable);
   const queueTrackKeys = playableTracks.map((track) =>
     getTrackKey(release, track),
@@ -342,6 +345,7 @@ function FeaturedRelease({
   );
 }
 
+
 function HomePage({
   currentRoute,
   catalog,
@@ -366,7 +370,7 @@ function HomePage({
   return (
     <main className="hiplingo-page hiplingo-home">
       <section className="hiplingo-hero">
-        <div className="hiplingo-hero__banner" aria-hidden="true" />
+        <LandingHeroBanner />
         <div className="hiplingo-hero__identity">
           <div className="hiplingo-hero__logo" aria-hidden="true">
             <img src={hiplingoLogoUrl} alt="" />
@@ -393,7 +397,7 @@ function HomePage({
                 currentRoute={currentRoute}
                 className="hiplingo-button"
               >
-                Open full player
+                Start Listening
               </SiteLink>
             </div>
           </div>
@@ -690,11 +694,19 @@ export default function App() {
         <PlaceholderPage
           eyebrow="Licensing"
           title="General licensing inquiry"
+          action={
+            <a
+              className="hiplingo-button hiplingo-button--primary"
+              href={HIPLINGO_CONTACT_MAILTO}
+            >
+              Contact Hiplingo
+            </a>
+          }
         >
           <p>
-            A public licensing-request form is being prepared. It will collect
-            only the information needed to evaluate the requested use and will
-            remain separate from private rights administration.
+            For synchronization, master-use, excerpt, or other music licensing
+            inquiries, contact Hiplingo with the release or track, intended use,
+            project or media type, timing, and any known territory or term.
           </p>
         </PlaceholderPage>
       );
@@ -707,10 +719,9 @@ export default function App() {
           title="Jam participant agreement"
         >
           <p>
-            A streamlined participant flow is being prepared to present the
-            applicable published Master Jam Agreement and record acceptance
-            against that exact version. The private licensing administration
-            interface will not be exposed publicly.
+            Coming soon. The participant flow will present the applicable
+            published Master Jam Agreement and record acceptance against that
+            exact version without exposing private licensing administration.
           </p>
         </PlaceholderPage>
       );
@@ -755,6 +766,8 @@ export default function App() {
         route.section === "/listen" ? " hiplingo-site-shell--listen" : ""
       }`}
     >
+      {route.section !== "/listen" ? <SiteAmbientBackground /> : null}
+
       <SiteHeader
         currentRoute={route.section}
         onTogglePlayerMenu={requestTogglePlayerMenu}
@@ -779,6 +792,11 @@ export default function App() {
           onOpenFullPlayer={() => navigateTo("/listen")}
           onOpenRelease={(releaseId) => {
             navigateTo(`/releases/${encodeURIComponent(releaseId)}`);
+          }}
+          onOpenArtist={(artistName) => {
+            navigateTo(
+              `/artists/${encodeURIComponent(getArtistSlug(artistName))}`,
+            );
           }}
           onPlaybackStateChange={setPlaybackState}
           releaseWaveformHost={releaseWaveformHost}

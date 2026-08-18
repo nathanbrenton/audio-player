@@ -5,6 +5,7 @@ import {
 
 import {
   getMediaUrl,
+  formatPublicDate,
   getReleaseArtworkPath,
   getReleaseDate,
   getReleaseType,
@@ -241,36 +242,36 @@ export default function ArtistDetail({
           )}
         </span>
 
-        <span className="hiplingo-kicker">
-          Artist
-        </span>
-        <h1>
-          {artist.name}
-        </h1>
-        <p>
-          {artist.releases.length}{" "}
-          {artist.releases.length === 1
-            ? "release"
-            : "releases"}
-          {" · "}
-          {artist.playableTrackCount}{" "}
-          playable{" "}
-          {artist.playableTrackCount === 1
-            ? "track"
-            : "tracks"}
-          {yearRange
-            ? ` · ${yearRange}`
-            : ""}
-        </p>
+        <div className="hiplingo-artist-detail__identity-card">
+          <span className="hiplingo-kicker">
+            Artist
+          </span>
+          <h1>
+            {artist.name}
+          </h1>
+          <p>
+            {artist.releases.length}{" "}
+            {artist.releases.length === 1
+              ? "release"
+              : "releases"}
+            {" · "}
+            {artist.playableTrackCount}{" "}
+            {artist.playableTrackCount === 1
+              ? "track"
+              : "tracks"}
+            {yearRange
+              ? ` · ${yearRange}`
+              : ""}
+          </p>
+        </div>
       </header>
 
       {artist.bio ? (
         <section
           className="hiplingo-public-summary hiplingo-artist-bio"
-          aria-labelledby="artist-bio-heading"
+          aria-label={`About ${artist.name}`}
         >
           <span className="hiplingo-kicker">About</span>
-          <h2 id="artist-bio-heading">Artist bio</h2>
           <p>{artist.bio}</p>
         </section>
       ) : null}
@@ -280,19 +281,21 @@ export default function ArtistDetail({
         aria-labelledby="artist-discography-heading"
       >
         <header className="hiplingo-artist-discography__heading">
-          <span className="hiplingo-kicker">
+          <span
+            id="artist-discography-heading"
+            className="hiplingo-kicker"
+          >
             Discography
           </span>
-          <h2 id="artist-discography-heading">
-            Published releases
-          </h2>
         </header>
 
         <div className="hiplingo-artist-release-grid">
           {artist.releases.map(
             (release) => {
               const date =
-                getReleaseDate(release);
+                formatPublicDate(
+                  getReleaseDate(release),
+                );
               const type =
                 getReleaseType(release);
 

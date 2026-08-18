@@ -13,15 +13,16 @@ async function readSource(relativePath) {
   return readFile(path.join(projectRoot, relativePath), "utf8");
 }
 
-test("presents the public settings panel in Hiplingo purple with one About and Contact card", async () => {
+test("presents the public settings panel in Hiplingo purple without a direct contact action", async () => {
   const playerSource = await readSource("src/components/AudioPlayer.tsx");
   const css = await readSource("src/index.css");
 
   assert.match(
     playerSource,
-    /className="app-menu__about-contact-card"[\s\S]*?<strong>About &amp; Contact<\/strong>[\s\S]*?Audio Player version \{APP_VERSION\}[\s\S]*?Developer · Nathan Brenton[\s\S]*?Licensing &amp; general inquiries[\s\S]*?href=\{HIPLINGO_CONTACT_MAILTO\}[\s\S]*?>\s*Email\s*<\/a>/,
+    /className="app-menu__about-contact-card"[\s\S]*?<strong>About this player<\/strong>[\s\S]*?Audio Player version \{APP_VERSION\}/,
   );
-  assert.doesNotMatch(playerSource, /className="app-menu__contact-card"/);
+  assert.doesNotMatch(playerSource, /className="app-menu__contact-row"/);
+  assert.doesNotMatch(playerSource, /className="app-menu__contact-action"/);
   assert.match(
     css,
     /--hiplingo-surface-control:\s*rgba\(33, 27, 46, 0\.92\);[\s\S]*?--hiplingo-border-active:\s*rgba\(169, 140, 255, 0\.52\);/,
@@ -34,10 +35,8 @@ test("presents the public settings panel in Hiplingo purple with one About and C
     css,
     /\.app-menu__about-contact-card\s*\{[\s\S]*?rgba\(219, 200, 255, 0\.2\)[\s\S]*?border-radius:\s*8px;/,
   );
-  assert.match(
-    css,
-    /\.app-menu__contact-action\s*\{[\s\S]*?rgba\(73, 55, 103, 0\.56\)/,
-  );
+  assert.doesNotMatch(css, /\.app-menu__contact-row\s*\{/);
+  assert.doesNotMatch(css, /\.app-menu__contact-action\s*\{/);
 });
 
 test("gates Audiophile Mode behind active Developer Mode and clears it when developer mode turns off", async () => {

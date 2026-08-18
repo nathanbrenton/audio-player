@@ -651,6 +651,191 @@ export function getReleaseArtist(
   return "Unknown artist";
 }
 
+
+
+export function formatPublicRuntime(
+  durationSeconds: number | null | undefined,
+): string | null {
+  if (
+    durationSeconds == null ||
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds < 0
+  ) {
+    return null;
+  }
+
+  const rounded = Math.max(
+    0,
+    Math.round(durationSeconds),
+  );
+  const hours = Math.floor(rounded / 3600);
+  const minutes = Math.floor(
+    (rounded % 3600) / 60,
+  );
+  const seconds = rounded % 60;
+
+  if (hours > 0) {
+    return [
+      hours,
+      String(minutes).padStart(2, "0"),
+      String(seconds).padStart(2, "0"),
+    ].join(":");
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function hlsExtinfDurationSeconds(
+  playlist: string,
+): number | null {
+  const durations = [
+    ...playlist.matchAll(
+      /^#EXTINF:([0-9]+(?:\.[0-9]+)?)/gm,
+    ),
+  ]
+    .map((match) => Number(match[1]))
+    .filter((value) => Number.isFinite(value));
+
+  if (durations.length === 0) {
+    return null;
+  }
+
+  return durations.reduce(
+    (total, value) => total + value,
+    0,
+  );
+}
+
+function firstHlsChildPlaylist(
+  playlist: string,
+): string | null {
+  return (
+    playlist
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(
+        (line) =>
+          line.length > 0 &&
+          !line.startsWith("#") &&
+          /\.m3u8(?:\?|$)/i.test(line),
+      ) ?? null
+  );
+}
+
+async function fetchHlsDurationSeconds(
+  playlistUrl: string,
+  signal?: AbortSignal,
+  allowChildPlaylist = true,
+): Promise<number | null> {
+  const response = await fetch(playlistUrl, {
+    signal,
+    cache: "no-cache",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const playlist = await response.text();
+  const directDuration =
+    hlsExtinfDurationSeconds(playlist);
+
+  if (directDuration != null) {
+    return directDuration;
+  }
+
+  if (!allowChildPlaylist) {
+    return null;
+  }
+
+  const child = firstHlsChildPlaylist(playlist);
+
+  if (!child) {
+    return null;
+  }
+
+  const childUrl = new URL(
+    child,
+    new URL(playlistUrl, window.location.href),
+  ).toString();
+
+  return fetchHlsDurationSeconds(
+    childUrl,
+    signal,
+    false,
+  );
+}
+
+export async function fetchPublishedTrackDurationSeconds(
+  catalog: MediaCatalog,
+  track: CatalogTrack,
+  signal?: AbortSignal,
+): Promise<number | null> {
+  if (
+    getTrackPlaybackProtocol(track) !== "hls"
+  ) {
+    return null;
+  }
+
+  const playbackPath =
+    getTrackPlaybackPath(track);
+
+  if (!playbackPath) {
+    return null;
+  }
+
+  const playlistUrl = getMediaUrl(
+    catalog.mediaBaseUrl,
+    playbackPath,
+  );
+
+  if (!playlistUrl) {
+    return null;
+  }
+
+  return fetchHlsDurationSeconds(
+    playlistUrl,
+    signal,
+  );
+}
+
+export function formatPublicDate(
+  value: string | null | undefined,
+): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const [year, month, day] = value
+    .split("-")
+    .map(Number);
+  const date = new Date(
+    Date.UTC(year, month - 1, day),
+  );
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(
+    "en-US",
+    {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    },
+  ).format(date);
+}
+
 export function getReleaseDate(
   release: CatalogRelease,
 ): string | null {

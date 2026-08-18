@@ -30,7 +30,7 @@ test("places the dedicated Listen queue between the main waveform and persistent
   assert.doesNotMatch(playerSource, /LibraryBrowser|openLibrary|library-sheet__/);
 });
 
-test("ListenTrackQueue contains only the active title carousel, filters, and shuffle controls", async () => {
+test("ListenTrackQueue contains only the active title carousel", async () => {
   const queueSource = await readFile(
     path.join(projectRoot, "src/components/ListenTrackQueue.tsx"),
     "utf8",
@@ -38,132 +38,39 @@ test("ListenTrackQueue contains only the active title carousel, filters, and shu
 
   assert.match(queueSource, /className="listen-track-queue"/);
   assert.match(queueSource, /aria-label="Track queue"/);
-  assert.match(queueSource, /aria-label="Track filters"/);
   assert.match(queueSource, /className="listen-track-queue__titles"/);
   assert.match(queueSource, /listen-track-queue__title--previous/);
   assert.match(queueSource, /listen-track-queue__current/);
   assert.match(queueSource, /listen-track-queue__title--next/);
-  assert.match(queueSource, /All artists/);
-  assert.match(queueSource, /All releases/);
-  assert.match(queueSource, /Library order/);
-  assert.match(queueSource, /Shuffle matching tracks/);
-  assert.doesNotMatch(
-    queueSource,
-    /library-browser__|library-workspace__|DesktopLibraryViewMode|coverTileSizeRem|mobileReleaseId/,
-  );
+  assert.doesNotMatch(queueSource, /listen-track-queue__filters/);
+  assert.doesNotMatch(queueSource, /listen-track-queue__shuffle/);
+  assert.doesNotMatch(queueSource, /All artists|All releases|Library order/);
 });
 
-test("desktop Listen makes the current title dominant and floats filters below the hamburger", async () => {
-  const css = await readFile(
-    path.join(projectRoot, "src/index.css"),
-    "utf8",
-  );
+test("desktop Listen makes the current title dominant without floating discovery controls", async () => {
+  const [queueSource, css] = await Promise.all([
+    readFile(path.join(projectRoot, "src/components/ListenTrackQueue.tsx"), "utf8"),
+    readFile(path.join(projectRoot, "src/index.css"), "utf8"),
+  ]);
 
-  assert.match(
-    css,
-    /\.audio-player\[data-display-mode="full"\] > \.listen-track-queue-host\s*\{[\s\S]*?width:\s*min\(1000px,[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none;/,
-  );
-  assert.match(
-    css,
-    /\.listen-track-queue\s*\{[\s\S]*?width:\s*min\(960px, 100%\);[\s\S]*?gap:\s*4px;/,
-  );
-  assert.match(
-    css,
-    /\.listen-track-queue__titles\s*\{[\s\S]*?--listen-title-center-y:\s*42%;[\s\S]*?width:\s*min\(760px, 100%\);[\s\S]*?height:\s*218px;[\s\S]*?margin:\s*-112px auto -8px;[\s\S]*?perspective:\s*720px;[\s\S]*?touch-action:\s*pan-x;/,
-  );
-  assert.match(
-    css,
-    /\.listen-track-queue__title strong\s*\{[\s\S]*?font-size:\s*clamp\(2\.25rem, 3vw, 3\.15rem\);/,
-  );
-  assert.match(
-    css,
-    /\.listen-track-queue__current\s*\{[\s\S]*?opacity:\s*1;[\s\S]*?translateZ\(42px\)[\s\S]*?scale\(1\);/,
-  );
-  assert.match(
-    css,
-    /\.listen-track-queue__title--next\s*\{[\s\S]*?opacity:\s*0\.78;[\s\S]*?translateZ\(-34px\)[\s\S]*?scale\(0\.62\);/,
-  );
-  assert.match(
-    css,
-    /\.listen-track-queue__title--previous\s*\{[\s\S]*?opacity:\s*0\.46;[\s\S]*?translateZ\(-88px\)[\s\S]*?scale\(0\.54\);/,
-  );
-  assert.match(
-    css,
-    /\.audio-player\[data-display-mode="full"\] > \.listen-track-queue-host\s*\{[\s\S]*?margin:\s*-6px auto var\(--fixed-now-playing-height, 92px\);[\s\S]*?transform:\s*none;/,
-  );
-  assert.match(
-    css,
-    /\.listen-track-queue__filters\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?z-index:\s*390;[\s\S]*?top:\s*calc\(var\(--hiplingo-site-header-bottom, 64px\) \+ 2px\);[\s\S]*?right:\s*max\(4px, env\(safe-area-inset-right\)\);[\s\S]*?width:\s*min\(225px, calc\(100vw - 8px\)\);[\s\S]*?pointer-events:\s*none;/,
-  );
-  assert.match(
-    css,
-    /\.listen-track-queue__filter-row\s*\{[\s\S]*?flex-direction:\s*column;[\s\S]*?align-items:\s*stretch;[\s\S]*?pointer-events:\s*auto;/,
-  );
-  assert.match(
-    css,
-    /\.listen-track-queue__shuffle\s*\{[\s\S]*?position:\s*static;[\s\S]*?min-height:\s*62px;[\s\S]*?margin:\s*12px auto 2px;[\s\S]*?align-self:\s*center;[\s\S]*?font-size:\s*1\.14rem;/,
-  );
-  assert.match(
-    css,
-    /\.audio-player\[data-display-mode="full"\] \.waveform-panel__current-time\s*\{[\s\S]*?font-size:\s*1\.18rem;/,
-  );
+  assert.match(css, /\.listen-track-queue__title strong\s*\{[\s\S]*?font-size:\s*clamp\(2\.25rem, 3vw, 3\.15rem\);/);
+  assert.match(css, /\.listen-track-queue__current\s*\{[\s\S]*?opacity:\s*1;[\s\S]*?translateZ\(42px\)[\s\S]*?scale\(1\);/);
+  assert.doesNotMatch(queueSource, /listen-track-queue__filters/);
+  assert.doesNotMatch(queueSource, /listen-track-queue__shuffle/);
 });
 
-test("desktop Listen derives fixed carousel neighbors from the filtered playback queue", async () => {
+test("desktop Listen derives fixed carousel neighbors from canonical library order", async () => {
   const queueSource = await readFile(
     path.join(projectRoot, "src/components/ListenTrackQueue.tsx"),
     "utf8",
   );
 
-  assert.match(
-    queueSource,
-    /const filteredQueueTracks = playableTracks\.filter\([\s\S]*?return artistMatches && releaseMatches;/,
-  );
-  assert.match(
-    queueSource,
-    /const sortedQueueTracks = sortQueueTracks\([\s\S]*?sortMode/,
-  );
-  assert.match(
-    queueSource,
-    /function getQueueTrackAtOffset\(offset: number\): QueueTrack \| null/,
-  );
-  assert.match(
-    queueSource,
-    /const index = selectedQueueIndex \+ offset;[\s\S]*?if \(index < 0 \|\| index >= queueSourceTracks\.length\) \{[\s\S]*?return null;/,
-  );
-  assert.doesNotMatch(
-    queueSource,
-    /selectedQueueIndex \+ offset \+ queueSourceTracks\.length/,
-  );
-  assert.match(queueSource, /const previousPreviousQueueTrack\s*=\s*queueSourceTracks\.length >= 5/);
+  assert.match(queueSource, /const queueSourceTracks = playableTracks;/);
+  assert.doesNotMatch(queueSource, /filteredQueueTracks|sortedQueueTracks|shuffledQueueTracks|sortQueueTracks/);
+  assert.match(queueSource, /function getQueueTrackAtOffset\(offset: number\): QueueTrack \| null/);
   assert.match(queueSource, /const nextQueueTrack = getQueueTrackAtOffset\(1\)/);
   assert.match(queueSource, /const nextNextQueueTrack\s*=\s*queueSourceTracks\.length >= 5/);
-  assert.doesNotMatch(queueSource, /const visibleQueueTracks = queuedTracks/);
-  assert.doesNotMatch(queueSource, /ref=\{queueScrollRef\}/);
-
-  const titlesIndex = queueSource.indexOf(
-    'className="listen-track-queue__titles"',
-  );
-  const shuffleIndex = queueSource.indexOf(
-    'className="listen-track-queue__shuffle"',
-  );
-  const filtersIndex = queueSource.indexOf(
-    'className="listen-track-queue__filters"',
-  );
-  assert.notEqual(titlesIndex, -1);
-  assert.notEqual(shuffleIndex, -1);
-  assert.notEqual(filtersIndex, -1);
-  const sortIndex = queueSource.indexOf("<span>Sort</span>");
-  assert.notEqual(sortIndex, -1);
-  assert.ok(titlesIndex < filtersIndex);
-  assert.ok(filtersIndex < sortIndex);
-  assert.ok(sortIndex < shuffleIndex);
-  assert.match(
-    queueSource,
-    /className="listen-track-queue__title listen-track-queue__title--next"[\s\S]*?onPlayTrack\?\.\(nextQueueTrack\.key, queueSourceTrackKeys\)/,
-  );
 });
-
 
 test("desktop Listen mirrors the artwork handoff model on a vertical title carousel", async () => {
   const queueSource = await readFile(
@@ -272,7 +179,7 @@ test("desktop Listen removes the scrollable upcoming list in favor of fixed clic
 });
 
 
-test("desktop Listen shuffle uses the current filtered track set and installs a randomized playback queue", async () => {
+test("Listen Shuffle lives in the persistent footer instead of the floating queue surface", async () => {
   const queueSource = await readFile(
     path.join(projectRoot, "src/components/ListenTrackQueue.tsx"),
     "utf8",
@@ -282,27 +189,10 @@ test("desktop Listen shuffle uses the current filtered track set and installs a 
     "utf8",
   );
 
-  assert.match(queueSource, /onShuffleTracks\?: \(trackKeys: string\[\]\) => void/);
-  assert.match(queueSource, /className="listen-track-queue__shuffle"/);
-  assert.match(queueSource, /aria-label="Shuffle matching tracks"/);
-  assert.match(queueSource, /disabled=\{sortedQueueTracks\.length < 2\}/);
-  assert.match(queueSource, /<span>Shuffle<\/span>/);
-  assert.match(queueSource, /function shuffleTrackKeys\(trackKeys: readonly string\[\]\)/);
-  assert.match(queueSource, /Math\.floor\(Math\.random\(\) \* \(index \+ 1\)\)/);
-  assert.match(
-    queueSource,
-    /const shuffledQueueTracks = shuffledQueueKeys\.flatMap[\s\S]*?const queueSourceTracks = shuffledQueueIsCurrent[\s\S]*?shuffledQueueTracks[\s\S]*?: sortedQueueTracks/,
-  );
-  assert.match(
-    queueSource,
-    /const shuffledTrackKeys = shuffleTrackKeys\([\s\S]*?sortedQueueTracks\.map\(\(entry\) => entry\.key\)[\s\S]*?setShuffledQueueKeys\(shuffledTrackKeys\);[\s\S]*?onShuffleTracks\?\.\(shuffledTrackKeys\)/,
-  );
-  assert.match(playerSource, /function shuffleQueueTracks\(trackKeys: string\[\]\)/);
-  assert.match(
-    playerSource,
-    /playQueue\(\{[\s\S]*?trackKey: firstTrackKey,[\s\S]*?queueTrackKeys,[\s\S]*?autoplay: true/,
-  );
-  assert.match(playerSource, /onShuffleTracks=\{shuffleQueueTracks\}/);
+  assert.doesNotMatch(queueSource, /onShuffleTracks/);
+  assert.doesNotMatch(queueSource, /listen-track-queue__shuffle/);
+  assert.match(playerSource, /function shuffleActiveQueue\(\)/);
+  assert.match(playerSource, /displayMode === "full" \? \([\s\S]*?hiplingo-now-playing-dock__shuffle-button[\s\S]*?onClick=\{shuffleActiveQueue\}/);
 });
 
 test("mobile portrait keeps Listen browser-free while preserving the fixed footer waveform", async () => {

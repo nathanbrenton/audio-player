@@ -24,7 +24,6 @@ import {
   formatPlaybackTime,
   getPlaybackQueueIndex,
   getPlaybackQueueNeighbor,
-  getPlayableMediaContext,
   type PlayableMediaItem,
   type MediaSourceAdapter,
   type MediaSourceAttachRequest,
@@ -59,6 +58,7 @@ import packageJsonSource from "../../package.json?raw";
 import {
   fetchMediaCatalog,
   getMediaUrl,
+  getReleaseDate,
   getTrackKey,
   getTrackPlaybackPath,
   getTrackPlaybackProtocol,
@@ -125,6 +125,8 @@ const APP_VERSION = (
 
 const DEVELOPER_CONTROL_HOLD_MS = 4000;
 
+const COMPACT_TOGGLE_GUARD_MS = 360;
+
 export type PlaybackQueueRequest = {
   trackKey: string;
   queueTrackKeys: string[];
@@ -153,6 +155,7 @@ type AudioPlayerProps = {
   displayMode?: AudioPlayerDisplayMode;
   onOpenFullPlayer?: () => void;
   onOpenRelease?: (releaseId: string) => void;
+  onOpenArtist?: (artistName: string) => void;
   onPlaybackStateChange?: (state: PlaybackStateSnapshot) => void;
   releaseWaveformHost?: HTMLDivElement | null;
   menuToggleButtonRef?: RefObject<HTMLButtonElement | null>;
@@ -168,6 +171,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       displayMode = "full",
       onOpenFullPlayer,
       onOpenRelease,
+      onOpenArtist,
       onPlaybackStateChange,
       releaseWaveformHost = null,
       menuToggleButtonRef,
@@ -190,6 +194,8 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
    * that gap so keyboard playback commands cannot race scrubbing.
    */
   const isScrubbingRef = useRef(false);
+
+  const compactToggleGuardUntilRef = useRef(0);
 
   const scrubReleaseTimeoutRef =
     useRef<number | null>(null);
@@ -1544,6 +1550,19 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     audio.pause();
   }
 
+  function toggleCompactPlayback() {
+    const now = window.performance.now();
+
+    if (now < compactToggleGuardUntilRef.current) {
+      return;
+    }
+
+    compactToggleGuardUntilRef.current =
+      now + COMPACT_TOGGLE_GUARD_MS;
+
+    void togglePlayback();
+  }
+
   useSpacebarPlaybackShortcut({
     onToggle: togglePlayback,
     canToggle: () =>
@@ -1659,8 +1678,13 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   }
 
   function shuffleActiveQueue() {
+    /*
+     * Listen Shuffle is library-wide, regardless of which release/queue
+     * supplied the current track. Install the complete randomized public
+     * library as the active queue so Next continues through that shuffle.
+     */
     const shuffledTrackKeys = shufflePlaybackTrackKeys(
-      activeQueue.map((entry) => entry.key),
+      playableTracks.map((entry) => entry.key),
     );
 
     if (
@@ -1680,13 +1704,22 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     trackKey: string,
   ) {
     setQueueTrackKeys(getQueueTrackKeysForTrack(trackKey));
-    setHasPlaybackSelection(true);
 
-    if (trackKey !== selectedTrackKey) {
+    /*
+     * A fallback/current queue title can exist before the listener has made a
+     * playback selection. In that state, load the title as an explicit
+     * autoplaying selection rather than asking an unattached media element to
+     * toggle.
+     */
+    if (
+      trackKey !== selectedTrackKey ||
+      !hasPlaybackSelection
+    ) {
       loadTrack(trackKey, true);
       return;
     }
 
+    setHasPlaybackSelection(true);
     await togglePlayback();
   }
 
@@ -1969,7 +2002,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
                   type="button"
                   className="app-menu__about-button app-menu__about-button--combined"
                   aria-label="About this audio player"
-                  title="Press and hold 4 seconds to show or hide Developer Mode"
                   onPointerDown={handleAboutPointerDown}
                   onPointerMove={handleAboutPointerMove}
                   onPointerUp={finishAboutPointer}
@@ -1981,25 +2013,30 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
                   }}
                 >
                   <span>
-                    <strong>About &amp; Contact</strong>
+                    <strong>About this player</strong>
                     <small>Audio Player version {APP_VERSION}</small>
                   </span>
                 </button>
 
-                <div className="app-menu__contact-row">
+                <a
+                  className="app-menu__developer-contact"
+                  href="https://nathanbrenton.com/"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  aria-label="Developer Nathan Brenton — open nathanbrenton.com"
+                >
                   <span>
-                    <strong>Developer · Nathan Brenton</strong>
-                    <small>Licensing &amp; general inquiries</small>
+                    <small>Developer</small>
+                    <strong>Nathan Brenton</strong>
+                    <small>nathanbrenton.com</small>
                   </span>
-
-                  <a
-                    className="app-menu__contact-action"
-                    href={HIPLINGO_CONTACT_MAILTO}
-                    aria-label="Email Hiplingo for licensing and general inquiries"
+                  <span
+                    className="app-menu__developer-contact-arrow"
+                    aria-hidden="true"
                   >
-                    Email
-                  </a>
-                </div>
+                    ↗
+                  </span>
+                </a>
               </div>
 
               {isDeveloperControlVisible ? (
@@ -2561,7 +2598,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
           onToggleTrackPlayback={(trackKey) => {
             void toggleQueueTrackPlayback(trackKey);
           }}
-          onShuffleTracks={shuffleQueueTracks}
           previousTrackKey={previousTrack?.key ?? null}
           onPreviousTrack={
             previousTrack ? selectPreviousTrack : undefined
@@ -2587,8 +2623,47 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
           }
           artworkFallback={<span aria-hidden="true">♪</span>}
           title={selectedTrack.title}
-          context={getPlayableMediaContext(selectedTrack)}
-          detail="Playback audio"
+          context={
+            <span className="hiplingo-now-playing-dock__context-links">
+              {onOpenArtist && selectedTrack.artist ? (
+                <button
+                  type="button"
+                  className="hiplingo-now-playing-dock__context-link"
+                  onClick={() => {
+                    const artistName = selectedTrack.artist;
+
+                    if (artistName) {
+                      onOpenArtist(artistName);
+                    }
+                  }}
+                >
+                  {selectedTrack.artist}
+                </button>
+              ) : (
+                <span>{selectedTrack.artist}</span>
+              )}
+
+              <span aria-hidden="true">·</span>
+
+              {onOpenRelease ? (
+                <button
+                  type="button"
+                  className="hiplingo-now-playing-dock__context-link"
+                  onClick={() => {
+                    onOpenRelease(selectedTrack.release.id);
+                  }}
+                >
+                  {selectedTrack.release.title}
+                </button>
+              ) : (
+                <span>{selectedTrack.release.title}</span>
+              )}
+            </span>
+          }
+          detail={
+            getReleaseDate(selectedTrack.release)
+              ?.match(/^\d{4}/)?.[0] ?? ""
+          }
           controller={{
             transport: {
               currentTime,
@@ -2598,9 +2673,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               canPrevious: Boolean(previousTrack),
               canNext: Boolean(nextTrack),
               previous: selectPreviousTrack,
-              toggle: () => {
-                void togglePlayback();
-              },
+              toggle: toggleCompactPlayback,
               next: selectNextTrack,
               seek:
                 waveform && waveform.durationSeconds > 0
@@ -2619,22 +2692,39 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
           waveformColorMode={colorMode}
           endControls={
             <>
-              <button
-                type="button"
-                className="hiplingo-now-playing-dock__shuffle-button"
-                aria-label="Shuffle playback queue"
-                title="Shuffle"
-                disabled={activeQueue.length < 2}
-                onClick={shuffleActiveQueue}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 7h3.4c2.2 0 3.3 1.1 4.6 3.2l.4.7" />
-                  <path d="M16 5l4 2-4 2" />
-                  <path d="M4 17h3.4c2.2 0 3.3-1.1 4.6-3.2l.4-.7" />
-                  <path d="M15.4 17H20" />
-                  <path d="M16 15l4 2-4 2" />
-                </svg>
-              </button>
+              {displayMode === "full" ? (
+                <button
+                  type="button"
+                  className="hiplingo-now-playing-dock__shuffle-button"
+                  aria-label="Shuffle playback queue"
+                  title="Shuffle"
+                  disabled={activeQueue.length < 2}
+                  onClick={shuffleActiveQueue}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7h3.4c2.2 0 3.3 1.1 4.6 3.2l.4.7" />
+                    <path d="M16 5l4 2-4 2" />
+                    <path d="M4 17h3.4c2.2 0 3.3-1.1 4.6-3.2l.4-.7" />
+                    <path d="M15.4 17H20" />
+                    <path d="M16 15l4 2-4 2" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="hiplingo-now-playing-dock__listen-button"
+                  aria-label="Open Listen"
+                  title="Listen"
+                  disabled={!onOpenFullPlayer}
+                  onClick={() => {
+                    onOpenFullPlayer?.();
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M2.5 12h2l1.25-4 2.1 8 2.1-11 2.1 14 2.1-10 2.1 7 1.25-4h3.5" />
+                  </svg>
+                </button>
+              )}
 
               <button
                 ref={metadataButtonRef}

@@ -60,17 +60,17 @@ test("keeps the approved portrait footer geometry consistent across routes", asy
   );
 });
 
-test("places a global Shuffle icon beside the landscape footer waveform", async () => {
+test("places the route-appropriate end action beside the landscape footer waveform", async () => {
   const css = await readSource("src/index.css");
   const audioPlayerSource = await readSource("src/components/AudioPlayer.tsx");
 
   assert.match(
     audioPlayerSource,
-    /function shuffleActiveQueue\(\)[\s\S]*?activeQueue\.map\(\(entry\) => entry\.key\)[\s\S]*?shuffleQueueTracks\(shuffledTrackKeys\);/,
+    /function shuffleActiveQueue\(\)[\s\S]*?playableTracks\.map\(\(entry\) => entry\.key\)[\s\S]*?shuffleQueueTracks\(shuffledTrackKeys\);/,
   );
   assert.match(
     audioPlayerSource,
-    /className="hiplingo-now-playing-dock__shuffle-button"[\s\S]*?aria-label="Shuffle playback queue"[\s\S]*?onClick=\{shuffleActiveQueue\}/,
+    /displayMode === "full" \? \([\s\S]*?className="hiplingo-now-playing-dock__shuffle-button"[\s\S]*?aria-label="Shuffle playback queue"[\s\S]*?onClick=\{shuffleActiveQueue\}[\s\S]*?\) : \([\s\S]*?className="hiplingo-now-playing-dock__listen-button"[\s\S]*?aria-label="Open Listen"[\s\S]*?onOpenFullPlayer\?\.\(\)/,
   );
   assert.match(
     css,
@@ -86,17 +86,14 @@ test("places a global Shuffle icon beside the landscape footer waveform", async 
   );
 });
 
-test("defers landscape playlist UI while retaining its implementation", async () => {
+test("defers the landscape title carousel while keeping floating discovery controls removed", async () => {
   const css = await readSource("src/index.css");
   const queueSource = await readSource("src/components/ListenTrackQueue.tsx");
 
-  assert.match(
-    css,
-    /Mobile landscape Listen — playlist deferred[\s\S]*?\.listen-track-queue__titles,[\s\S]*?\.listen-track-queue__filters\s*\{\s*display:\s*none;/,
-  );
+  assert.match(css, /Mobile landscape Listen — playlist deferred[\s\S]*?\.listen-track-queue__titles,[\s\S]*?\{\s*display:\s*none;/);
   assert.match(queueSource, /className="listen-track-queue__titles"/);
-  assert.match(queueSource, /"listen-track-queue__current"/);
-  assert.match(queueSource, /className="listen-track-queue__shuffle"/);
+  assert.doesNotMatch(queueSource, /listen-track-queue__filters/);
+  assert.doesNotMatch(queueSource, /listen-track-queue__shuffle/);
 });
 
 test("restores the Hiplingo purple hamburger control styling", async () => {

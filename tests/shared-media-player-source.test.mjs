@@ -104,7 +104,7 @@ test("compact Now Playing presentation is shared while host playback engines rem
     player,
     /onArtworkClick=\{[\s\S]*?displayMode === "compact"[\s\S]*?onOpenFullPlayer/,
   );
-  assert.match(player, /detail="Playback audio"/);
+  assert.match(player, /detail=\{[\s\S]*?getReleaseDate\(selectedTrack\.release\)[\s\S]*?\.match\(\/\^\\d\{4\}\/\)\?\.\[0\] \?\? ""[\s\S]*?\}/);
   assert.doesNotMatch(player, /hiplingo-compact-player/);
   assert.match(player, /controller=\{\{/);
   assert.match(player, /endControls=/);
@@ -171,7 +171,7 @@ test("playable media items normalize identity and host-owned resources without s
   assert.match(player, /artworkUrl: getMediaUrl/);
   assert.match(player, /const waveformUrl = selectedTrack\.waveformUrl/);
   assert.match(player, /const audioSource =[\s\S]*selectedTrack\?\.source\.url/);
-  assert.match(player, /context=\{getPlayableMediaContext\(selectedTrack\)\}/);
+  assert.match(player, /context=\{[\s\S]*?hiplingo-now-playing-dock__context-links[\s\S]*?const artistName = selectedTrack\.artist;[\s\S]*?if \(artistName\) \{[\s\S]*?onOpenArtist\(artistName\);[\s\S]*?\{selectedTrack\.artist\}[\s\S]*?onOpenRelease\(selectedTrack\.release\.id\)[\s\S]*?\{selectedTrack\.release\.title\}[\s\S]*?\}/);
   assert.doesNotMatch(playableMedia, /new Audio\(|hls\.js|fetch\(/);
 });
 

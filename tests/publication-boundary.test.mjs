@@ -393,7 +393,7 @@ test("keeps release identity concise and emphasizes the persistent now-playing t
   );
   assert.match(
     releaseSource,
-    /\[date, `\$\{release\.trackCount\}/,
+    /\[\s*date,\s*`\$\{release\.trackCount\}[\s\S]*?releaseRuntime,\s*\]/,
   );
   assert.match(
     css,
@@ -580,7 +580,7 @@ test("removes the retired multi-view Library implementation", async () => {
   );
   assert.doesNotMatch(css, /\.library-|\.hiplingo-site-browse/);
   assert.match(queueSource, /listen-track-queue__titles/);
-  assert.match(queueSource, /listen-track-queue__filters/);
+  assert.match(queueSource, /className="listen-track-queue__titles"/);
 });
 
 test("refuses canonical private roots as Hiplingo public media", async () => {
@@ -710,4 +710,40 @@ test("toggles release playback from the release artwork", async () => {
   assert.match(source, /onPlayQueue\(playableTrackKeys\[0\], playableTrackKeys\)/);
   assert.match(source, /aria-pressed=\{isPlaying\}/);
   assert.match(source, /\{isPlaying \? "❚❚" : "▶"\}/);
+});
+
+
+test("v1 licensing uses static public contact while Jam remains explicitly coming soon", async () => {
+  const appSource = await readFile(
+    path.join(projectRoot, "src/App.tsx"),
+    "utf8",
+  );
+
+  const inquiryStart = appSource.indexOf(
+    'case "/licensing/inquiry":',
+  );
+  const jamStart = appSource.indexOf(
+    'case "/licensing/jam":',
+  );
+  const aboutStart = appSource.indexOf(
+    'case "/about":',
+  );
+
+  assert.notEqual(inquiryStart, -1);
+  assert.notEqual(jamStart, -1);
+  assert.notEqual(aboutStart, -1);
+
+  const inquirySource = appSource.slice(
+    inquiryStart,
+    jamStart,
+  );
+  const jamSource = appSource.slice(
+    jamStart,
+    aboutStart,
+  );
+
+  assert.match(inquirySource, /HIPLINGO_CONTACT_MAILTO/);
+  assert.match(inquirySource, />\s*Contact Hiplingo\s*</);
+  assert.doesNotMatch(inquirySource, /form is being prepared/);
+  assert.match(jamSource, /Coming soon\./);
 });

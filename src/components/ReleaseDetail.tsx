@@ -3,6 +3,9 @@ import type { PlaybackStateSnapshot } from "./AudioPlayer";
 import type { CatalogRelease, MediaCatalog } from "../types/MediaCatalog";
 import {
   getMediaUrl,
+  fetchPublishedTrackDurationSeconds,
+  formatPublicDate,
+  formatPublicRuntime,
   getReleaseArtist,
   getReleaseArtworkPath,
   getReleaseDate,
@@ -100,6 +103,58 @@ export default function ReleaseDetail({
   const release = catalog?.releases.find(
     (entry) => entry.id === releaseId,
   );
+  const [
+    trackDurationSecondsById,
+    setTrackDurationSecondsById,
+  ] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!catalog || !release) {
+      setTrackDurationSecondsById({});
+      return;
+    }
+
+    const controller = new AbortController();
+    setTrackDurationSecondsById({});
+
+    void Promise.all(
+      release.tracks.map(async (track) => {
+        if (!track.playable) {
+          return [track.id, null] as const;
+        }
+
+        const duration =
+          await fetchPublishedTrackDurationSeconds(
+            catalog,
+            track,
+            controller.signal,
+          );
+
+        return [track.id, duration] as const;
+      }),
+    ).then((entries) => {
+      if (controller.signal.aborted) {
+        return;
+      }
+
+      const durations: Record<string, number> = {};
+
+      for (const [trackId, duration] of entries) {
+        if (duration != null) {
+          durations[trackId] = duration;
+        }
+      }
+
+      setTrackDurationSecondsById(durations);
+    });
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    catalog,
+    release,
+  ]);
 
   if (loading) {
     return (
@@ -140,12 +195,31 @@ export default function ReleaseDetail({
   }
 
   const artist = getReleaseArtist(release);
-  const date = getReleaseDate(release);
+  const date = formatPublicDate(getReleaseDate(release));
   const type = getReleaseType(release);
   const description = getReleaseDescription(release);
-  const playableTrackKeys = release.tracks
-    .filter((track) => track.playable)
-    .map((track) => getTrackKey(release, track));
+  const playableTracks = release.tracks.filter(
+    (track) => track.playable,
+  );
+  const playableTrackKeys = playableTracks.map(
+    (track) => getTrackKey(release, track),
+  );
+  const hasCompleteRuntime =
+    playableTracks.length > 0 &&
+    playableTracks.every(
+      (track) =>
+        trackDurationSecondsById[track.id] != null,
+    );
+  const releaseRuntime = hasCompleteRuntime
+    ? formatPublicRuntime(
+        playableTracks.reduce(
+          (total, track) =>
+            total +
+            trackDurationSecondsById[track.id],
+          0,
+        ),
+      )
+    : null;
   const releaseIsSelected = Boolean(
     playbackState.hasSelection &&
       playbackState.trackKey &&
@@ -203,7 +277,11 @@ export default function ReleaseDetail({
             <span className="hiplingo-kicker">{type ?? "Release"}</span>
             <h1>{release.title}</h1>
             <p className="hiplingo-release-detail__meta">
-              {[date, `${release.trackCount} ${release.trackCount === 1 ? "track" : "tracks"}`]
+              {[
+                date,
+                `${release.trackCount} ${release.trackCount === 1 ? "track" : "tracks"}`,
+                releaseRuntime,
+              ]
                 .filter(Boolean)
                 .join(" · ")}
             </p>
@@ -286,22 +364,6 @@ export default function ReleaseDetail({
                   );
                 }}
               >
-                <span className="hiplingo-release-track__number">{number}</span>
-                <button
-                  type="button"
-                  className="hiplingo-release-track__title"
-                  aria-current={
-                    selectedRowTrackKey === trackKey
-                      ? "true"
-                      : undefined
-                  }
-                  onClick={() => {
-                    setSelectedRowTrackKey(trackKey);
-                  }}
-                >
-                  <strong>{track.title}</strong>
-                  {trackArtist !== artist ? <small>{trackArtist}</small> : null}
-                </button>
                 <button
                   type="button"
                   className="hiplingo-release-track__action"
@@ -329,6 +391,27 @@ export default function ReleaseDetail({
                     {trackIsSelected && playbackState.isPlaying ? "❚❚" : "▶"}
                   </span>
                 </button>
+                <span className="hiplingo-release-track__number">{number}</span>
+                <button
+                  type="button"
+                  className="hiplingo-release-track__title"
+                  aria-current={
+                    selectedRowTrackKey === trackKey
+                      ? "true"
+                      : undefined
+                  }
+                  onClick={() => {
+                    setSelectedRowTrackKey(trackKey);
+                  }}
+                >
+                  <strong>{track.title}</strong>
+                  {trackArtist !== artist ? <small>{trackArtist}</small> : null}
+                </button>
+                <span className="hiplingo-release-track__runtime">
+                  {formatPublicRuntime(
+                    trackDurationSecondsById[track.id],
+                  ) ?? "—"}
+                </span>
               </div>
             );
           })}

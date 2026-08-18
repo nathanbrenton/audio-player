@@ -102,9 +102,6 @@ export default function ArtistCatalog({
     <main className="hiplingo-page hiplingo-artists-page">
       <header className="hiplingo-catalog-heading">
         <div>
-          <span className="hiplingo-kicker">
-            Roster
-          </span>
           <h1>Artists</h1>
         </div>
 
