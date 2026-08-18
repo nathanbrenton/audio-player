@@ -87,9 +87,25 @@ test("compact Now Playing presentation is shared while host playback engines rem
   const player = await source("src/components/AudioPlayer.tsx");
   const sharedIndex = await source("../packages/media-player/src/index.ts");
   const sharedNowPlaying = await source("../packages/media-player/src/CompactNowPlayingBar.tsx");
+  const sharedNowPlayingStyles = await source(
+    "../packages/media-player/src/compact-now-playing-bar.css",
+  );
+  const sharedPackage = await source("../packages/media-player/package.json");
+  const main = await source("src/main.tsx");
+  const hostStyles = await source("src/components/compact-now-playing-host.css");
   const readme = await source("README.md");
 
-  assert.match(player, /<CompactNowPlayingBar/);
+  assert.equal(
+    (player.match(/<CompactNowPlayingBar/g) ?? []).length,
+    1,
+    "Hiplingo should render one shared Now Playing bar for full and compact routes",
+  );
+  assert.match(
+    player,
+    /onArtworkClick=\{[\s\S]*?displayMode === "compact"[\s\S]*?onOpenFullPlayer/,
+  );
+  assert.match(player, /detail="Playback audio"/);
+  assert.doesNotMatch(player, /hiplingo-compact-player/);
   assert.match(player, /controller=\{\{/);
   assert.match(player, /endControls=/);
   assert.match(player, /classNames=\{\{/);
@@ -102,6 +118,16 @@ test("compact Now Playing presentation is shared while host playback engines rem
   assert.match(sharedNowPlaying, /controller: PlaybackShellController/);
   assert.doesNotMatch(sharedNowPlaying, /transportTrailing/);
   assert.match(sharedNowPlaying, /endControls/);
+  assert.match(sharedPackage, /\.\/compact-now-playing-bar\.css/);
+  assert.match(
+    main,
+    /\.\/index\.css[\s\S]*@hiplingo\/media-player\/compact-now-playing-bar\.css[\s\S]*\.\/components\/compact-now-playing-host\.css/,
+  );
+  assert.match(sharedNowPlayingStyles, /\.shared-now-playing\s*\{/);
+  assert.match(sharedNowPlayingStyles, /"artwork identity time waveform transport volume"/);
+  assert.match(sharedNowPlayingStyles, /\.shared-volume-control__popup/);
+  assert.match(hostStyles, /\.hiplingo-now-playing-dock\s*\{/);
+  assert.doesNotMatch(hostStyles, /\.shared-now-playing__title\s*\{/);
   assert.doesNotMatch(sharedNowPlaying, /new Audio\(|hls\.js|fetch\(/);
   assert.match(player, /usePersistentMediaElement\(\)/);
   assert.match(readme, /compact Now Playing presentation shell/);
@@ -355,4 +381,15 @@ test("persistent media-element reference and renderer are shared across hosts", 
     sourceSession,
     /audioRef\.current \?\? attachedAudioRef\.current/,
   );
+});
+
+test("preserves displayed playback state while waveform scrubbing is active", async () => {
+  const player = await source("src/components/AudioPlayer.tsx");
+
+  assert.match(
+    player,
+    /const displayedIsPlaying = isScrubbing\s*\? scrubDisplayPlayingRef\.current\s*:\s*isPlaying;/,
+  );
+  assert.match(player, /waveformIsPlaying=\{displayedIsPlaying\}/);
+  assert.match(player, /isPlaying=\{displayedIsPlaying\}/);
 });

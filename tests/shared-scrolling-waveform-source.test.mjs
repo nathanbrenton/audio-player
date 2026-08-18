@@ -21,6 +21,16 @@ const audioPlayerSource = await readFile(
 
 test("Hiplingo consumes the shared full visualization surface directly", () => {
   assert.match(audioPlayerSource, /<MediaVisualizationSurface/);
+  assert.match(
+    audioPlayerSource,
+    /releaseWaveformHost[\s\S]*?<MediaVisualizationSurface/,
+    "desktop release heroes should reuse the shared zoomable visualization surface",
+  );
+  assert.match(
+    surfaceSource,
+    /useWaveformZoomController/,
+    "the shared visualization surface should own waveform zoom behavior",
+  );
   assert.match(surfaceSource, /<ScrollingWaveformCanvas/);
   assert.match(indexSource, /ScrollingWaveformCanvas/);
   assert.match(indexSource, /MediaVisualizationSurface/);

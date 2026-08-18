@@ -72,7 +72,7 @@ test("keeps one persistent AudioPlayer mounted across Hiplingo routes", async ()
   assert.match(appSource, /ref=\{audioPlayerRef\}/);
 });
 
-test("starts release playback in place instead of redirecting to /listen", async () => {
+test("starts release-page track playback in place instead of redirecting to /listen", async () => {
   const appSource = await readFile(
     path.join(projectRoot, "src/App.tsx"),
     "utf8",
@@ -85,7 +85,19 @@ test("starts release playback in place instead of redirecting to /listen", async
   assert.doesNotMatch(appSource, /\/listen\?track=/);
   assert.match(appSource, /audioPlayerRef\.current\?\.playQueue/);
   assert.match(releaseSource, /onPlayQueue/);
-  assert.match(releaseSource, /releaseActionLabel/);
+  assert.match(
+    releaseSource,
+    /onPlay=\{[\s\S]*?onPlayQueue\(playableTrackKeys\[0\], playableTrackKeys\)/,
+    "release artwork must start the release queue from its first playable track",
+  );
+  assert.match(releaseSource, /aria-label=\{actionLabel \?\? `Play \$\{release\.title\}`\}/);
+  assert.match(releaseSource, /actionLabel=\{releaseArtworkActionLabel\}/);
+  assert.match(releaseSource, /trackIsSelected/);
+  assert.match(releaseSource, /onTogglePlayback/);
+  assert.doesNotMatch(
+    releaseSource,
+    /releaseActionLabel|Play release|Pause release|Resume release/,
+  );
 });
 
 test("advances through the active queue and exposes a compact global player", async () => {
@@ -97,7 +109,65 @@ test("advances through the active queue and exposes a compact global player", as
   assert.match(playerSource, /setQueueTrackKeys\(nextQueue\)/);
   assert.match(playerSource, /if \(nextTrack\)[\s\S]*loadTrack\(nextTrack\.key, true\)/);
   assert.match(playerSource, /data-display-mode=\{displayMode\}/);
-  assert.match(playerSource, /hiplingo-compact-player/);
+  assert.match(playerSource, /<CompactNowPlayingBar/);
+  assert.match(
+    playerSource,
+    /displayMode === "compact"[\s\S]*?onOpenFullPlayer/,
+  );
+  assert.doesNotMatch(playerSource, /hiplingo-compact-player/);
+});
+
+
+test("seeds a cold release-page footer from that release without replacing persistent playback", async () => {
+  const appSource = await readFile(
+    path.join(projectRoot, "src/App.tsx"),
+    "utf8",
+  );
+  const playerSource = await readFile(
+    path.join(projectRoot, "src/components/AudioPlayer.tsx"),
+    "utf8",
+  );
+
+  assert.match(
+    appSource,
+    /routeReleaseInitialTrack[\s\S]*?find\(\(track\) => track\.playable\)[\s\S]*?fallbackTrackKey=\{routeReleaseInitialTrackKey\}/,
+  );
+  assert.match(
+    playerSource,
+    /if \(\s*!playableTracks\.some\([\s\S]*?entry\.key === selectedTrackKey[\s\S]*?\) \{[\s\S]*?if \(fallbackTrack\)[\s\S]*?entry\.release\.id === fallbackTrack\.release\.id[\s\S]*?setSelectedTrackKey\(selectionFallbackTrackKey\)/,
+  );
+});
+
+
+test("docks the shared desktop transport to the viewport bottom on every route", async () => {
+  const css = await readFile(
+    path.join(projectRoot, "src/index.css"),
+    "utf8",
+  );
+  const hostCss = await readFile(
+    path.join(
+      projectRoot,
+      "src/components/compact-now-playing-host.css",
+    ),
+    "utf8",
+  );
+
+  assert.match(
+    hostCss,
+    /\.hiplingo-now-playing-dock\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?bottom:\s*0;[\s\S]*?width:\s*min\(92rem, 100%\);/,
+  );
+  assert.match(
+    css,
+    /@media \(min-width: 58\.001rem\) \{[\s\S]*?\.hiplingo-site-shell:has\(\.hiplingo-now-playing-dock\)[\s\S]*?padding-bottom:/,
+  );
+  assert.match(
+    hostCss,
+    /@media \(max-width: 58rem\) \{[\s\S]*?\.hiplingo-now-playing-dock\s*\{[\s\S]*?position:\s*relative;[\s\S]*?bottom:\s*auto;/,
+  );
+  assert.match(
+    css,
+    /@media \(max-width: 58rem\) \{[\s\S]*?\.audio-player\[data-display-mode="compact"\]\s*\{[\s\S]*?bottom:\s*max\(7px, env\(safe-area-inset-bottom\)\);/,
+  );
 });
 
 
@@ -114,6 +184,51 @@ test("keeps compact Hiplingo routes scrollable on mobile", async () => {
   assert.match(
     css,
     /body:has\(\.audio-player\[data-display-mode="compact"\]\)[\s\S]*?overflow-y:\s*auto;/,
+  );
+});
+
+
+test("portals the shared audible-scrub waveform into desktop release heroes", async () => {
+  const appSource = await readFile(
+    path.join(projectRoot, "src/App.tsx"),
+    "utf8",
+  );
+  const playerSource = await readFile(
+    path.join(projectRoot, "src/components/AudioPlayer.tsx"),
+    "utf8",
+  );
+  const releaseSource = await readFile(
+    path.join(projectRoot, "src/components/ReleaseDetail.tsx"),
+    "utf8",
+  );
+  const css = await readFile(
+    path.join(projectRoot, "src/index.css"),
+    "utf8",
+  );
+
+  assert.match(appSource, /releaseWaveformHost/);
+  assert.match(appSource, /onNowPlayingWaveformHostChange=\{setReleaseWaveformHost\}/);
+  assert.match(appSource, /releaseWaveformHost=\{releaseWaveformHost\}/);
+  assert.match(
+    releaseSource,
+    /ref=\{onNowPlayingWaveformHostChange\}[\s\S]*?hiplingo-release-detail__now-playing-waveform-host/,
+  );
+  assert.match(playerSource, /createPortal\(/);
+  assert.match(
+    playerSource,
+    /releaseWaveformHost[\s\S]*?<MediaVisualizationSurface/,
+  );
+  assert.match(playerSource, /audioRef=\{audioRef\}/);
+  assert.match(playerSource, /waveformIsPlaying=\{displayedIsPlaying\}/);
+  assert.match(playerSource, /ensureAnalyser=\{ensureAudioAnalyser\}/);
+  assert.match(playerSource, /onScrubbingChange=\{handleScrubbingChange\}/);
+  assert.match(playerSource, /zoomControls:\s*"waveform-panel__zoom-controls"/);
+  assert.match(playerSource, /zoomIncreaseButton:/);
+  assert.match(playerSource, /zoomDecreaseButton:/);
+  assert.match(playerSource, /Now playing/);
+  assert.match(
+    css,
+    /\.hiplingo-release-detail__now-playing-waveform-host\s*\{[\s\S]*?display:\s*none;[\s\S]*?@media \(min-width: 980px\)[\s\S]*?\.hiplingo-release-detail__now-playing-waveform-host\s*\{[\s\S]*?display:\s*block;/,
   );
 });
 
@@ -137,13 +252,157 @@ test("shares live playback state with release-page controls", async () => {
   assert.match(playerSource, /togglePlayback:/);
   assert.match(appSource, /playbackState=\{playbackState\}/);
   assert.match(appSource, /requestTogglePlayback/);
-  assert.match(releaseSource, /Pause release/);
-  assert.match(releaseSource, /Resume release/);
+  assert.doesNotMatch(releaseSource, /Play release|Pause release|Resume release/);
   assert.match(releaseSource, /trackIsSelected/);
+  assert.match(
+    releaseSource,
+    /<button[\s\S]*?className="hiplingo-release-track__action"[\s\S]*?aria-label=\{trackActionLabel\}[\s\S]*?onClick=/,
+  );
+  assert.doesNotMatch(
+    releaseSource,
+    /<button[^>]*className="hiplingo-release-track"[^>]*>/,
+    "the playable track row itself should not be a button",
+  );
 });
 
 
-test("unifies Hiplingo navigation and player actions in one site header", async () => {
+test("puts desktop release-track transport before the track number", async () => {
+  const css = await readFile(
+    path.join(projectRoot, "src/index.css"),
+    "utf8",
+  );
+
+  assert.match(
+    css,
+    /@media \(min-width: 640px\) \{[\s\S]*?\.hiplingo-release-track\s*\{[\s\S]*?grid-template-columns:\s*46px 42px minmax\(0, 1fr\) auto;[\s\S]*?\.hiplingo-release-track__action\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?\.hiplingo-release-track__number\s*\{[\s\S]*?grid-column:\s*2;/,
+  );
+});
+
+
+test("release track rows expose purple selected and playing interaction states", async () => {
+  const releaseSource = await readFile(
+    path.join(projectRoot, "src/components/ReleaseDetail.tsx"),
+    "utf8",
+  );
+  const css = await readFile(
+    path.join(projectRoot, "src/index.css"),
+    "utf8",
+  );
+
+  assert.match(releaseSource, /useState<string \| null>\(playbackState\.trackKey\)/);
+  assert.match(releaseSource, /data-selected=\{/);
+  assert.match(releaseSource, /data-playing=\{/);
+  assert.match(
+    releaseSource,
+    /className="hiplingo-release-track"[\s\S]*?onClick=\{\(\) => \{[\s\S]*?setSelectedRowTrackKey\(trackKey\)[\s\S]*?onDoubleClick=\{\(event\) => \{[\s\S]*?onPlayQueue\([\s\S]*?trackKey,[\s\S]*?playableTrackKeys/,
+  );
+  assert.match(
+    releaseSource,
+    /className="hiplingo-release-track__title"[\s\S]*?aria-current=[\s\S]*?setSelectedRowTrackKey\(trackKey\)/,
+  );
+  assert.match(
+    releaseSource,
+    /className="hiplingo-release-track__action"[\s\S]*?onClick=\{\(event\) => \{[\s\S]*?event\.stopPropagation\(\)[\s\S]*?onDoubleClick=\{\(event\) => \{[\s\S]*?event\.stopPropagation\(\)/,
+  );
+  assert.match(
+    css,
+    /\.hiplingo-release-track:not\(\.hiplingo-release-track--unavailable\):hover[\s\S]*?rgba\(169, 140, 255,/,
+  );
+  assert.match(
+    css,
+    /\.hiplingo-release-track\[data-selected="true"\][\s\S]*?rgba\(169, 140, 255,/,
+  );
+  assert.match(
+    css,
+    /\.hiplingo-release-track\[data-playing="true"\][\s\S]*?rgba\(207, 191, 255,/,
+  );
+  assert.match(
+    css,
+    /\.hiplingo-release-track:not\(\.hiplingo-release-track--unavailable\)\s*\{[\s\S]*?user-select:\s*none;/,
+    "double-clicking a playable row should not select track-number/title text",
+  );
+  assert.match(
+    css,
+    /\.hiplingo-release-track\[data-selected="true"\]:hover[\s\S]*?rgba\(169, 140, 255, 0\.14\)/,
+    "hover should preserve the selected-row purple background",
+  );
+  assert.match(
+    css,
+    /\.hiplingo-release-track\[data-playing="true"\]:hover[\s\S]*?rgba\(169, 140, 255, 0\.22\)/,
+    "hover should preserve the stronger playing-row purple background",
+  );
+});
+
+
+test("Hiplingo site footer keeps Contact and removes the dead About link", async () => {
+  const appSource = await readFile(
+    path.join(projectRoot, "src/App.tsx"),
+    "utf8",
+  );
+  const css = await readFile(
+    path.join(projectRoot, "src/index.css"),
+    "utf8",
+  );
+
+  const footerStart = appSource.indexOf(
+    'function SiteFooter()',
+  );
+  const footerEnd = appSource.indexOf(
+    'export default function App()',
+  );
+
+  assert.notEqual(footerStart, -1);
+  assert.notEqual(footerEnd, -1);
+
+  const footerSource = appSource.slice(
+    footerStart,
+    footerEnd,
+  );
+
+  assert.match(footerSource, /HIPLINGO_CONTACT_MAILTO/);
+  assert.doesNotMatch(footerSource, /route="\/about"/);
+  assert.doesNotMatch(footerSource, />\s*About\s*</);
+  assert.match(
+    css,
+    /\.hiplingo-site-footer\s*\{[\s\S]*?justify-content:\s*center;[\s\S]*?text-align:\s*center;/,
+  );
+});
+
+
+test("keeps release identity concise and emphasizes the persistent now-playing track", async () => {
+  const releaseSource = await readFile(
+    path.join(projectRoot, "src/components/ReleaseDetail.tsx"),
+    "utf8",
+  );
+  const css = await readFile(
+    path.join(projectRoot, "src/index.css"),
+    "utf8",
+  );
+
+  assert.match(
+    releaseSource,
+    /hiplingo-release-detail__masthead[\s\S]*?← Releases[\s\S]*?onOpenArtist\(artist\)/,
+  );
+  assert.match(
+    releaseSource,
+    /<h2 id="release-tracklist-heading">Track list<\/h2>/,
+  );
+  assert.doesNotMatch(
+    releaseSource,
+    /release-tracklist-heading">\{release\.title\}/,
+  );
+  assert.match(
+    releaseSource,
+    /\[date, `\$\{release\.trackCount\}/,
+  );
+  assert.match(
+    css,
+    /\.hiplingo-release-now-playing__identity strong\s*\{[\s\S]*?color:\s*#f0edf4;[\s\S]*?font-size:\s*clamp\(0\.95rem,[\s\S]*?font-weight:\s*740;/,
+  );
+});
+
+
+test("unifies Hiplingo navigation and player settings in one site header", async () => {
   const appSource = await readFile(
     path.join(projectRoot, "src/App.tsx"),
     "utf8",
@@ -154,29 +413,51 @@ test("unifies Hiplingo navigation and player actions in one site header", async 
   );
 
   assert.match(appSource, /hiplingo-site-actions/);
-  assert.match(appSource, /onBrowseLibrary=\{requestOpenLibrary\}/);
   assert.match(appSource, /onTogglePlayerMenu=\{requestTogglePlayerMenu\}/);
+  assert.doesNotMatch(appSource, /Browse Library|onBrowseLibrary|requestOpenLibrary/);
   assert.doesNotMatch(playerSource, /<header className="audio-player__header">/);
-  assert.match(playerSource, /openLibrary:\s*\(\) =>/);
+  assert.doesNotMatch(playerSource, /openLibrary|library-sheet__/);
   assert.match(playerSource, /toggleSettings:\s*\(\) =>/);
 });
 
-test("keeps the global player dock above browsing and metadata overlays", async () => {
-  const css = await readFile(
+test("keeps the global player dock above the metadata overlay", async () => {
+  const appStyles = await readFile(
     path.join(projectRoot, "src/index.css"),
     "utf8",
   );
+  const sharedMetadataStyles = await readFile(
+    path.resolve(
+      projectRoot,
+      "../packages/media-player/src/listener-metadata-viewer.css",
+    ),
+    "utf8",
+  );
+  const nowPlayingHostStyles = await readFile(
+    path.join(
+      projectRoot,
+      "src/components/compact-now-playing-host.css",
+    ),
+    "utf8",
+  );
 
-  assert.match(css, /\.hiplingo-site-header\s*\{[\s\S]*?z-index:\s*400;/);
-  assert.match(css, /\.library-sheet__backdrop\s*\{[\s\S]*?z-index:\s*950;/);
-  assert.match(css, /\.metadata-viewer__backdrop\s*\{[\s\S]*?z-index:\s*1000;/);
-  assert.match(css, /\.audio-player__now-playing\s*\{[\s\S]*?z-index:\s*1200\s*!important;/);
+  assert.match(appStyles, /\.hiplingo-site-header\s*\{[\s\S]*?z-index:\s*400;/);
+  assert.doesNotMatch(appStyles, /\.library-sheet__/);
+  assert.match(
+    sharedMetadataStyles,
+    /\.metadata-viewer__backdrop\s*\{[\s\S]*?z-index:\s*1000;/,
+  );
+  assert.match(
+    nowPlayingHostStyles,
+    /\.hiplingo-now-playing-dock\s*\{[\s\S]*?z-index:\s*1200;/,
+  );
 });
-
 
 test("groups Edited By with Recording & Editing credits", async () => {
   const metadataViewerSource = await readFile(
-    path.join(projectRoot, "src/components/MetadataViewer.tsx"),
+    path.resolve(
+      projectRoot,
+      "../packages/media-player/src/ListenerMetadataViewer.tsx",
+    ),
     "utf8",
   );
 
@@ -197,7 +478,10 @@ test("groups Edited By with Recording & Editing credits", async () => {
 
 test("uses the unified metadata header and production credit groups", async () => {
   const metadataViewerSource = await readFile(
-    path.join(projectRoot, "src/components/MetadataViewer.tsx"),
+    path.resolve(
+      projectRoot,
+      "../packages/media-player/src/ListenerMetadataViewer.tsx",
+    ),
     "utf8",
   );
 
@@ -209,38 +493,45 @@ test("uses the unified metadata header and production credit groups", async () =
   assert.match(metadataViewerSource, /metadata-viewer__header-main/);
 });
 
-test("uses overlay library browsing without duplicate overlay transports", async () => {
+test("uses one dedicated Listen queue without retaining a browse overlay", async () => {
   const playerSource = await readFile(
     path.join(projectRoot, "src/components/AudioPlayer.tsx"),
     "utf8",
   );
+  const queueSource = await readFile(
+    path.join(projectRoot, "src/components/ListenTrackQueue.tsx"),
+    "utf8",
+  );
 
   assert.equal(
-    (playerSource.match(/<LibraryBrowser\b/g) ?? []).length,
+    (playerSource.match(/<ListenTrackQueue\b/g) ?? []).length,
     1,
-    "LibraryBrowser should only render inside the browse overlay",
+    "the full Listen view should render one dedicated title queue",
   );
-  assert.doesNotMatch(playerSource, /library-sheet__transport/);
-  assert.doesNotMatch(playerSource, /metadata-viewer__persistent-transport/);
-  assert.match(playerSource, /getLibraryQueueTrackKeys/);
+  assert.doesNotMatch(playerSource, /LibraryBrowser|openLibrary|library-sheet__/);
+  assert.match(playerSource, /getQueueTrackKeysForTrack/);
+  assert.doesNotMatch(queueSource, /library-browser__|library-workspace__/);
 });
 
 test("top-anchors metadata and reserves the persistent player dock", async () => {
-  const css = await readFile(
-    path.join(projectRoot, "src/index.css"),
+  const hostStyles = await readFile(
+    path.join(
+      projectRoot,
+      "src/components/metadata-viewer-host.css",
+    ),
     "utf8",
   );
 
   assert.match(
-    css,
+    hostStyles,
     /\.metadata-viewer__backdrop\s*\{[\s\S]*?place-items:\s*start center;/,
   );
   assert.match(
-    css,
-    /body:has\(\.metadata-viewer__backdrop\)[\s\S]*?\.audio-player__now-playing-waveform[\s\S]*?display:\s*none\s*!important;/,
+    hostStyles,
+    /body:has\(\.metadata-viewer__backdrop\)[\s\S]*?\.shared-now-playing__waveform-region[\s\S]*?display:\s*none\s*!important;/,
   );
   assert.match(
-    css,
+    hostStyles,
     /grid-template-areas:\s*\n\s*"artwork identity time transport metadata"\s*!important;/,
   );
 });
@@ -261,42 +552,35 @@ test("desktop full player keeps artwork and waveform on one centerline", async (
   );
 });
 
-test("desktop Browse Library restores the shared overlay as a visible drawer", async () => {
+test("removes Browse Library from every public header breakpoint", async () => {
+  const appSource = await readFile(
+    path.join(projectRoot, "src/App.tsx"),
+    "utf8",
+  );
   const css = await readFile(
     path.join(projectRoot, "src/index.css"),
     "utf8",
   );
 
-  assert.match(
-    css,
-    /@media \(min-width: 900px\)[\s\S]*?\.library-sheet__backdrop\s*\{[\s\S]*?display:\s*grid;/,
-    "desktop H6 library drawer must override the legacy display:none rule",
-  );
+  assert.doesNotMatch(appSource, /Browse Library|hiplingo-site-browse|onBrowseLibrary/);
+  assert.doesNotMatch(css, /\.hiplingo-site-browse|\.library-sheet__/);
 });
 
+test("removes the retired multi-view Library implementation", async () => {
+  const [playerSource, queueSource, css] = await Promise.all([
+    readFile(path.join(projectRoot, "src/components/AudioPlayer.tsx"), "utf8"),
+    readFile(path.join(projectRoot, "src/components/ListenTrackQueue.tsx"), "utf8"),
+    readFile(path.join(projectRoot, "src/index.css"), "utf8"),
+  ]);
 
-test("uses a two-pane desktop library workspace without changing mobile browsing", async () => {
-  const browserSource = await readFile(
-    path.join(projectRoot, "src/components/LibraryBrowser.tsx"),
-    "utf8",
+  assert.doesNotMatch(playerSource, /LibraryBrowser|library-sheet__/);
+  assert.doesNotMatch(
+    queueSource,
+    /DesktopLibraryViewMode|library-browser__|library-workspace__|coverTileSizeRem|mobileReleaseId/,
   );
-  const css = await readFile(
-    path.join(projectRoot, "src/index.css"),
-    "utf8",
-  );
-
-  assert.match(browserSource, /library-browser__desktop-workspace/);
-  assert.match(browserSource, /library-workspace__release-nav/);
-  assert.match(browserSource, /library-workspace__release-detail/);
-  assert.match(browserSource, /Search releases, artists, tracks…/);
-  assert.match(browserSource, /aria-selected=\{desktopMode === "tracks"\}/);
-  assert.match(browserSource, /library-browser__mobile-workspace/);
-  assert.match(css, /\.library-sheet\s*\{[\s\S]*?width:\s*min\(1180px, calc\(100vw - 48px\)\);/);
-  assert.match(
-    css,
-    /\.library-workspace__release-layout\s*\{[\s\S]*?grid-template-columns:\s*\d+px minmax\(0, 1fr\);/,
-    "desktop library should keep a fixed release navigator beside a flexible detail pane",
-  );
+  assert.doesNotMatch(css, /\.library-|\.hiplingo-site-browse/);
+  assert.match(queueSource, /listen-track-queue__titles/);
+  assert.match(queueSource, /listen-track-queue__filters/);
 });
 
 test("refuses canonical private roots as Hiplingo public media", async () => {
@@ -393,7 +677,10 @@ test("keeps Hiplingo public metadata on the browser-native UTF-8 JSON path", asy
     "utf8",
   );
   const metadataViewerSource = await readFile(
-    path.join(projectRoot, "src/components/MetadataViewer.tsx"),
+    path.resolve(
+      projectRoot,
+      "../packages/media-player/src/ListenerMetadataViewer.tsx",
+    ),
     "utf8",
   );
 
@@ -409,4 +696,18 @@ test("keeps Hiplingo public metadata on the browser-native UTF-8 JSON path", asy
     metadataViewerSource,
     /JSON\.stringify\(rawMetadata, null, 2\)/,
   );
+});
+
+
+test("toggles release playback from the release artwork", async () => {
+  const source = await readFile(
+    new URL("../src/components/ReleaseDetail.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /const releaseIsSelected = Boolean/);
+  assert.match(source, /if \(releaseIsSelected\) \{[\s\S]*?onTogglePlayback\(\)/);
+  assert.match(source, /onPlayQueue\(playableTrackKeys\[0\], playableTrackKeys\)/);
+  assert.match(source, /aria-pressed=\{isPlaying\}/);
+  assert.match(source, /\{isPlaying \? "❚❚" : "▶"\}/);
 });

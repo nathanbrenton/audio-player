@@ -50,21 +50,30 @@ test("Journal is removed and Licensing is the public rights entry point", async 
   assert.match(app, /title="Jam participant agreement"/);
 });
 
-test("compact site player has one canonical visual layout", async () => {
+test("compact site player uses the shared Now Playing visual layout", async () => {
   const css = await source("src/index.css");
+  const hostCss = await source("src/components/compact-now-playing-host.css");
+  const sharedCss = await source(
+    "../packages/media-player/src/compact-now-playing-bar.css",
+  );
 
-  assert.match(css, /Hiplingo compact player canonical layout/);
-  assert.doesNotMatch(css, /Hiplingo PT5 compact dock v2/);
-  assert.doesNotMatch(css, /compact dock polish/);
-  assert.match(css, /width:\s*min\(960px, calc\(100vw - 32px\)\)/);
-  assert.match(css, /hiplingo-compact-player__transport[\s\S]*?display:\s*grid !important/);
-  assert.match(css, /grid-template-columns:\s*40px 46px 40px/);
-  assert.match(css, /width:\s*max-content !important/);
-  assert.match(css, /justify-self:\s*end !important/);
-  assert.match(css, /hiplingo-compact-player__transport button \{[\s\S]*?position:\s*relative !important/);
-  assert.match(css, /hiplingo-compact-player__transport[\s\S]*?artwork-stack__transport-icon \{[\s\S]*?position:\s*static !important/);
-  assert.match(css, /artwork-stack__transport-icon::before \{[\s\S]*?content:\s*none !important/);
-  assert.match(css, /transform:\s*none !important/);
-  assert.match(css, /> button:nth-child\(3\)/);
-  assert.match(css, /padding-bottom:[\s\S]*?122px/);
+  assert.match(css, /Hiplingo compact shared Now Playing host/);
+  assert.doesNotMatch(css, /Hiplingo compact player canonical layout/);
+  assert.doesNotMatch(css, /hiplingo-compact-player__/);
+  assert.match(
+    css,
+    /width:\s*min\(92rem, 100%\)/,
+  );
+  assert.match(
+    css,
+    /> :not\(\.hiplingo-now-playing-dock\):not\(\.audio-player__settings-backdrop\)/,
+  );
+  assert.match(hostCss, /\.hiplingo-now-playing-dock\s*\{/);
+  assert.match(
+    hostCss,
+    /audio-player\[data-display-mode="compact"\][\s\S]*?> \.hiplingo-now-playing-dock[\s\S]*?width:\s*100%/,
+  );
+  assert.match(sharedCss, /"artwork identity time waveform transport volume"/);
+  assert.match(sharedCss, /\.shared-now-playing__waveform-region/);
+  assert.match(sharedCss, /\.shared-volume-control__button/);
 });

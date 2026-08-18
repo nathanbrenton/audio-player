@@ -3,6 +3,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import "@hiplingo/media-player/compact-now-playing-bar.css";
+import "./components/compact-now-playing-host.css";
 
 const rootElement = document.getElementById("root");
 

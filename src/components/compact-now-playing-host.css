@@ -1,0 +1,72 @@
+/* Hiplingo host integration for the shared CompactNowPlayingBar.
+ *
+ * This file is imported after the shared component stylesheet, so it owns
+ * placement only. Canonical portrait/landscape component geometry lives in
+ * index.css; do not reassign those mobile grid areas here.
+ */
+.hiplingo-now-playing-dock {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1200;
+  width: min(92rem, 100%);
+  margin: 0 auto;
+}
+
+.hiplingo-now-playing-dock + .audio-player__footer {
+  margin-top: 8px;
+}
+
+/* Narrow shared-player hosts remain flow-positioned unless a more-specific
+ * Hiplingo route/orientation rule in index.css promotes them to a fixed dock. */
+@media (max-width: 58rem) {
+  .hiplingo-now-playing-dock {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: min(100%, calc(100vw - 24px));
+    margin: 18px auto 0;
+  }
+
+  .audio-player[data-display-mode="compact"]
+    > .hiplingo-now-playing-dock {
+    width: 100%;
+  }
+}
+
+/* Preserve the legacy narrow-desktop compact geometry only in the small gap
+ * above the mobile breakpoint. At <=899px, index.css owns the complete
+ * portrait/landscape grid, including Shuffle and Info placement. */
+@media (min-width: 900px) and (max-width: 58rem) {
+  .hiplingo-now-playing-dock.shared-now-playing {
+    grid-template-areas:
+      "artwork identity transport metadata"
+      "time waveform waveform waveform";
+    grid-template-columns:
+      3.25rem
+      minmax(0, 1fr)
+      auto
+      36px;
+  }
+
+  .hiplingo-now-playing-dock
+    .shared-now-playing__end-controls {
+    grid-area: metadata;
+    display: flex;
+  }
+}
+
+@media (orientation: landscape) and (max-width: 899px) {
+  .hiplingo-now-playing-dock {
+    width: min(100%, calc(100vw - 16px));
+    margin-top: 7px;
+  }
+
+  .audio-player[data-display-mode="compact"]
+    > .hiplingo-now-playing-dock {
+    width: 100%;
+    margin-top: 0;
+  }
+}

@@ -1,0 +1,144 @@
+/* ---------------------------------------------------------
+   Metadata overlay + persistent dock coordination
+   --------------------------------------------------------- */
+
+/*
+ * Track Metadata is a top-anchored workspace rather than a centered
+ * alert. Reserve the bottom of the viewport for the persistent player
+ * dock so metadata rows and the close control never sit underneath it.
+ */
+.metadata-viewer__backdrop {
+  box-sizing: border-box;
+  padding:
+    max(8px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right))
+    max(82px, calc(env(safe-area-inset-bottom) + 74px))
+    max(8px, env(safe-area-inset-left));
+  place-items: start center;
+  overflow: hidden;
+}
+
+.metadata-viewer {
+  max-height: 100%;
+}
+
+/*
+ * When metadata is open, collapse the full Now Playing dock to one
+ * transport row. The large waveform remains available again as soon as
+ * the overlay closes, while playback controls stay usable throughout.
+ */
+body:has(.metadata-viewer__backdrop)
+  .hiplingo-now-playing-dock {
+  grid-template-areas:
+    "artwork identity time transport metadata" !important;
+  grid-template-columns:
+    44px
+    minmax(0, 1fr)
+    max-content
+    auto
+    40px !important;
+  grid-template-rows: 54px !important;
+  gap: 8px 10px !important;
+  min-height: 0;
+  padding:
+    6px
+    max(10px, env(safe-area-inset-right))
+    max(6px, env(safe-area-inset-bottom))
+    max(10px, env(safe-area-inset-left)) !important;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .shared-now-playing__waveform-region,
+body:has(.metadata-viewer__backdrop)
+  .shared-volume-control {
+  display: none !important;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .shared-now-playing__artwork {
+  grid-area: artwork !important;
+  width: 42px !important;
+  min-width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .shared-now-playing__identity {
+  grid-area: identity !important;
+  min-width: 0;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .shared-now-playing__time {
+  grid-area: time !important;
+  display: flex !important;
+  justify-self: end;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .shared-now-playing__transport {
+  grid-area: transport !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .shared-now-playing__transport
+  > button:nth-child(1),
+body:has(.metadata-viewer__backdrop)
+  .shared-now-playing__transport
+  > button:nth-child(2),
+body:has(.metadata-viewer__backdrop)
+  .shared-now-playing__transport
+  > button:nth-child(3) {
+  grid-area: auto !important;
+}
+
+body:has(.metadata-viewer__backdrop)
+  .hiplingo-now-playing-dock__end-controls {
+  grid-area: metadata !important;
+  align-self: center;
+  justify-self: center;
+}
+
+/*
+ * Very narrow portrait screens prioritize identity + transport while
+ * metadata is already open. The dialog itself supplies the metadata UI,
+ * so the duplicate info button and elapsed time can temporarily hide.
+ */
+@media (max-width: 520px) {
+  .metadata-viewer__backdrop {
+    padding-bottom:
+      max(76px, calc(env(safe-area-inset-bottom) + 68px));
+  }
+
+  body:has(.metadata-viewer__backdrop)
+    .hiplingo-now-playing-dock {
+    grid-template-areas:
+      "artwork identity transport" !important;
+    grid-template-columns:
+      40px
+      minmax(0, 1fr)
+      auto !important;
+    grid-template-rows: 50px !important;
+    gap: 7px !important;
+  }
+
+  body:has(.metadata-viewer__backdrop)
+    .shared-now-playing__artwork {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+  }
+
+  body:has(.metadata-viewer__backdrop)
+    .shared-now-playing__time,
+  body:has(.metadata-viewer__backdrop)
+    .hiplingo-now-playing-dock__metadata-button {
+    display: none !important;
+  }
+}

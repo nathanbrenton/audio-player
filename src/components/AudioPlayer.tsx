@@ -8,7 +8,9 @@ import {
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
+  type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 import type Hls from "hls.js";
 
 import {
@@ -37,10 +39,13 @@ import {
 } from "@hiplingo/media-player";
 
 import CompactWaveformCanvas from "./CompactWaveformCanvas";
-import LibraryBrowser from "./LibraryBrowser";
+import AudioReactiveListenBackground from "./AudioReactiveListenBackground";
+import ListenTrackQueue from "./ListenTrackQueue";
 import MetadataViewer, {
   type MetadataVerbosity,
 } from "./MetadataViewer";
+
+import { HIPLINGO_CONTACT_MAILTO } from "../siteConfig";
 
 import type {
   CatalogRelease,
@@ -116,6 +121,8 @@ type WaveformData = {
   ][];
 };
 
+type ListenBackgroundMode = "watery" | "magnify";
+
 type HiplingoPlayableMediaSource = {
   url: string | null;
   protocol: ReturnType<typeof getTrackPlaybackProtocol>;
@@ -139,11 +146,29 @@ function ArtworkTransportIcon({
   );
 }
 
+function shufflePlaybackTrackKeys(
+  trackKeys: readonly string[],
+): string[] {
+  const shuffled = [...trackKeys];
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [
+      shuffled[swapIndex],
+      shuffled[index],
+    ];
+  }
+
+  return shuffled;
+}
+
 const APP_VERSION = (
   JSON.parse(packageJsonSource) as {
     version: string;
   }
 ).version;
+
+const DEVELOPER_CONTROL_HOLD_MS = 4000;
 
 export type PlaybackQueueRequest = {
   trackKey: string;
@@ -160,7 +185,6 @@ export type PlaybackStateSnapshot = {
 export type AudioPlayerHandle = {
   playQueue: (request: PlaybackQueueRequest) => void;
   togglePlayback: () => void;
-  openLibrary: () => void;
   toggleSettings: () => void;
 };
 
@@ -170,9 +194,13 @@ type AudioPlayerProps = {
   catalog?: MediaCatalog | null;
   catalogError?: string | null;
   initialTrackKey?: string | null;
+  fallbackTrackKey?: string | null;
   displayMode?: AudioPlayerDisplayMode;
   onOpenFullPlayer?: () => void;
+  onOpenRelease?: (releaseId: string) => void;
   onPlaybackStateChange?: (state: PlaybackStateSnapshot) => void;
+  releaseWaveformHost?: HTMLDivElement | null;
+  menuToggleButtonRef?: RefObject<HTMLButtonElement | null>;
 };
 
 const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
@@ -181,9 +209,13 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       catalog: suppliedCatalog,
       catalogError = null,
       initialTrackKey = null,
+      fallbackTrackKey = null,
       displayMode = "full",
       onOpenFullPlayer,
+      onOpenRelease,
       onPlaybackStateChange,
+      releaseWaveformHost = null,
+      menuToggleButtonRef,
     },
     ref,
   ) {
@@ -207,13 +239,9 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   const scrubReleaseTimeoutRef =
     useRef<number | null>(null);
 
-  // Restore focus to these triggers after closing overlays.
+  // Restore focus to the metadata trigger after closing its overlay.
   const metadataButtonRef =
     useRef<HTMLButtonElement | null>(null);
-  const libraryButtonRef =
-    useRef<HTMLButtonElement | null>(null);
-  const librarySheetRef =
-    useRef<HTMLDivElement | null>(null);
 
   // Close the hamburger menu when interaction moves elsewhere.
   const appMenuRef =
@@ -246,8 +274,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
 
   // Open the metadata viewer in its friendly listener-facing mode.
   const [isMetadataViewerOpen, setIsMetadataViewerOpen] =
-    useState(false);
-  const [isLibraryOpen, setIsLibraryOpen] =
     useState(false);
   const [
     metadataVerbosity,
@@ -314,13 +340,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   const [hasPlaybackSelection, setHasPlaybackSelection] =
     useState(false);
 
-  /*
-   * Library highlighting is independent from the loaded player
-   * track. A single click can inspect another row without stopping
-   * or replacing the track currently playing.
-   */
-  const [libraryTrackKey, setLibraryTrackKey] =
-    useState("");
 
   // Player state.
   const [isScrubbing, setIsScrubbing] = useState(false);
@@ -337,6 +356,8 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   // Waveform visual settings.
   const [colorMode, setColorMode] =
     useState<WaveformColorMode>("3band");
+  const [listenBackgroundMode, setListenBackgroundMode] =
+    useState<ListenBackgroundMode>("watery");
 
   const {
     analyser: analyserNode,
@@ -364,6 +385,14 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   } = playbackState;
   const playbackEvents =
     useMediaElementPlaybackEvents(playbackState);
+
+  /*
+   * Preserve the pre-scrub playback indication while the pointer is
+   * moving. The media element itself is reconciled after release.
+   */
+  const displayedIsPlaying = isScrubbing
+    ? scrubDisplayPlayingRef.current
+    : isPlaying;
   const mediaSourceAdapter: MediaSourceAdapter<
     HiplingoPlayableMediaSource
   > = {
@@ -471,73 +500,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     selectedTrack?.key,
   );
 
-  const selectedArtist =
-    selectedTrack?.artist ?? "Unknown artist";
-
-  const selectedReleaseTitle =
-    selectedTrack?.releaseTitle ?? "Unknown release";
-
-  const displayedTrackNumber =
-    selectedTrack?.track.trackNumber ??
-    (selectedTrackIndex >= 0
-      ? selectedTrackIndex + 1
-      : null);
-
-  const audioChannelLabel =
-    waveform?.sourceChannels === 1
-      ? "Mono"
-      : waveform?.sourceChannels === 2
-        ? "Stereo"
-        : waveform
-          ? `${waveform.sourceChannels} channels`
-          : "";
-
-  const audiophileHeaderStatus = waveform
-    ? `${(waveform.sampleRate / 1000).toFixed(
-        waveform.sampleRate % 1000 === 0 ? 0 : 1,
-      )} kHz · ${waveform.bitsPerSample}-bit · ${
-        audioChannelLabel
-      }`
-    : "Loading audio data";
-
-  const playbackHeaderStatus = displayLoadError
-    ? "Unavailable"
-    : !catalog
-      ? "Loading library"
-      : !selectedTrack
-        ? "No playable tracks"
-        : !waveform
-          ? "Loading track"
-          : hasPlaybackEnded
-            ? "Stopped"
-            : isPlaying
-              ? "Playing"
-              : currentTime > 0
-                ? "Paused"
-                : "Ready";
-
-  const displayedIsPlaying = isScrubbing
-    ? scrubDisplayPlayingRef.current
-    : isPlaying;
-
-  const headerStatus = isAudiophileMode
-    ? audiophileHeaderStatus
-    : displayLoadError
-      ? "Unavailable"
-      : !catalog
-        ? "Loading library"
-        : !selectedTrack
-          ? "No playable tracks"
-          : !waveform
-            ? "Loading track"
-            : hasPlaybackEnded
-              ? "Stopped"
-              : displayedIsPlaying
-                ? "Playing"
-                : currentTime > 0
-                  ? "Paused"
-                  : "Ready";
-
   const previousTrack = getPlaybackQueueNeighbor(
     activeQueue,
     selectedTrack?.key,
@@ -613,13 +575,15 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       event: PointerEvent,
     ) {
       const menu = appMenuRef.current;
+      const toggleButton = menuToggleButtonRef?.current;
       const target = event.target;
 
       if (
         !menu ||
         !isAppMenuOpen ||
         !(target instanceof Node) ||
-        menu.contains(target)
+        menu.contains(target) ||
+        Boolean(toggleButton?.contains(target))
       ) {
         return;
       }
@@ -638,43 +602,8 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         handleOutsidePointerDown,
       );
     };
-  }, [isAppMenuOpen]);
+  }, [isAppMenuOpen, menuToggleButtonRef]);
 
-  /*
-   * Focus the mobile library sheet when opened, close it with Escape,
-   * and restore focus to its launcher afterward.
-   */
-  useEffect(() => {
-    if (!isLibraryOpen) {
-      return;
-    }
-
-    librarySheetRef.current?.focus();
-
-    function handleLibraryKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Escape") {
-        return;
-      }
-
-      setIsLibraryOpen(false);
-
-      window.requestAnimationFrame(() => {
-        libraryButtonRef.current?.focus();
-      });
-    }
-
-    document.addEventListener(
-      "keydown",
-      handleLibraryKeyDown,
-    );
-
-    return () => {
-      document.removeEventListener(
-        "keydown",
-        handleLibraryKeyDown,
-      );
-    };
-  }, [isLibraryOpen]);
 
   /*
    * Route changes collapse the full player without unmounting it. Close
@@ -688,7 +617,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
 
     setIsAppMenuOpen(false);
     setIsMetadataViewerOpen(false);
-    setIsLibraryOpen(false);
   }, [displayMode]);
 
   /*
@@ -753,6 +681,11 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     }
 
     const firstTrackKey = playableTracks[0].key;
+    const fallbackTrack =
+      fallbackTrackKey
+        ? playableTracks.find((entry) => entry.key === fallbackTrackKey) ?? null
+        : null;
+    const selectionFallbackTrackKey = fallbackTrack?.key ?? firstTrackKey;
     const requestedTrackKey =
       initialTrackKey &&
       playableTracks.some(
@@ -770,7 +703,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         playableTracks.map((entry) => entry.key),
       );
       setSelectedTrackKey(requestedTrackKey);
-      setLibraryTrackKey(requestedTrackKey);
       return;
     }
 
@@ -779,34 +711,24 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         (entry) => entry.key === selectedTrackKey,
       )
     ) {
-      setSelectedTrackKey(firstTrackKey);
+      if (fallbackTrack) {
+        setQueueTrackKeys(
+          playableTracks
+            .filter((entry) => entry.release.id === fallbackTrack.release.id)
+            .map((entry) => entry.key),
+        );
+      }
+
+      setSelectedTrackKey(selectionFallbackTrackKey);
     }
 
-    if (
-      !playableTracks.some(
-        (entry) => entry.key === libraryTrackKey,
-      )
-    ) {
-      setLibraryTrackKey(firstTrackKey);
-    }
   }, [
+    fallbackTrackKey,
     initialTrackKey,
-    libraryTrackKey,
     playableTracks,
     selectedTrackKey,
   ]);
 
-  /*
-   * Whenever playback navigation genuinely loads another track,
-   * move the library highlight to that track as well. Library-only
-   * highlighting does not modify selectedTrackKey, so it remains
-   * independent until playback or navigation is requested.
-   */
-  useEffect(() => {
-    if (selectedTrackKey) {
-      setLibraryTrackKey(selectedTrackKey);
-    }
-  }, [selectedTrackKey]);
 
   /*
    * Load the selected track's waveform whenever the player changes
@@ -1114,7 +1036,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       return;
     }
 
-    setLibraryTrackKey(trackKey);
     setHasPlaybackSelection(true);
 
     setSelectedTrackKey(trackKey);
@@ -1158,14 +1079,8 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     togglePlayback: () => {
       void togglePlayback();
     },
-    openLibrary: () => {
-      setLibraryTrackKey(selectedTrackKey);
-      setIsAppMenuOpen(false);
-      setIsLibraryOpen(true);
-    },
     toggleSettings: () => {
-      setIsLibraryOpen(false);
-      setIsAppMenuOpen((isOpen) => !isOpen);
+        setIsAppMenuOpen((isOpen) => !isOpen);
     },
   }));
 
@@ -1681,7 +1596,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       scrubReleaseTimeoutRef.current === null,
   });
 
-  function getLibraryQueueTrackKeys(trackKey: string) {
+  function getQueueTrackKeysForTrack(trackKey: string) {
     const requested = playableTracks.find(
       (entry) => entry.key === trackKey,
     );
@@ -1698,13 +1613,23 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   }
 
   /*
-   * Double-clicking or double-tapping a row always requests playback.
+   * Direct title activation starts playback in the requested queue.
    */
-  async function playLibraryTrack(
+  async function playQueueTrack(
     trackKey: string,
+    requestedQueueTrackKeys?: string[],
   ) {
-    setLibraryTrackKey(trackKey);
-    setQueueTrackKeys(getLibraryQueueTrackKeys(trackKey));
+    const requestedQueue = requestedQueueTrackKeys
+      ? dedupePlaybackQueue(requestedQueueTrackKeys).filter(
+          (queueTrackKey) =>
+            playableTracks.some((entry) => entry.key === queueTrackKey),
+        )
+      : [];
+    const nextQueueTrackKeys = requestedQueue.includes(trackKey)
+      ? requestedQueue
+      : getQueueTrackKeysForTrack(trackKey);
+
+    setQueueTrackKeys(nextQueueTrackKeys);
     setHasPlaybackSelection(true);
 
     if (trackKey !== selectedTrackKey) {
@@ -1719,9 +1644,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     }
 
     /*
-     * A repeated play request from the library means restart, not
-     * merely resume. This applies to desktop double-click and mobile
-     * double-tap because both use playLibraryTrack().
+     * A repeated explicit play request restarts the selected track.
      */
     seekMediaTimeline(0);
 
@@ -1730,14 +1653,77 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   }
 
   /*
-   * Row transport buttons toggle the loaded track or immediately
-   * load and play a different row.
+   * Carousel navigation changes the selected track while preserving the
+   * current play/pause state, matching the artwork swiper handoff.
    */
-  async function toggleLibraryTrackPlayback(
+  function navigateQueueTrack(
+    trackKey: string,
+    requestedQueueTrackKeys?: string[],
+  ) {
+    const requestedQueue = requestedQueueTrackKeys
+      ? dedupePlaybackQueue(requestedQueueTrackKeys).filter(
+          (queueTrackKey) =>
+            playableTracks.some((entry) => entry.key === queueTrackKey),
+        )
+      : [];
+    const nextQueueTrackKeys = requestedQueue.includes(trackKey)
+      ? requestedQueue
+      : getQueueTrackKeysForTrack(trackKey);
+    const audio = audioRef.current;
+    const shouldAutoplay =
+      isPlaying || Boolean(audio && !audio.paused);
+
+    setQueueTrackKeys(nextQueueTrackKeys);
+    setHasPlaybackSelection(true);
+
+    if (trackKey !== selectedTrackKey) {
+      loadTrack(trackKey, shouldAutoplay);
+    }
+  }
+
+  /*
+   * The current queue title toggles playback; another title loads and plays.
+   */
+  function shuffleQueueTracks(trackKeys: string[]) {
+    const queueTrackKeys = dedupePlaybackQueue(trackKeys).filter(
+      (trackKey) =>
+        playableTracks.some((entry) => entry.key === trackKey),
+    );
+    const firstTrackKey = queueTrackKeys[0];
+
+    if (!firstTrackKey) {
+      return;
+    }
+
+    playQueue({
+      trackKey: firstTrackKey,
+      queueTrackKeys,
+      autoplay: true,
+    });
+  }
+
+  function shuffleActiveQueue() {
+    const shuffledTrackKeys = shufflePlaybackTrackKeys(
+      activeQueue.map((entry) => entry.key),
+    );
+
+    if (
+      shuffledTrackKeys.length > 1 &&
+      shuffledTrackKeys[0] === selectedTrackKey
+    ) {
+      [shuffledTrackKeys[0], shuffledTrackKeys[1]] = [
+        shuffledTrackKeys[1],
+        shuffledTrackKeys[0],
+      ];
+    }
+
+    shuffleQueueTracks(shuffledTrackKeys);
+  }
+
+  async function toggleQueueTrackPlayback(
     trackKey: string,
   ) {
-    setLibraryTrackKey(trackKey);
-    setQueueTrackKeys(getLibraryQueueTrackKeys(trackKey));
+    setQueueTrackKeys(getQueueTrackKeysForTrack(trackKey));
     setHasPlaybackSelection(true);
 
     if (trackKey !== selectedTrackKey) {
@@ -1849,13 +1835,20 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
           return;
         }
 
-        setIsDeveloperControlVisible(
-          (isVisible) => !isVisible,
-        );
+        setIsDeveloperControlVisible((isVisible) => {
+          const nextVisible = !isVisible;
+
+          if (!nextVisible) {
+            setIsDeveloperMode(false);
+            setIsAudiophileMode(false);
+          }
+
+          return nextVisible;
+        });
 
         aboutHoldPointerRef.current = null;
         clearAboutHoldTimer();
-      }, 650);
+      }, DEVELOPER_CONTROL_HOLD_MS);
   }
 
   function handleAboutPointerMove(
@@ -1896,74 +1889,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     clearAboutHoldTimer();
   }
 
-  /*
-   * Keep desktop scrolling content clear of the fixed header and
-   * Now Playing bar using their actual responsive rendered heights.
-   */
-  useEffect(() => {
-    const player = document.querySelector<HTMLElement>(
-      ".audio-player",
-    );
-
-    const header = document.querySelector<HTMLElement>(
-      ".audio-player__header",
-    );
-
-    const nowPlaying = document.querySelector<HTMLElement>(
-      ".audio-player__now-playing",
-    );
-
-    if (!player || !header) {
-      return;
-    }
-
-    /*
-     * Preserve TypeScript's non-null narrowing inside the nested
-     * resize callback.
-     */
-    const activePlayer = player;
-    const activeHeader = header;
-
-    function updateFixedRegionHeights() {
-      activePlayer.style.setProperty(
-        "--fixed-header-height",
-        `${activeHeader.getBoundingClientRect().height}px`,
-      );
-
-      activePlayer.style.setProperty(
-        "--fixed-now-playing-height",
-        nowPlaying
-          ? `${nowPlaying.getBoundingClientRect().height}px`
-          : "0px",
-      );
-    }
-
-    updateFixedRegionHeights();
-
-    const observer = new ResizeObserver(
-      updateFixedRegionHeights,
-    );
-
-    observer.observe(header);
-
-    if (nowPlaying) {
-      observer.observe(nowPlaying);
-    }
-
-    window.addEventListener(
-      "resize",
-      updateFixedRegionHeights,
-    );
-
-    return () => {
-      observer.disconnect();
-
-      window.removeEventListener(
-        "resize",
-        updateFixedRegionHeights,
-      );
-    };
-  }, [selectedTrack]);
 
   return (
     <section
@@ -1974,101 +1899,42 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         isAppMenuOpen ? "true" : "false"
       }
     >
-      {
-        displayMode === "compact" &&
-        hasPlaybackSelection &&
-        selectedTrack
-          ? (
-            <div
-              className="hiplingo-compact-player"
-              aria-label="Now playing"
-            >
-              <button
-                type="button"
-                className="hiplingo-compact-player__open"
-                onClick={onOpenFullPlayer}
-                aria-label={`Open full player for ${selectedTrack.track.title}`}
-              >
-                <span
-                  className="hiplingo-compact-player__artwork"
-                  aria-hidden="true"
-                >
-                  {artworkSource ? (
-                    <img src={artworkSource} alt="" />
-                  ) : (
-                    <span>HL</span>
-                  )}
-                </span>
-
-                <span className="hiplingo-compact-player__copy">
-                  <strong>{selectedTrack.track.title}</strong>
-                  <small>{selectedArtist}</small>
-                </span>
-              </button>
-
-              <div
-                className="hiplingo-compact-player__transport"
-                aria-label="Playback controls"
-              >
-                <button
-                  type="button"
-                  onClick={selectPreviousTrack}
-                  disabled={!previousTrack}
-                  aria-label="Previous track"
-                >
-                  <ArtworkTransportIcon name="previous" />
-                </button>
-
-                <button
-                  type="button"
-                  className="hiplingo-compact-player__play"
-                  onClick={() => {
-                    void togglePlayback();
-                  }}
-                  disabled={!audioSource}
-                  aria-label={
-                    displayedIsPlaying ? "Pause" : "Play"
-                  }
-                  aria-pressed={displayedIsPlaying}
-                >
-                  <ArtworkTransportIcon
-                    name={displayedIsPlaying ? "pause" : "play"}
-                  />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={selectNextTrack}
-                  disabled={!nextTrack}
-                  aria-label="Next track"
-                >
-                  <ArtworkTransportIcon name="next" />
-                </button>
-              </div>
-
-              <span
-                className="hiplingo-compact-player__progress"
-                aria-hidden="true"
-                style={
-                  {
-                    "--hiplingo-progress": `${compactWaveformProgress * 100}%`,
-                  } as CSSProperties
-                }
-              />
-            </div>
-          )
-          : null
-      }
+      {displayMode === "full" ? (
+        <AudioReactiveListenBackground
+          audioRef={audioRef}
+          analyser={analyserNode}
+          peaks={waveform?.peaks ?? []}
+          peaksPerSecond={waveform?.peaksPerSecond ?? 0}
+          isPlaying={displayedIsPlaying}
+          isMetadataViewerOpen={isMetadataViewerOpen}
+          mode={listenBackgroundMode}
+        />
+      ) : null}
 
       {isAppMenuOpen ? (
         <div
           className="app-menu__backdrop audio-player__settings-backdrop"
           role="presentation"
+          onPointerDown={(event) => {
+            if (event.target !== event.currentTarget) {
+              return;
+            }
+
+            /*
+             * Keep the backdrop mounted through pointer-up/click. The
+             * document-level outside-pointer handler would otherwise close
+             * it on pointer-down, allowing the synthesized click to land on
+             * the playback surface underneath on touch-like input.
+             */
+            event.stopPropagation();
+          }}
           onClick={(event) => {
             if (event.target !== event.currentTarget) {
               return;
             }
 
+            event.preventDefault();
+            event.stopPropagation();
             setIsAppMenuOpen(false);
           }}
         >
@@ -2080,21 +1946,14 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
             aria-modal="true"
             aria-label="Player settings"
           >
-            <header className="audio-player__settings-header">
-              <div>
-                <span>Player</span>
-                <strong>Appearance & settings</strong>
-              </div>
-
-              <button
-                type="button"
-                className="audio-player__settings-close"
-                aria-label="Close player settings"
-                onClick={() => setIsAppMenuOpen(false)}
-              >
-                ×
-              </button>
-            </header>
+            <button
+              type="button"
+              className="audio-player__settings-close"
+              aria-label="Close player settings"
+              onClick={() => setIsAppMenuOpen(false)}
+            >
+              ×
+            </button>
 
             <div className="app-menu__content">
               <div
@@ -2149,58 +2008,106 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
                 </div>
               </div>
 
-              <label className="settings-toggle settings-toggle--audiophile">
-                <span>
-                  <strong>Audiophile Mode</strong>
-                  <small>Show technical audio and waveform metadata.</small>
-                </span>
-
-                <input
-                  type="checkbox"
-                  checked={isAudiophileMode}
-                  onChange={(event) => {
-                    setIsAudiophileMode(event.currentTarget.checked);
+              <div className="app-menu__about-contact-card">
+                <button
+                  type="button"
+                  className="app-menu__about-button app-menu__about-button--combined"
+                  aria-label="About this audio player"
+                  title="Press and hold 4 seconds to show or hide Developer Mode"
+                  onPointerDown={handleAboutPointerDown}
+                  onPointerMove={handleAboutPointerMove}
+                  onPointerUp={finishAboutPointer}
+                  onPointerCancel={finishAboutPointer}
+                  onPointerLeave={(event) => {
+                    if (event.pointerType === "mouse") {
+                      finishAboutPointer(event);
+                    }
                   }}
-                />
-              </label>
-
-              <button
-                type="button"
-                className="app-menu__about-button"
-                aria-label="About this audio player"
-                title="Press and hold to show or hide Developer Mode"
-                onPointerDown={handleAboutPointerDown}
-                onPointerMove={handleAboutPointerMove}
-                onPointerUp={finishAboutPointer}
-                onPointerCancel={finishAboutPointer}
-                onPointerLeave={(event) => {
-                  if (event.pointerType === "mouse") {
-                    finishAboutPointer(event);
-                  }
-                }}
-              >
-                <span>
-                  <strong>About</strong>
-                  <small>Audio Player version {APP_VERSION}</small>
-                  <small>Developer: nbrenton@gmail.com</small>
-                </span>
-              </button>
-
-              {isDeveloperControlVisible ? (
-                <label className="settings-toggle settings-toggle--developer">
+                >
                   <span>
-                    <strong>Developer Mode</strong>
-                    <small>Show source indicators and raw metadata.</small>
+                    <strong>About &amp; Contact</strong>
+                    <small>Audio Player version {APP_VERSION}</small>
+                  </span>
+                </button>
+
+                <div className="app-menu__contact-row">
+                  <span>
+                    <strong>Developer · Nathan Brenton</strong>
+                    <small>Licensing &amp; general inquiries</small>
                   </span>
 
-                  <input
-                    type="checkbox"
-                    checked={isDeveloperMode}
-                    onChange={(event) => {
-                      setIsDeveloperMode(event.currentTarget.checked);
-                    }}
-                  />
-                </label>
+                  <a
+                    className="app-menu__contact-action"
+                    href={HIPLINGO_CONTACT_MAILTO}
+                    aria-label="Email Hiplingo for licensing and general inquiries"
+                  >
+                    Email
+                  </a>
+                </div>
+              </div>
+
+              {isDeveloperControlVisible ? (
+                <>
+                  <label className="settings-toggle settings-toggle--developer">
+                    <span>
+                      <strong>Developer Mode</strong>
+                      <small>Show source indicators and raw metadata.</small>
+                    </span>
+
+                    <input
+                      type="checkbox"
+                      checked={isDeveloperMode}
+                      onChange={(event) => {
+                        const isEnabled = event.currentTarget.checked;
+                        setIsDeveloperMode(isEnabled);
+
+                        if (!isEnabled) {
+                          setIsAudiophileMode(false);
+                        }
+                      }}
+                    />
+                  </label>
+
+                  {isDeveloperMode ? (
+                    <>
+                      <label className="settings-toggle settings-toggle--audiophile">
+                        <span>
+                          <strong>Audiophile Mode</strong>
+                          <small>Show technical audio and waveform metadata.</small>
+                        </span>
+
+                        <input
+                          type="checkbox"
+                          checked={isAudiophileMode}
+                          onChange={(event) => {
+                            setIsAudiophileMode(event.currentTarget.checked);
+                          }}
+                        />
+                      </label>
+
+                      <div
+                        className="settings-control settings-control--listen-background-mode"
+                      >
+                        <label htmlFor="listen-background-mode-select">
+                          Listen Background
+                        </label>
+
+                        <select
+                          id="listen-background-mode-select"
+                          value={listenBackgroundMode}
+                          onChange={(event) => {
+                            setListenBackgroundMode(
+                              event.currentTarget.value as ListenBackgroundMode,
+                            );
+                          }}
+                        >
+                          <option value="watery">Watery</option>
+                          <option value="magnify">Magnify</option>
+                        </select>
+                      </div>
+                    </>
+                  ) : null}
+                </>
               ) : null}
             </div>
           </div>
@@ -2259,12 +2166,8 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
                     previousPreviousTrack.key,
                   );
                 }}
-                aria-label={`Earlier track: ${
-                  previousPreviousTrack.track.title
-                }`}
-                title={`Earlier: ${
-                  previousPreviousTrack.track.title
-                }`}
+                aria-label={`Earlier track: ${previousPreviousTrack.track.title}`}
+                title={`Earlier: ${previousPreviousTrack.track.title}`}
               >
                 <img
                   src={previousPreviousArtworkSource}
@@ -2282,12 +2185,8 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
                   artwork-stack__item--previous
                 "
                 onClick={selectPreviousTrack}
-                aria-label={`Previous track: ${
-                  previousTrack.track.title
-                }`}
-                title={`Previous: ${
-                  previousTrack.track.title
-                }`}
+                aria-label={`Previous track: ${previousTrack.track.title}`}
+                title={`Previous: ${previousTrack.track.title}`}
               >
                 <img
                   src={previousArtworkSource}
@@ -2323,18 +2222,10 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               onLostPointerCapture={
                 handleArtworkLostPointerCapture
               }
-              aria-label={
-                displayedIsPlaying
-                  ? "Pause track"
-                  : "Play track"
-              }
+              aria-label={displayedIsPlaying ? "Pause track" : "Play track"}
               aria-pressed={displayedIsPlaying}
-              aria-disabled={!audioSource || !waveform}
-              title={
-                displayedIsPlaying
-                  ? "Pause"
-                  : "Play"
-              }
+              aria-disabled={!selectedTrack}
+              title={displayedIsPlaying ? "Pause" : "Play"}
             >
               {artworkSource ? (
                 <img
@@ -2366,9 +2257,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
                   artwork-stack__item--next
                 "
                 onClick={selectNextTrack}
-                aria-label={`Next track: ${
-                  nextTrack.track.title
-                }`}
+                aria-label={`Next track: ${nextTrack.track.title}`}
                 title={`Next: ${nextTrack.track.title}`}
               >
                 <img
@@ -2389,12 +2278,8 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
                 onClick={() => {
                   selectArtworkTrack(nextNextTrack.key);
                 }}
-                aria-label={`Later track: ${
-                  nextNextTrack.track.title
-                }`}
-                title={`Later: ${
-                  nextNextTrack.track.title
-                }`}
+                aria-label={`Later track: ${nextNextTrack.track.title}`}
+                title={`Later: ${nextNextTrack.track.title}`}
               >
                 <img
                   src={nextNextArtworkSource}
@@ -2537,94 +2422,67 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         }}
       />
 
-      {isLibraryOpen ? (
-        <div
-          className="library-sheet__backdrop"
-          role="presentation"
-          onClick={(event) => {
-            if (event.target !== event.currentTarget) {
-              return;
-            }
 
-            /*
-             * Consume the complete backdrop click before removing the
-             * overlay so it cannot activate the artwork underneath.
-             */
-            event.preventDefault();
-            event.stopPropagation();
-
-            setIsLibraryOpen(false);
-
-            window.requestAnimationFrame(() => {
-              libraryButtonRef.current?.focus();
-            });
-          }}
-        >
-          <div
-            ref={librarySheetRef}
-            className="library-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="library-sheet-title"
-            tabIndex={-1}
-          >
-            <header className="library-sheet__header">
-              <div>
-                <span className="library-sheet__eyebrow">
-                  Music Library
-                </span>
-
-                <h2 id="library-sheet-title">
-                  Browse releases and tracks
-                </h2>
+      {releaseWaveformHost &&
+      displayMode === "compact" &&
+      selectedTrack
+        ? createPortal(
+            <section
+              className="hiplingo-release-now-playing"
+              aria-label={`Now playing ${selectedTrack.title}`}
+            >
+              <div className="hiplingo-release-now-playing__identity">
+                <span>Now playing</span>
+                <strong>{selectedTrack.title}</strong>
               </div>
 
-              <div className="library-sheet__header-actions">
-                <button
-                  type="button"
-                  className="library-sheet__close-button"
-                  aria-label="Close music library"
-                  onClick={() => {
-                    setIsLibraryOpen(false);
+              {waveform ? (
+                <MediaVisualizationSurface
+                  peaks={waveform.peaks}
+                  colorMode={colorMode}
+                  audioRef={audioRef}
+                  analyser={analyserNode}
+                  ensureAnalyser={ensureAudioAnalyser}
+                  trackKey={selectedTrackKey}
+                  sampleRate={waveform.sampleRate}
+                  waveformIsPlaying={displayedIsPlaying}
+                  oscilloscopeIsPlaying={isPlaying}
+                  peaksPerSecond={waveform.peaksPerSecond}
+                  durationSeconds={waveform.durationSeconds}
+                  onScrubbingChange={handleScrubbingChange}
+                  showZoomReadout={isAudiophileMode}
+                  classNames={{
+                    root: "waveform-panel hiplingo-release-now-playing__waveform",
+                    zoomControls: "waveform-panel__zoom-controls",
+                    zoomButton: "waveform-panel__zoom-button",
+                    zoomIncreaseButton:
+                      "waveform-panel__zoom-button--increase",
+                    zoomDecreaseButton:
+                      "waveform-panel__zoom-button--decrease",
+                    zoomReadout: "waveform-panel__zoom-value",
                   }}
                 >
-                  ×
-                </button>
-              </div>
-            </header>
-
-            <div className="library-sheet__content">
-              <LibraryBrowser
-                variant="mobile"
-                catalog={catalog}
-                selectedTrackKey={libraryTrackKey}
-                playingTrackKey={
-                  displayedIsPlaying
-                    ? selectedTrackKey
-                    : null
-                }
-                onSelectTrack={(trackKey) => {
-                  setLibraryTrackKey(trackKey);
-                }}
-                onPlayTrack={(trackKey) => {
-                  /*
-                   * Keep browsing available while the requested track
-                   * loads and begins playback.
-                   */
-                  void playLibraryTrack(trackKey);
-                }}
-                onToggleTrackPlayback={(trackKey) => {
-                  /*
-                   * Pause, resume, or begin another track without
-                   * dismissing the mobile library.
-                   */
-                  void toggleLibraryTrackPlayback(trackKey);
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
+                  <output
+                    className="waveform-panel__current-time"
+                    aria-label="Current playback time"
+                  >
+                    {formatPlaybackTime(currentTime)}
+                  </output>
+                </MediaVisualizationSurface>
+              ) : (
+                <div
+                  className="hiplingo-release-now-playing__waveform-placeholder"
+                  aria-live="polite"
+                >
+                  {displayLoadError
+                    ? "Waveform unavailable"
+                    : "Loading waveform…"}
+                </div>
+              )}
+            </section>,
+            releaseWaveformHost,
+          )
+        : null}
 
       <MetadataViewer
         isOpen={isMetadataViewerOpen}
@@ -2644,8 +2502,13 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         <p role="alert">{displayLoadError}</p>
       ) : null}
 
-      {waveform ? (
-        <>
+      <div
+        className="listen-waveform-anchor"
+        data-waveform-state={
+          waveform ? "ready" : displayLoadError ? "error" : "loading"
+        }
+      >
+        {waveform ? (
           <MediaVisualizationSurface
             peaks={waveform.peaks}
             colorMode={colorMode}
@@ -2654,7 +2517,9 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
             ensureAnalyser={ensureAudioAnalyser}
             trackKey={selectedTrackKey}
             sampleRate={waveform.sampleRate}
-            waveformIsPlaying={displayedIsPlaying}
+            waveformIsPlaying={
+              displayedIsPlaying && !isMetadataViewerOpen
+            }
             oscilloscopeIsPlaying={isPlaying}
             peaksPerSecond={waveform.peaksPerSecond}
             onScrubbingChange={handleScrubbingChange}
@@ -2677,21 +2542,97 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               {formatPlaybackTime(currentTime)}
             </output>
           </MediaVisualizationSurface>
+        ) : (
+          <div
+            className="waveform-panel waveform-panel--loading"
+            aria-busy={displayLoadError ? undefined : true}
+          >
+            <span className="sr-only" aria-live="polite">
+              {displayLoadError
+                ? "Waveform unavailable"
+                : "Loading waveform…"}
+            </span>
 
-        </>
-      ) : !displayLoadError ? (
-        <p>Loading track data…</p>
-      ) : null}
+            <div
+              className="waveform-panel__zoom-controls"
+              aria-hidden="true"
+            >
+              <button
+                type="button"
+                className="waveform-panel__zoom-button waveform-panel__zoom-button--increase"
+                disabled
+                tabIndex={-1}
+              >
+                +
+              </button>
+              <button
+                type="button"
+                className="waveform-panel__zoom-button waveform-panel__zoom-button--decrease"
+                disabled
+                tabIndex={-1}
+              >
+                −
+              </button>
+            </div>
+
+            <output
+              className="waveform-panel__current-time"
+              aria-label="Current playback time"
+            >
+              {formatPlaybackTime(currentTime)}
+            </output>
+          </div>
+        )}
+      </div>
 
         </div>
 
       </div>
+
+      {displayMode === "full" ? (
+        <ListenTrackQueue
+          catalog={catalog}
+          selectedTrackKey={selectedTrackKey}
+          playingTrackKey={
+            displayedIsPlaying ? selectedTrackKey : null
+          }
+          onPlayTrack={(trackKey, queueTrackKeys) => {
+            void playQueueTrack(trackKey, queueTrackKeys);
+          }}
+          onNavigateTrack={(trackKey, queueTrackKeys) => {
+            navigateQueueTrack(trackKey, queueTrackKeys);
+          }}
+          onToggleTrackPlayback={(trackKey) => {
+            void toggleQueueTrackPlayback(trackKey);
+          }}
+          onShuffleTracks={shuffleQueueTracks}
+          previousTrackKey={previousTrack?.key ?? null}
+          onPreviousTrack={
+            previousTrack ? selectPreviousTrack : undefined
+          }
+          onNextTrack={nextTrack ? selectNextTrack : undefined}
+        />
+      ) : null}
+
       {selectedTrack ? (
         <CompactNowPlayingBar
           artworkUrl={artworkSource}
+          onArtworkClick={
+            onOpenRelease
+              ? () => onOpenRelease(selectedTrack.release.id)
+              : displayMode === "compact"
+                ? onOpenFullPlayer
+                : undefined
+          }
+          artworkActionLabel={
+            onOpenRelease
+              ? `Open ${selectedTrack.release.title} release`
+              : `Open full player for ${selectedTrack.title}`
+          }
           artworkFallback={<span aria-hidden="true">♪</span>}
           title={selectedTrack.title}
           context={getPlayableMediaContext(selectedTrack)}
+          detail="Playback audio"
           controller={{
             transport: {
               currentTime,
@@ -2721,37 +2662,43 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
           waveformPeaks={waveform?.peaks ?? []}
           waveformColorMode={colorMode}
           endControls={
-            <button
-              ref={metadataButtonRef}
-              type="button"
-              className="player-controls__metadata-button audio-player__now-playing-metadata-button"
-              aria-label="View selected track metadata"
-              title="Track information"
-              disabled={!selectedTrack}
-              onClick={() => {
-                setIsMetadataViewerOpen(true);
-              }}
-            >
-              <span aria-hidden="true">i</span>
-            </button>
+            <>
+              <button
+                type="button"
+                className="hiplingo-now-playing-dock__shuffle-button"
+                aria-label="Shuffle playback queue"
+                title="Shuffle"
+                disabled={activeQueue.length < 2}
+                onClick={shuffleActiveQueue}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h3.4c2.2 0 3.3 1.1 4.6 3.2l.4.7" />
+                  <path d="M16 5l4 2-4 2" />
+                  <path d="M4 17h3.4c2.2 0 3.3-1.1 4.6-3.2l.4-.7" />
+                  <path d="M15.4 17H20" />
+                  <path d="M16 15l4 2-4 2" />
+                </svg>
+              </button>
+
+              <button
+                ref={metadataButtonRef}
+                type="button"
+                className="hiplingo-now-playing-dock__metadata-button"
+                aria-label="View selected track metadata"
+                title="Track information"
+                disabled={!selectedTrack}
+                onClick={() => {
+                  setIsMetadataViewerOpen(true);
+                }}
+              >
+                <span aria-hidden="true">i</span>
+              </button>
+            </>
           }
           ariaLabel="Current track"
           classNames={{
-            root: "audio-player__now-playing",
-            artwork: "audio-player__now-playing-artwork",
-            identity: "audio-player__now-playing-copy",
-            title: "audio-player__now-playing-title",
-            context: "audio-player__now-playing-context",
-            time: "audio-player__now-playing-time",
-            waveformRegion: "audio-player__now-playing-waveform",
-            transport: "audio-player__now-playing-transport",
-            playButton: "audio-player__now-playing-play",
-            transportIcon: "artwork-stack__transport-icon",
-            volumeControl: "audio-player__volume-control",
-            volumeButton: "audio-player__volume-button",
-            volumeIcon: "audio-player__volume-icon",
-            volumePopup: "audio-player__volume-popup",
-            volumeSlider: "audio-player__volume-slider",
+            root: "hiplingo-now-playing-dock",
+            endControls: "hiplingo-now-playing-dock__end-controls",
           }}
         />
       ) : null}
@@ -2767,7 +2714,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
 
         <span aria-hidden="true">·</span>
 
-        <a href="mailto:nbrenton@gmail.com">
+        <a href={HIPLINGO_CONTACT_MAILTO}>
           Contact
         </a>
       </footer>

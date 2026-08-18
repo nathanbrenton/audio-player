@@ -1,6 +1,6 @@
 import { hiplingoLogoUrl } from "@hiplingo/brand";
 import { useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 
 import ArtistCatalog from "./components/ArtistCatalog";
 import ArtistDetail from "./components/ArtistDetail";
@@ -19,6 +19,7 @@ import {
   getTrackKey,
 } from "./lib/mediaCatalog";
 import { getArtistSlug } from "./lib/publicArtists";
+import { HIPLINGO_CONTACT_MAILTO } from "./siteConfig";
 import type { CatalogRelease, MediaCatalog } from "./types/MediaCatalog";
 
 type SiteRoute =
@@ -159,17 +160,45 @@ function SiteLink({
 
 function SiteHeader({
   currentRoute,
-  libraryAvailable,
-  onBrowseLibrary,
   onTogglePlayerMenu,
+  playerMenuButtonRef,
 }: {
   currentRoute: SiteRoute;
-  libraryAvailable: boolean;
-  onBrowseLibrary: () => void;
   onTogglePlayerMenu: () => void;
+  playerMenuButtonRef: RefObject<HTMLButtonElement | null>;
 }) {
+  const headerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) {
+      return;
+    }
+
+    const syncHeaderBottom = () => {
+      document.documentElement.style.setProperty(
+        "--hiplingo-site-header-bottom",
+        `${Math.ceil(header.getBoundingClientRect().bottom)}px`,
+      );
+    };
+
+    syncHeaderBottom();
+    window.addEventListener("resize", syncHeaderBottom);
+
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(syncHeaderBottom);
+    observer?.observe(header);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", syncHeaderBottom);
+    };
+  }, []);
+
   return (
-    <header className="hiplingo-site-header">
+    <header ref={headerRef} className="hiplingo-site-header">
       <SiteLink
         route="/"
         currentRoute={currentRoute}
@@ -199,23 +228,16 @@ function SiteHeader({
       </nav>
 
       <div className="hiplingo-site-actions">
-        <button
-          type="button"
-          className="hiplingo-site-browse"
-          disabled={!libraryAvailable}
-          onClick={onBrowseLibrary}
-          aria-haspopup="dialog"
-        >
-          <span className="hiplingo-site-browse__wide">Browse Library</span>
-          <span className="hiplingo-site-browse__short">Browse</span>
-        </button>
 
         <button
+          ref={playerMenuButtonRef}
           type="button"
           className="hiplingo-site-menu"
+          onPointerDown={(event) => event.stopPropagation()}
           onClick={onTogglePlayerMenu}
           aria-label="Open player settings"
           aria-haspopup="dialog"
+          aria-controls="app-menu-panel"
         >
           <span aria-hidden="true" />
         </button>
@@ -484,13 +506,13 @@ function PlaceholderPage({
   );
 }
 
-function SiteFooter({ currentRoute }: { currentRoute: SiteRoute }) {
+function SiteFooter() {
   return (
     <footer className="hiplingo-site-footer">
       <span>© {new Date().getFullYear()} Hiplingo</span>
-      <SiteLink route="/about" currentRoute={currentRoute}>
-        About
-      </SiteLink>
+      <span className="hiplingo-site-footer__links">
+        <a href={HIPLINGO_CONTACT_MAILTO}>Contact</a>
+      </span>
     </footer>
   );
 }
@@ -505,7 +527,12 @@ export default function App() {
     isPlaying: false,
     hasSelection: false,
   });
+  const [
+    releaseWaveformHost,
+    setReleaseWaveformHost,
+  ] = useState<HTMLDivElement | null>(null);
   const audioPlayerRef = useRef<AudioPlayerHandle | null>(null);
+  const playerMenuButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const currentLocation = new URL(
     locationKey,
@@ -515,6 +542,16 @@ export default function App() {
   const requestedTrackKey = currentLocation.searchParams.get(
     "track",
   );
+  const routeRelease =
+    route.section === "/releases" && route.releaseId && catalog
+      ? catalog.releases.find((entry) => entry.id === route.releaseId) ?? null
+      : null;
+  const routeReleaseInitialTrack =
+    routeRelease?.tracks.find((track) => track.playable) ?? null;
+  const routeReleaseInitialTrackKey =
+    routeRelease && routeReleaseInitialTrack
+      ? getTrackKey(routeRelease, routeReleaseInitialTrack)
+      : null;
 
   useEffect(() => {
     const handleNavigation = () => {
@@ -578,9 +615,6 @@ export default function App() {
     audioPlayerRef.current?.togglePlayback();
   }
 
-  function requestOpenLibrary() {
-    audioPlayerRef.current?.openLibrary();
-  }
 
   function requestTogglePlayerMenu() {
     audioPlayerRef.current?.toggleSettings();
@@ -609,6 +643,7 @@ export default function App() {
           playbackState={playbackState}
           onPlayQueue={requestPlayback}
           onTogglePlayback={requestTogglePlayback}
+          onNowPlayingWaveformHostChange={setReleaseWaveformHost}
         />
       ) : (
         <ReleaseCatalog
@@ -715,16 +750,15 @@ export default function App() {
     route.section === "/listen" ? "full" : "compact";
 
   return (
-    <div className="hiplingo-site-shell">
+    <div
+      className={`hiplingo-site-shell${
+        route.section === "/listen" ? " hiplingo-site-shell--listen" : ""
+      }`}
+    >
       <SiteHeader
         currentRoute={route.section}
-        libraryAvailable={Boolean(
-          catalog?.releases.some((release) =>
-            release.tracks.some((track) => track.playable),
-          ),
-        )}
-        onBrowseLibrary={requestOpenLibrary}
         onTogglePlayerMenu={requestTogglePlayerMenu}
+        playerMenuButtonRef={playerMenuButtonRef}
       />
 
       <div className="hiplingo-route-content">
@@ -740,13 +774,19 @@ export default function App() {
           catalog={catalog}
           catalogError={catalogError}
           initialTrackKey={requestedTrackKey}
+          fallbackTrackKey={routeReleaseInitialTrackKey}
           displayMode={playerDisplayMode}
           onOpenFullPlayer={() => navigateTo("/listen")}
+          onOpenRelease={(releaseId) => {
+            navigateTo(`/releases/${encodeURIComponent(releaseId)}`);
+          }}
           onPlaybackStateChange={setPlaybackState}
+          releaseWaveformHost={releaseWaveformHost}
+          menuToggleButtonRef={playerMenuButtonRef}
         />
       </div>
 
-      <SiteFooter currentRoute={route.section} />
+      <SiteFooter />
     </div>
   );
 }

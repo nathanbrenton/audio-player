@@ -46,3 +46,24 @@ test("homepage latest release can start the persistent queue in place", async ()
   assert.match(app, /❚❚ Pause/);
   assert.match(app, /▶ Resume/);
 });
+
+test("uses public contact aliases without exposing a personal Gmail address", async () => {
+  const app = await readFile(path.join(projectRoot, "src/App.tsx"), "utf8");
+  const player = await readFile(
+    path.join(projectRoot, "src/components/AudioPlayer.tsx"),
+    "utf8",
+  );
+  const siteConfig = await readFile(
+    path.join(projectRoot, "src/siteConfig.ts"),
+    "utf8",
+  );
+
+  assert.match(siteConfig, /info@hiplingo\.com/);
+  assert.match(app, /HIPLINGO_CONTACT_MAILTO/);
+  assert.match(app, />Contact</);
+  assert.match(player, /HIPLINGO_CONTACT_MAILTO/);
+  assert.doesNotMatch(
+    `${app}\n${player}\n${siteConfig}`,
+    /nbrenton@gmail\.com/,
+  );
+});

@@ -526,3 +526,10 @@ hidden.
 Journal is intentionally absent from Hiplingo for now. Journal-style work
 will live on nathanbrenton.com later. Licensing is the public umbrella for
 general rights inquiries and Jam participant agreements.
+
+## Shared listener metadata viewer
+
+Hiplingo's Track information modal delegates to the shared
+`@hiplingo/media-player` listener metadata viewer. Metadata-editor consumes the
+same presentation component for its public-style Library preview so tab order,
+credit grouping, labels, and listener-facing layout remain synchronized.

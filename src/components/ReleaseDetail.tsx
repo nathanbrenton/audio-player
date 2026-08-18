@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { PlaybackStateSnapshot } from "./AudioPlayer";
 import type { CatalogRelease, MediaCatalog } from "../types/MediaCatalog";
 import {
@@ -21,27 +22,55 @@ type ReleaseDetailProps = {
   playbackState: PlaybackStateSnapshot;
   onPlayQueue: (trackKey: string, queueTrackKeys: string[]) => void;
   onTogglePlayback: () => void;
+  onNowPlayingWaveformHostChange: (
+    element: HTMLDivElement | null,
+  ) => void;
 };
 
 function ReleaseHeroArtwork({
   release,
   catalog,
+  onPlay,
+  actionLabel,
+  isPlaying = false,
 }: {
   release: CatalogRelease;
   catalog: MediaCatalog;
+  onPlay?: () => void;
+  actionLabel?: string;
+  isPlaying?: boolean;
 }) {
   const artworkUrl = getMediaUrl(
     catalog.mediaBaseUrl,
     getReleaseArtworkPath(release),
   );
 
+  const artwork = artworkUrl ? (
+    <img src={artworkUrl} alt="" />
+  ) : (
+    <span className="hiplingo-release-artwork-fallback">HL</span>
+  );
+
+  if (onPlay) {
+    return (
+      <button
+        type="button"
+        className="hiplingo-release-detail__artwork hiplingo-release-detail__artwork--playable"
+        onClick={onPlay}
+        aria-label={actionLabel ?? `Play ${release.title}`}
+        aria-pressed={isPlaying}
+      >
+        {artwork}
+        <span className="hiplingo-release-detail__artwork-play" aria-hidden="true">
+          {isPlaying ? "❚❚" : "▶"}
+        </span>
+      </button>
+    );
+  }
+
   return (
     <div className="hiplingo-release-detail__artwork" aria-hidden="true">
-      {artworkUrl ? (
-        <img src={artworkUrl} alt="" />
-      ) : (
-        <span className="hiplingo-release-artwork-fallback">HL</span>
-      )}
+      {artwork}
     </div>
   );
 }
@@ -56,7 +85,18 @@ export default function ReleaseDetail({
   playbackState,
   onPlayQueue,
   onTogglePlayback,
+  onNowPlayingWaveformHostChange,
 }: ReleaseDetailProps) {
+  const [selectedRowTrackKey, setSelectedRowTrackKey] =
+    useState<string | null>(playbackState.trackKey);
+
+  useEffect(() => {
+    setSelectedRowTrackKey(playbackState.trackKey);
+  }, [
+    playbackState.trackKey,
+    releaseId,
+  ]);
+
   const release = catalog?.releases.find(
     (entry) => entry.id === releaseId,
   );
@@ -106,65 +146,72 @@ export default function ReleaseDetail({
   const playableTrackKeys = release.tracks
     .filter((track) => track.playable)
     .map((track) => getTrackKey(release, track));
-  const firstPlayableTrack = release.tracks.find((track) => track.playable) ?? null;
   const releaseIsSelected = Boolean(
     playbackState.hasSelection &&
       playbackState.trackKey &&
       playableTrackKeys.includes(playbackState.trackKey),
   );
-  const releaseActionLabel = releaseIsSelected
+  const releaseArtworkActionLabel = releaseIsSelected
     ? playbackState.isPlaying
-      ? "Pause release"
-      : "Resume release"
-    : "Play release";
+      ? `Pause ${release.title}`
+      : `Resume ${release.title}`
+    : `Play ${release.title}`;
 
   return (
     <main className="hiplingo-page hiplingo-release-detail-page">
-      <button type="button" className="hiplingo-release-back" onClick={onBack}>
-        ← Releases
-      </button>
+      <div className="hiplingo-release-detail__masthead">
+        <button type="button" className="hiplingo-release-back" onClick={onBack}>
+          ← Releases
+        </button>
+
+        <button
+          type="button"
+          className="hiplingo-release-detail__artist"
+          onClick={() => onOpenArtist(artist)}
+        >
+          {artist}
+        </button>
+      </div>
 
       <section className="hiplingo-release-detail__hero">
-        <ReleaseHeroArtwork release={release} catalog={catalog} />
+        <ReleaseHeroArtwork
+          release={release}
+          catalog={catalog}
+          onPlay={
+            playableTrackKeys.length > 0
+              ? () => {
+                  if (releaseIsSelected) {
+                    onTogglePlayback();
+                    return;
+                  }
+
+                  onPlayQueue(playableTrackKeys[0], playableTrackKeys);
+                }
+              : undefined
+          }
+          actionLabel={releaseArtworkActionLabel}
+          isPlaying={releaseIsSelected && playbackState.isPlaying}
+        />
 
         <div className="hiplingo-release-detail__intro">
-          <span className="hiplingo-kicker">{type ?? "Release"}</span>
-          <h1>{release.title}</h1>
-          <button
-            type="button"
-            className="hiplingo-release-detail__artist"
-            onClick={() => onOpenArtist(artist)}
-          >
-            {artist}
-          </button>
-          <p className="hiplingo-release-detail__meta">
-            {[date, `${release.trackCount} ${release.trackCount === 1 ? "track" : "tracks"}`]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
+          <div
+            ref={onNowPlayingWaveformHostChange}
+            className="hiplingo-release-detail__now-playing-waveform-host"
+          />
 
-          {firstPlayableTrack ? (
-            <button
-              type="button"
-              className="hiplingo-button hiplingo-button--primary"
-              onClick={() => {
-                if (releaseIsSelected) {
-                  onTogglePlayback();
-                  return;
-                }
+          <div className="hiplingo-release-detail__copy">
+            <span className="hiplingo-kicker">{type ?? "Release"}</span>
+            <h1>{release.title}</h1>
+            <p className="hiplingo-release-detail__meta">
+              {[date, `${release.trackCount} ${release.trackCount === 1 ? "track" : "tracks"}`]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
 
-                onPlayQueue(
-                  getTrackKey(release, firstPlayableTrack),
-                  playableTrackKeys,
-                );
-              }}
-              aria-pressed={releaseIsSelected && playbackState.isPlaying}
-            >
-              {releaseActionLabel}
-            </button>
-          ) : (
-            <span className="hiplingo-release-detail__unavailable">No playable tracks published.</span>
-          )}
+            {playableTrackKeys.length === 0 ? (
+              <span className="hiplingo-release-detail__unavailable">No playable tracks published.</span>
+            ) : null}
+          </div>
         </div>
       </section>
 
@@ -181,8 +228,7 @@ export default function ReleaseDetail({
 
       <section className="hiplingo-release-tracklist" aria-labelledby="release-tracklist-heading">
         <div className="hiplingo-release-tracklist__heading">
-          <span className="hiplingo-kicker">Track list</span>
-          <h2 id="release-tracklist-heading">{release.title}</h2>
+          <h2 id="release-tracklist-heading">Track list</h2>
         </div>
 
         <div className="hiplingo-release-tracklist__rows">
@@ -208,18 +254,32 @@ export default function ReleaseDetail({
               playbackState.hasSelection &&
               playbackState.trackKey === trackKey;
 
-            return (
-              <button
-                key={track.id}
-                type="button"
-                className="hiplingo-release-track"
-                aria-pressed={trackIsSelected && playbackState.isPlaying}
-                onClick={() => {
-                  if (trackIsSelected) {
-                    onTogglePlayback();
-                    return;
-                  }
+            const trackActionLabel = trackIsSelected
+              ? playbackState.isPlaying
+                ? `Pause ${track.title}`
+                : `Resume ${track.title}`
+              : `Play ${track.title}`;
 
+            return (
+              <div
+                key={track.id}
+                className="hiplingo-release-track"
+                data-selected={
+                  selectedRowTrackKey === trackKey
+                    ? "true"
+                    : "false"
+                }
+                data-playing={
+                  trackIsSelected && playbackState.isPlaying
+                    ? "true"
+                    : "false"
+                }
+                onClick={() => {
+                  setSelectedRowTrackKey(trackKey);
+                }}
+                onDoubleClick={(event) => {
+                  event.preventDefault();
+                  setSelectedRowTrackKey(trackKey);
                   onPlayQueue(
                     trackKey,
                     playableTrackKeys,
@@ -227,14 +287,49 @@ export default function ReleaseDetail({
                 }}
               >
                 <span className="hiplingo-release-track__number">{number}</span>
-                <span className="hiplingo-release-track__title">
+                <button
+                  type="button"
+                  className="hiplingo-release-track__title"
+                  aria-current={
+                    selectedRowTrackKey === trackKey
+                      ? "true"
+                      : undefined
+                  }
+                  onClick={() => {
+                    setSelectedRowTrackKey(trackKey);
+                  }}
+                >
                   <strong>{track.title}</strong>
                   {trackArtist !== artist ? <small>{trackArtist}</small> : null}
-                </span>
-                <span className="hiplingo-release-track__action" aria-hidden="true">
-                  {trackIsSelected && playbackState.isPlaying ? "❚❚" : "▶"}
-                </span>
-              </button>
+                </button>
+                <button
+                  type="button"
+                  className="hiplingo-release-track__action"
+                  aria-label={trackActionLabel}
+                  aria-pressed={trackIsSelected && playbackState.isPlaying}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setSelectedRowTrackKey(trackKey);
+
+                    if (trackIsSelected) {
+                      onTogglePlayback();
+                      return;
+                    }
+
+                    onPlayQueue(
+                      trackKey,
+                      playableTrackKeys,
+                    );
+                  }}
+                  onDoubleClick={(event) => {
+                    event.stopPropagation();
+                  }}
+                >
+                  <span aria-hidden="true">
+                    {trackIsSelected && playbackState.isPlaying ? "❚❚" : "▶"}
+                  </span>
+                </button>
+              </div>
             );
           })}
         </div>

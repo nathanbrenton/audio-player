@@ -44,3 +44,6 @@ public/media/
 
 # Local media library: audio, artwork, and generated media data
 media-library/
+
+# Local source/master media; never commit or deploy
+/source-assets/
