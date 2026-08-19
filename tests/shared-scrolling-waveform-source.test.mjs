@@ -99,11 +99,31 @@ test("shared zoom oscilloscope exports preserve frozen-frame helpers", async () 
   assert.doesNotMatch(player, /function handleWaveformWheel/);
 });
 
-test("shared visualization surface owns first-gesture analyser activation and optional zoom readout", () => {
+test("shared visualization surface unlocks the analyser inside the oscilloscope-entry gesture", async () => {
+  const sharedAnalyser = await readFile(
+    new URL(
+      "../../packages/media-player/src/useMediaElementAnalyser.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
   assert.match(surfaceSource, /onActivate=\{activateWaveform\}/);
   assert.match(
     surfaceSource,
     /const activateWaveform = \(\) => \{[\s\S]*void ensureAnalyserRef\.current\(\);[\s\S]*onActivate\?\.\(\);/,
+  );
+  assert.match(
+    surfaceSource,
+    /const handleIncreaseWaveformZoom = \(\) => \{[\s\S]*waveformViewMode === "waveform"[\s\S]*pixelsPerSecond >= maximumWaveformZoom[\s\S]*void ensureAnalyserRef\.current\(\);[\s\S]*increaseWaveformZoom\(\);/,
+  );
+  assert.match(
+    surfaceSource,
+    /onClick=\{handleIncreaseWaveformZoom\}/,
+  );
+  assert.match(
+    sharedAnalyser,
+    /context\.state !== "running"[\s\S]*context\.state !== "closed"[\s\S]*context\.resume\(\)/,
   );
   assert.match(surfaceSource, /showZoomReadout = false/);
   assert.match(surfaceSource, /Current waveform zoom/);
