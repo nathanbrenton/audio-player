@@ -30,11 +30,12 @@ test("footer Artist and Release context are navigable on all display modes", asy
   assert.match(app, /onOpenArtist=\{\(artistName\) => \{[\s\S]*?getArtistSlug\(artistName\)/);
 });
 
-test("landing hero keeps one RAF parallax loop with more visible desktop travel", async () => {
+test("landing hero keeps one RAF parallax loop with 50-percent faster travel", async () => {
   const hero = await source("src/components/LandingHeroBanner.tsx");
-  assert.match(hero, /DESKTOP_STRENGTH = 0\.24/);
-  assert.match(hero, /DESKTOP_TRAVEL_PX = 72/);
-  assert.match(hero, /LANDSCAPE_STRENGTH = 0\.24/);
+  assert.match(hero, /DESKTOP_STRENGTH = 0\.36/);
+  assert.match(hero, /DESKTOP_TRAVEL_PX = 108/);
+  assert.match(hero, /LANDSCAPE_STRENGTH = 0\.36/);
+  assert.match(hero, /LANDSCAPE_TRAVEL_PX = 138/);
   assert.match(hero, /window\.requestAnimationFrame\(updateParallax\)/);
   assert.doesNotMatch(hero, /setInterval|AnalyserNode/i);
 });

@@ -3,12 +3,12 @@ import {
   useRef,
 } from "react";
 
-const DESKTOP_STRENGTH = 0.24;
-const DESKTOP_TRAVEL_PX = 72;
-const PORTRAIT_STRENGTH = 0.52;
-const PORTRAIT_TRAVEL_PX = 132;
-const LANDSCAPE_STRENGTH = 0.24;
-const LANDSCAPE_TRAVEL_PX = 92;
+const DESKTOP_STRENGTH = 0.36;
+const DESKTOP_TRAVEL_PX = 108;
+const PORTRAIT_STRENGTH = 0.78;
+const PORTRAIT_TRAVEL_PX = 198;
+const LANDSCAPE_STRENGTH = 0.36;
+const LANDSCAPE_TRAVEL_PX = 138;
 
 function getDocumentScrollTop() {
   const scrollingElement =

@@ -10,7 +10,7 @@ async function source(relativePath) {
   return readFile(path.join(root, relativePath), "utf8");
 }
 
-test("mobile landscape hero parallax is slowed", async () => {
+test("mobile landscape hero parallax uses the faster bounded travel tuning", async () => {
   for (const candidate of [
     "src/components/LandingHeroBanner.tsx",
     "src/App.tsx",
@@ -18,8 +18,12 @@ test("mobile landscape hero parallax is slowed", async () => {
     try {
       const value = await source(candidate);
       if (value.includes("LANDSCAPE_STRENGTH")) {
-        assert.match(value, /LANDSCAPE_STRENGTH\s*=\s*0\.24\s*;/);
-        assert.match(value, /LANDSCAPE_TRAVEL_PX/);
+        assert.match(value, /LANDSCAPE_STRENGTH\s*=\s*0\.36\s*;/);
+        assert.match(value, /LANDSCAPE_TRAVEL_PX\s*=\s*138\s*;/);
+        assert.match(
+          value,
+          /window\.requestAnimationFrame\(updateParallax\)/,
+        );
         return;
       }
     } catch {}

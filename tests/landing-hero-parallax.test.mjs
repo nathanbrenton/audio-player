@@ -27,12 +27,12 @@ test("landing hero restores Nathan-style scroll parallax", async () => {
   );
   assert.match(app, /<LandingHeroBanner\s*\/>/);
 
-  assert.match(component, /DESKTOP_STRENGTH = 0\.24/);
-  assert.match(component, /DESKTOP_TRAVEL_PX = 72/);
-  assert.match(component, /PORTRAIT_STRENGTH = 0\.52/);
-  assert.match(component, /PORTRAIT_TRAVEL_PX = 132/);
-  assert.match(component, /LANDSCAPE_STRENGTH = 0\.24/);
-  assert.match(component, /LANDSCAPE_TRAVEL_PX = 92/);
+  assert.match(component, /DESKTOP_STRENGTH = 0\.36/);
+  assert.match(component, /DESKTOP_TRAVEL_PX = 108/);
+  assert.match(component, /PORTRAIT_STRENGTH = 0\.78/);
+  assert.match(component, /PORTRAIT_TRAVEL_PX = 198/);
+  assert.match(component, /LANDSCAPE_STRENGTH = 0\.36/);
+  assert.match(component, /LANDSCAPE_TRAVEL_PX = 138/);
   assert.match(
     component,
     /window\.requestAnimationFrame\(updateParallax\)/,
