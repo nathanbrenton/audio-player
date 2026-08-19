@@ -2292,17 +2292,22 @@ canvas {
 }
 
 .waveform-panel__zoom-button {
+  --waveform-zoom-hit-inset: 7px;
+
   position: absolute;
   right: 8px;
   display: grid;
-  width: 52px;
-  min-width: 52px;
-  height: 52px;
-  min-height: 52px;
+  width: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
   padding: 0;
   place-items: center;
+  overflow: visible;
   border: 1px solid rgb(255 255 255 / 20%);
-  border-radius: 9px;
+  border-radius: 7px;
   background: rgb(0 0 0 / 72%);
   color: #ffffff;
   box-shadow: 0 4px 14px rgb(0 0 0 / 30%);
@@ -2314,6 +2319,27 @@ canvas {
   -webkit-touch-callout: none;
   touch-action: manipulation;
   backdrop-filter: blur(5px);
+}
+
+/*
+ * Keep the painted control compact while preserving the larger touch target
+ * introduced for mobile. The transparent pseudo-element belongs to the button,
+ * so taps in this extra area activate the control without adding visible size
+ * or selectable text.
+ */
+.waveform-panel__zoom-button::after {
+  position: absolute;
+  inset:
+    calc(-1 * var(--waveform-zoom-hit-inset));
+  content: "";
+  background: transparent;
+}
+
+.waveform-panel__zoom-button > svg {
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .waveform-panel__zoom-button--increase {
@@ -2344,11 +2370,15 @@ canvas {
   }
 
   .waveform-panel__zoom-button {
+    --waveform-zoom-hit-inset: 10px;
+
     right: 8px;
-    width: 56px;
-    min-width: 56px;
-    height: 56px;
-    min-height: 56px;
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    max-height: 36px;
   }
 
   .waveform-panel__zoom-button--increase {
@@ -2369,11 +2399,15 @@ canvas {
   }
 
   .waveform-panel__zoom-button {
+    --waveform-zoom-hit-inset: 8px;
+
     right: 7px;
-    width: 50px;
-    min-width: 50px;
-    height: 50px;
-    min-height: 50px;
+    width: 34px;
+    min-width: 34px;
+    max-width: 34px;
+    height: 34px;
+    min-height: 34px;
+    max-height: 34px;
   }
 
   .waveform-panel__zoom-button--increase {
