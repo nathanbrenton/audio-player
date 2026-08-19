@@ -7,9 +7,12 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const source = (relativePath) => readFile(path.join(root, relativePath), "utf8");
 
-test("Listen queue is carousel-only in canonical library order", async () => {
+test("Listen queue is carousel-only in active playback order", async () => {
   const queue = await source("src/components/ListenTrackQueue.tsx");
-  assert.match(queue, /const queueSourceTracks = playableTracks;/);
+  assert.match(
+    queue,
+    /queueTrackKeys\.flatMap\([\s\S]*?orderedQueue\.length > 0[\s\S]*?orderedQueue/,
+  );
   assert.doesNotMatch(queue, /listen-track-queue__filters|listen-track-queue__shuffle/);
   assert.doesNotMatch(queue, /artistFilter|releaseFilter|sortMode|onShuffleTracks/);
 });

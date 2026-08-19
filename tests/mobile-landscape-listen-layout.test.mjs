@@ -66,7 +66,7 @@ test("places the route-appropriate end action beside the landscape footer wavefo
 
   assert.match(
     audioPlayerSource,
-    /function shuffleActiveQueue\(\)[\s\S]*?playableTracks\.map\(\(entry\) => entry\.key\)[\s\S]*?shuffleQueueTracks\(shuffledTrackKeys\);/,
+    /function shuffleActiveQueue\(\)[\s\S]*?const allTrackKeys = playableTracks\.map\(\(entry\) => entry\.key\);[\s\S]*?currentTrackIsPlaying[\s\S]*?setQueueTrackKeys\([\s\S]*?shuffleQueueTracks\(shuffledTrackKeys\);/,
   );
   assert.match(
     audioPlayerSource,

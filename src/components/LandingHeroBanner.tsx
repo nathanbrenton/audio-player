@@ -10,6 +10,19 @@ const PORTRAIT_TRAVEL_PX = 132;
 const LANDSCAPE_STRENGTH = 0.24;
 const LANDSCAPE_TRAVEL_PX = 92;
 
+function getDocumentScrollTop() {
+  const scrollingElement =
+    document.scrollingElement as HTMLElement | null;
+
+  return Math.max(
+    0,
+    window.scrollY || 0,
+    scrollingElement?.scrollTop ?? 0,
+    document.documentElement.scrollTop || 0,
+    document.body.scrollTop || 0,
+  );
+}
+
 export default function LandingHeroBanner() {
   const bannerRef = useRef<HTMLDivElement | null>(null);
   const layerRef = useRef<HTMLDivElement | null>(null);
@@ -61,7 +74,8 @@ export default function LandingHeroBanner() {
               -LANDSCAPE_TRAVEL_PX,
               Math.min(
                 0,
-                -window.scrollY * LANDSCAPE_STRENGTH,
+                -getDocumentScrollTop() *
+                  LANDSCAPE_STRENGTH,
               ),
             );
       } else {
@@ -110,6 +124,20 @@ export default function LandingHeroBanner() {
       requestParallaxUpdate,
       { passive: true },
     );
+    /*
+     * Mobile landscape can restore site-route scrolling through body/root
+     * overflow overrides. WebKit does not consistently report that path via
+     * window.scrollY/window "scroll" alone, so also observe captured document
+     * scroll events and read the active scrolling element.
+     */
+    document.addEventListener(
+      "scroll",
+      requestParallaxUpdate,
+      {
+        passive: true,
+        capture: true,
+      },
+    );
     window.addEventListener(
       "resize",
       requestParallaxUpdate,
@@ -124,6 +152,11 @@ export default function LandingHeroBanner() {
       window.removeEventListener(
         "scroll",
         requestParallaxUpdate,
+      );
+      document.removeEventListener(
+        "scroll",
+        requestParallaxUpdate,
+        true,
       );
       window.removeEventListener(
         "resize",

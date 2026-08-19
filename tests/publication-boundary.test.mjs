@@ -118,7 +118,7 @@ test("advances through the active queue and exposes a compact global player", as
 });
 
 
-test("seeds a cold release-page footer from that release without replacing persistent playback", async () => {
+test("cold public routes keep the persistent player idle until explicit selection", async () => {
   const appSource = await readFile(
     path.join(projectRoot, "src/App.tsx"),
     "utf8",
@@ -128,13 +128,19 @@ test("seeds a cold release-page footer from that release without replacing persi
     "utf8",
   );
 
-  assert.match(
-    appSource,
-    /routeReleaseInitialTrack[\s\S]*?find\(\(track\) => track\.playable\)[\s\S]*?fallbackTrackKey=\{routeReleaseInitialTrackKey\}/,
+  assert.doesNotMatch(appSource, /routeReleaseInitialTrack|fallbackTrackKey=/);
+  assert.doesNotMatch(playerSource, /fallbackTrackKey|selectionFallbackTrackKey/);
+  assert.doesNotMatch(
+    playerSource,
+    /const firstTrackKey = playableTracks\[0\]\.key/,
   );
   assert.match(
     playerSource,
-    /if \(\s*!playableTracks\.some\([\s\S]*?entry\.key === selectedTrackKey[\s\S]*?\) \{[\s\S]*?if \(fallbackTrack\)[\s\S]*?entry\.release\.id === fallbackTrack\.release\.id[\s\S]*?setSelectedTrackKey\(selectionFallbackTrackKey\)/,
+    /!initialTrackKey[\s\S]*?setSelectedTrackKey\(initialTrackKey\)/,
+  );
+  assert.match(
+    playerSource,
+    /artworkUrl=\{[\s\S]*?selectedTrack[\s\S]*?hiplingoLogoUrl/,
   );
 });
 

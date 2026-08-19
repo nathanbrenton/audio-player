@@ -43,6 +43,18 @@ test("landing hero restores Nathan-style scroll parallax", async () => {
   );
   assert.match(
     component,
+    /function getDocumentScrollTop\(\)[\s\S]*?document\.scrollingElement[\s\S]*?document\.documentElement\.scrollTop[\s\S]*?document\.body\.scrollTop/,
+  );
+  assert.match(
+    component,
+    /-getDocumentScrollTop\(\) \*[\s\S]*?LANDSCAPE_STRENGTH/,
+  );
+  assert.match(
+    component,
+    /document\.addEventListener\([\s\S]*?"scroll",[\s\S]*?requestParallaxUpdate,[\s\S]*?capture:\s*true/,
+  );
+  assert.match(
+    component,
     /\(prefers-reduced-motion: reduce\)/,
   );
 });

@@ -314,6 +314,12 @@ canvas {
   object-fit: cover;
 }
 
+.artwork-stack__item img.artwork-stack__idle-logo {
+  padding: clamp(28px, 12%, 56px);
+  object-fit: contain;
+  background: #17131f;
+}
+
 /*
  * Transparent outlined transport icons preserve artwork visibility
  * and never intercept pointer or touch gestures.
@@ -7013,7 +7019,7 @@ body {
 .hiplingo-feature-card:focus-visible,
 .hiplingo-button:focus-visible,
 .hiplingo-site-footer a:focus-visible,
-.hiplingo-home-release__artwork:focus-visible {
+.hiplingo-home-shuffle__button:focus-visible {
   outline-color: var(--hiplingo-cyan);
 }
 
@@ -7113,99 +7119,54 @@ body {
   background: var(--hiplingo-surface-3);
 }
 
-/* The newest publication is the homepage's first music action. */
-.hiplingo-home-release {
-  display: grid;
-  grid-template-columns: minmax(92px, 116px) minmax(0, 1fr);
-  gap: 16px;
+/* Start listening is a clear invitation, not a billboard. */
+.hiplingo-home-shuffle {
   margin-top: 18px;
-  padding: 14px;
-  border: 1px solid var(--hiplingo-border);
-  border-radius: 16px;
-  background:
-    linear-gradient(135deg, rgba(120, 204, 232, 0.04), rgba(169, 140, 255, 0.05)),
-    var(--hiplingo-surface-1);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
 }
 
-.hiplingo-home-release__artwork {
-  display: grid;
-  width: 100%;
-  aspect-ratio: 1;
-  overflow: hidden;
-  place-items: center;
-  padding: 0;
-  border: 1px solid var(--hiplingo-border-strong);
-  border-radius: 12px;
-  background: var(--hiplingo-surface-2);
-  cursor: pointer;
-}
-
-.hiplingo-home-release__artwork img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.hiplingo-home-release__copy {
-  min-width: 0;
-  align-self: center;
-}
-
-.hiplingo-home-release__copy .hiplingo-kicker {
-  margin-bottom: 5px;
-  color: #9e8cc4;
-}
-
-.hiplingo-home-release__copy h2 {
-  margin: 0;
-  overflow: hidden;
-  color: var(--hiplingo-text);
-  font-size: clamp(1.25rem, 6vw, 2.25rem);
-  letter-spacing: -0.035em;
-  line-height: 1;
-  text-overflow: ellipsis;
-}
-
-.hiplingo-home-release__artist,
-.hiplingo-home-release__meta {
-  margin: 5px 0 0;
-}
-
-.hiplingo-home-release__artist {
-  color: #c4bdcc;
-  font-size: 0.78rem;
-  font-weight: 650;
-}
-
-.hiplingo-home-release__meta {
-  color: #756f7b;
-  font-size: 0.66rem;
-}
-
-.hiplingo-home-release__actions {
+.hiplingo-home-shuffle__button {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.hiplingo-home-release__actions .hiplingo-button {
-  min-height: 38px;
-  padding: 7px 12px;
-  font-size: 0.7rem;
+  width: min(100%, 620px);
+  min-height: clamp(72px, 12vw, 92px);
+  margin-inline: auto;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 2vw, 16px);
+  padding: clamp(16px, 3vw, 22px);
+  border: 1px solid rgba(179, 148, 255, 0.54);
+  border-radius: 16px;
+  color: #fffaff;
+  background:
+    linear-gradient(135deg, rgba(169, 140, 255, 0.24), rgba(239, 139, 197, 0.10)),
+    var(--hiplingo-surface-1);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.20);
+  font: inherit;
+  font-size: clamp(1.15rem, 4vw, 2rem);
+  font-weight: 720;
+  letter-spacing: -0.025em;
   cursor: pointer;
 }
 
-.hiplingo-home-release--state {
-  grid-template-columns: 1fr;
-  min-height: 120px;
-  align-content: center;
+.hiplingo-home-shuffle__button svg {
+  width: clamp(26px, 5vw, 36px);
+  height: clamp(26px, 5vw, 36px);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.hiplingo-home-release--state strong {
-  color: #d8d1df;
+.hiplingo-home-shuffle__button:hover:not(:disabled) {
+  border-color: rgba(195, 174, 255, 0.82);
+  background:
+    linear-gradient(135deg, rgba(169, 140, 255, 0.38), rgba(239, 139, 197, 0.18)),
+    var(--hiplingo-surface-2);
+}
+
+.hiplingo-home-shuffle__button:disabled {
+  cursor: default;
+  opacity: 0.46;
 }
 
 .hiplingo-feature-grid {
@@ -7292,17 +7253,12 @@ body {
     padding-top: 18px;
   }
 
-  .hiplingo-home-release {
-    grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
-    gap: clamp(24px, 5vw, 54px);
-    align-items: center;
+  .hiplingo-home-shuffle {
     margin-top: 28px;
-    padding: clamp(18px, 3vw, 28px);
   }
 
-  .hiplingo-home-release__actions .hiplingo-button {
-    min-height: 42px;
-    padding-inline: 15px;
+  .hiplingo-home-shuffle__button {
+    min-height: 156px;
   }
 
   .hiplingo-feature-grid {
@@ -11533,15 +11489,12 @@ button.hiplingo-release-detail__artist:hover {
 .hiplingo-artist-detail__heading p,
 .hiplingo-release-detail__meta,
 .hiplingo-release-detail__masthead .hiplingo-release-detail__artist,
-.hiplingo-home-release__artist,
-.hiplingo-home-release__meta,
 .hiplingo-release-track__title small {
   color: var(--hiplingo-small-accent) !important;
 }
 
 .hiplingo-release-card__copy > span,
-.hiplingo-release-detail__masthead .hiplingo-release-detail__artist,
-.hiplingo-home-release__artist {
+.hiplingo-release-detail__masthead .hiplingo-release-detail__artist {
   font-weight: 700;
 }
 
@@ -11549,8 +11502,7 @@ button.hiplingo-release-detail__artist:hover {
 .hiplingo-artist-card__copy span,
 .hiplingo-artist-card__copy small,
 .hiplingo-artist-release__copy small,
-.hiplingo-release-detail__meta,
-.hiplingo-home-release__meta {
+.hiplingo-release-detail__meta {
   color: var(--hiplingo-small-accent-muted) !important;
 }
 
@@ -12265,4 +12217,26 @@ button.hiplingo-release-detail__artist:hover {
   margin: 0 !important;
   line-height: inherit !important;
   vertical-align: baseline;
+}
+
+/* =========================================================
+   Mobile Listen footer full-width
+   ========================================================= */
+
+/*
+ * The full Listen dock is already the persistent viewport footer. On portrait
+ * phones, consume the complete safe horizontal viewport instead of keeping the
+ * floating-card side inset. Internal dock padding continues to protect the
+ * controls themselves.
+ */
+@media (max-width: 640px) and (orientation: portrait) {
+  .audio-player[data-display-mode="full"]
+    .hiplingo-now-playing-dock {
+    box-sizing: border-box;
+    right: env(safe-area-inset-right);
+    left: env(safe-area-inset-left);
+    width: auto;
+    max-width: none;
+    margin-inline: 0;
+  }
 }

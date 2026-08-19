@@ -25,6 +25,7 @@ type QueueTrack = {
 type ListenTrackQueueProps = {
   catalog: MediaCatalog | null;
   selectedTrackKey: string;
+  queueTrackKeys?: readonly string[];
   playingTrackKey?: string | null;
   onPlayTrack?: (trackKey: string, queueTrackKeys?: string[]) => void;
   onNavigateTrack?: (trackKey: string, queueTrackKeys?: string[]) => void;
@@ -37,6 +38,7 @@ type ListenTrackQueueProps = {
 export default function ListenTrackQueue({
   catalog,
   selectedTrackKey,
+  queueTrackKeys = [],
   playingTrackKey = null,
   onPlayTrack,
   onNavigateTrack,
@@ -112,22 +114,50 @@ export default function ListenTrackQueue({
     );
   }, [catalog]);
 
-  if (!catalog || playableTracks.length === 0) {
+  const queueSourceTracks = useMemo<QueueTrack[]>(() => {
+    if (queueTrackKeys.length === 0) {
+      return playableTracks;
+    }
+
+    const playableByKey = new Map(
+      playableTracks.map((entry) => [entry.key, entry]),
+    );
+    const orderedQueue = queueTrackKeys.flatMap((trackKey) => {
+      const entry = playableByKey.get(trackKey);
+      return entry ? [entry] : [];
+    });
+
+    return orderedQueue.length > 0
+      ? orderedQueue
+      : playableTracks;
+  }, [playableTracks, queueTrackKeys]);
+
+  if (
+    !catalog ||
+    playableTracks.length === 0 ||
+    !selectedTrackKey
+  ) {
     return null;
   }
-
-  const queueSourceTracks = playableTracks;
   const selectedQueueIndex = queueSourceTracks.findIndex(
     (entry) => entry.key === selectedTrackKey,
   );
   const currentQueueTrack =
-    playableTracks.find((entry) => entry.key === selectedTrackKey) ?? null;
+    queueSourceTracks.find((entry) => entry.key === selectedTrackKey) ??
+    playableTracks.find((entry) => entry.key === selectedTrackKey) ??
+    null;
   const currentTitleNeedsExtraSpace = Boolean(
     currentQueueTrack &&
       currentQueueTrack.track.title.trim().length >= 28,
   );
   const previousQueueTrack = previousTrackKey
-    ? playableTracks.find((entry) => entry.key === previousTrackKey) ?? null
+    ? queueSourceTracks.find(
+        (entry) => entry.key === previousTrackKey,
+      ) ??
+      playableTracks.find(
+        (entry) => entry.key === previousTrackKey,
+      ) ??
+      null
     : null;
 
   function getQueueTrackAtOffset(offset: number): QueueTrack | null {

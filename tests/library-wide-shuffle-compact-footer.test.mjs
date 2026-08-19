@@ -13,25 +13,32 @@ async function source(relativePath) {
   return readFile(path.join(root, relativePath), "utf8");
 }
 
-test("Listen Shuffle randomizes the complete playable public library", async () => {
+test("Listen Shuffle preserves a playing track and reshuffles only upcoming library tracks", async () => {
   const player = await source("src/components/AudioPlayer.tsx");
 
   assert.match(
     player,
-    /function shuffleActiveQueue\(\)[\s\S]*?shufflePlaybackTrackKeys\([\s\S]*?playableTracks\.map\(\(entry\) => entry\.key\)[\s\S]*?shuffleQueueTracks\(shuffledTrackKeys\);/,
-  );
-
-  const start = player.indexOf("function shuffleActiveQueue()");
-  assert.notEqual(start, -1);
-  const functionSlice = player.slice(start, start + 900);
-
-  assert.doesNotMatch(
-    functionSlice,
-    /activeQueue\.map\(\(entry\) => entry\.key\)/,
+    /function shuffleActiveQueue\(\)[\s\S]*?const allTrackKeys = playableTracks\.map\(\(entry\) => entry\.key\);[\s\S]*?const currentTrackIsPlaying =[\s\S]*?hasPlaybackSelection[\s\S]*?displayedIsPlaying[\s\S]*?if \(currentTrackIsPlaying\)/,
   );
   assert.match(
-    functionSlice,
-    /shuffledTrackKeys\[0\] === selectedTrackKey/,
+    player,
+    /activeQueue[\s\S]*?\.slice\(0, selectedIndex \+ 1\)[\s\S]*?queuePrefixSet[\s\S]*?allTrackKeys\.filter\([\s\S]*?!queuePrefixSet\.has\(trackKey\)[\s\S]*?setQueueTrackKeys\(\[[\s\S]*?queuePrefixTrackKeys[\s\S]*?shuffledUpcomingTrackKeys/,
+  );
+  assert.match(
+    player,
+    /const shuffledTrackKeys = shufflePlaybackTrackKeys\(allTrackKeys\);[\s\S]*?shuffleQueueTracks\(shuffledTrackKeys\);/,
+  );
+
+  const start = player.indexOf("if (currentTrackIsPlaying)");
+  assert.notEqual(start, -1);
+  const end = player.indexOf("\n      return;", start);
+  assert.ok(end > start);
+  const playingBranch = player.slice(start, end);
+
+  assert.doesNotMatch(
+    playingBranch,
+    /loadTrack\(|playQueue\(|shuffleQueueTracks\(/,
+    "reshuffling upcoming tracks must not reload or replace the playing track",
   );
 });
 

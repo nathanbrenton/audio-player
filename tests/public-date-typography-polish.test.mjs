@@ -29,7 +29,6 @@ test("public date formatter expands strict ISO calendar dates without touching y
 
 test("all release-date display surfaces use the public formatter", async () => {
   const files = [
-    "src/App.tsx",
     "src/components/ReleaseCatalog.tsx",
     "src/components/ReleaseDetail.tsx",
     "src/components/ArtistDetail.tsx",

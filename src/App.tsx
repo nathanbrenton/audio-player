@@ -14,16 +14,10 @@ import ReleaseCatalog from "./components/ReleaseCatalog";
 import ReleaseDetail from "./components/ReleaseDetail";
 import {
   fetchMediaCatalog,
-  getMediaUrl,
-  formatPublicDate,
-  getReleaseArtist,
-  getReleaseArtworkPath,
-  getReleaseDate,
-  getTrackKey,
 } from "./lib/mediaCatalog";
 import { getArtistSlug } from "./lib/publicArtists";
 import { HIPLINGO_CONTACT_MAILTO } from "./siteConfig";
-import type { CatalogRelease, MediaCatalog } from "./types/MediaCatalog";
+import type { MediaCatalog } from "./types/MediaCatalog";
 
 type SiteRoute =
   | "/"
@@ -249,123 +243,20 @@ function SiteHeader({
   );
 }
 
-function FeaturedRelease({
-  catalog,
-  release,
-  playbackState,
-  onOpenRelease,
-  onPlayQueue,
-  onTogglePlayback,
-}: {
-  catalog: MediaCatalog;
-  release: CatalogRelease;
-  playbackState: PlaybackStateSnapshot;
-  onOpenRelease: (releaseId: string) => void;
-  onPlayQueue: (trackKey: string, queueTrackKeys: string[]) => void;
-  onTogglePlayback: () => void;
-}) {
-  const artworkUrl = getMediaUrl(
-    catalog.mediaBaseUrl,
-    getReleaseArtworkPath(release),
-  );
-  const artist = getReleaseArtist(release);
-  const date = formatPublicDate(getReleaseDate(release));
-  const playableTracks = release.tracks.filter((track) => track.playable);
-  const queueTrackKeys = playableTracks.map((track) =>
-    getTrackKey(release, track),
-  );
-  const firstPlayableTrack = playableTracks[0] ?? null;
-  const releaseIsSelected = Boolean(
-    playbackState.hasSelection &&
-      playbackState.trackKey &&
-      queueTrackKeys.includes(playbackState.trackKey),
-  );
-  const releaseActionLabel = releaseIsSelected
-    ? playbackState.isPlaying
-      ? "❚❚ Pause"
-      : "▶ Resume"
-    : "▶ Play release";
-
-  return (
-    <section className="hiplingo-home-release" aria-labelledby="hiplingo-latest-release-title">
-      <button
-        type="button"
-        className="hiplingo-home-release__artwork"
-        onClick={() => onOpenRelease(release.id)}
-        aria-label={`Open ${release.title}`}
-      >
-        {artworkUrl ? (
-          <img src={artworkUrl} alt="" />
-        ) : (
-          <span className="hiplingo-release-artwork-fallback">HL</span>
-        )}
-      </button>
-
-      <div className="hiplingo-home-release__copy">
-        <span className="hiplingo-kicker">Latest release</span>
-        <h2 id="hiplingo-latest-release-title">{release.title}</h2>
-        <p className="hiplingo-home-release__artist">{artist}</p>
-        <p className="hiplingo-home-release__meta">
-          {[date, `${release.trackCount} ${release.trackCount === 1 ? "track" : "tracks"}`]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
-
-        <div className="hiplingo-home-release__actions">
-          {firstPlayableTrack ? (
-            <button
-              type="button"
-              className="hiplingo-button hiplingo-button--primary"
-              onClick={() => {
-                if (releaseIsSelected) {
-                  onTogglePlayback();
-                  return;
-                }
-
-                onPlayQueue(
-                  getTrackKey(release, firstPlayableTrack),
-                  queueTrackKeys,
-                );
-              }}
-              aria-pressed={releaseIsSelected && playbackState.isPlaying}
-            >
-              {releaseActionLabel}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="hiplingo-button"
-            onClick={() => onOpenRelease(release.id)}
-          >
-            View release
-          </button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-
 function HomePage({
   currentRoute,
   catalog,
-  loading,
-  error,
-  playbackState,
-  onOpenRelease,
-  onPlayQueue,
-  onTogglePlayback,
+  onShuffleListen,
 }: {
   currentRoute: SiteRoute;
   catalog: MediaCatalog | null;
-  loading: boolean;
-  error: string | null;
-  playbackState: PlaybackStateSnapshot;
-  onOpenRelease: (releaseId: string) => void;
-  onPlayQueue: (trackKey: string, queueTrackKeys: string[]) => void;
-  onTogglePlayback: () => void;
+  onShuffleListen: () => void;
 }) {
-  const latestRelease = catalog?.releases[0] ?? null;
+  const hasPlayableTracks = Boolean(
+    catalog?.releases.some((release) =>
+      release.tracks.some((track) => track.playable),
+    ),
+  );
 
   return (
     <main className="hiplingo-page hiplingo-home">
@@ -388,42 +279,37 @@ function HomePage({
               <SiteLink
                 route="/releases"
                 currentRoute={currentRoute}
-                className="hiplingo-button hiplingo-button--primary"
-              >
-                Browse releases
-              </SiteLink>
-              <SiteLink
-                route="/listen"
-                currentRoute={currentRoute}
                 className="hiplingo-button"
               >
-                Start Listening
+                Browse releases
               </SiteLink>
             </div>
           </div>
         </div>
       </section>
 
-      {latestRelease && catalog ? (
-        <FeaturedRelease
-          catalog={catalog}
-          release={latestRelease}
-          playbackState={playbackState}
-          onOpenRelease={onOpenRelease}
-          onPlayQueue={onPlayQueue}
-          onTogglePlayback={onTogglePlayback}
-        />
-      ) : loading ? (
-        <section className="hiplingo-home-release hiplingo-home-release--state" aria-live="polite">
-          <span className="hiplingo-kicker">Catalog</span>
-          <strong>Loading the latest release…</strong>
-        </section>
-      ) : error ? (
-        <section className="hiplingo-home-release hiplingo-home-release--state" role="status">
-          <span className="hiplingo-kicker">Catalog</span>
-          <strong>Published releases are temporarily unavailable.</strong>
-        </section>
-      ) : null}
+      <section
+        className="hiplingo-home-shuffle"
+        aria-label="Start listening"
+      >
+        <button
+          type="button"
+          className="hiplingo-home-shuffle__button"
+          onClick={onShuffleListen}
+          disabled={!hasPlayableTracks}
+          aria-label="Shuffle the Hiplingo library and open Listen"
+          title="Start listening"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h3.4c2.2 0 3.3 1.1 4.6 3.2l.4.7" />
+            <path d="M16 5l4 2-4 2" />
+            <path d="M4 17h3.4c2.2 0 3.3-1.1 4.6-3.2l.4-.7" />
+            <path d="M15.4 17H20" />
+            <path d="M16 15l4 2-4 2" />
+          </svg>
+          <span>Start listening</span>
+        </button>
+      </section>
 
       <section className="hiplingo-feature-grid" aria-label="Explore Hiplingo">
         <SiteLink route="/artists" className="hiplingo-feature-card">
@@ -440,7 +326,6 @@ function HomePage({
     </main>
   );
 }
-
 
 function LicensingPage() {
   return (
@@ -546,16 +431,6 @@ export default function App() {
   const requestedTrackKey = currentLocation.searchParams.get(
     "track",
   );
-  const routeRelease =
-    route.section === "/releases" && route.releaseId && catalog
-      ? catalog.releases.find((entry) => entry.id === route.releaseId) ?? null
-      : null;
-  const routeReleaseInitialTrack =
-    routeRelease?.tracks.find((track) => track.playable) ?? null;
-  const routeReleaseInitialTrackKey =
-    routeRelease && routeReleaseInitialTrack
-      ? getTrackKey(routeRelease, routeReleaseInitialTrack)
-      : null;
 
   useEffect(() => {
     const handleNavigation = () => {
@@ -619,6 +494,10 @@ export default function App() {
     audioPlayerRef.current?.togglePlayback();
   }
 
+  function requestShuffleListen() {
+    audioPlayerRef.current?.shuffleLibrary();
+    navigateTo("/listen");
+  }
 
   function requestTogglePlayerMenu() {
     audioPlayerRef.current?.toggleSettings();
@@ -744,14 +623,7 @@ export default function App() {
         <HomePage
           currentRoute={route.section}
           catalog={catalog}
-          loading={catalogLoading}
-          error={catalogError}
-          playbackState={playbackState}
-          onOpenRelease={(releaseId) => {
-            navigateTo(`/releases/${encodeURIComponent(releaseId)}`);
-          }}
-          onPlayQueue={requestPlayback}
-          onTogglePlayback={requestTogglePlayback}
+          onShuffleListen={requestShuffleListen}
         />
       );
       break;
@@ -787,7 +659,6 @@ export default function App() {
           catalog={catalog}
           catalogError={catalogError}
           initialTrackKey={requestedTrackKey}
-          fallbackTrackKey={routeReleaseInitialTrackKey}
           displayMode={playerDisplayMode}
           onOpenFullPlayer={() => navigateTo("/listen")}
           onOpenRelease={(releaseId) => {

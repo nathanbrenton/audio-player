@@ -35,16 +35,18 @@ test("uses one branded Hiplingo header without a duplicate player header", async
   assert.doesNotMatch(player, /hl-logo-graphite\.svg/);
 });
 
-test("homepage latest release can start the persistent queue in place", async () => {
+test("homepage promotes Start listening via library Shuffle instead of a latest release", async () => {
   const app = await readFile(path.join(projectRoot, "src/App.tsx"), "utf8");
 
-  assert.match(app, /const latestRelease = catalog\?\.releases\[0\]/);
-  assert.match(app, /function FeaturedRelease/);
-  assert.match(app, /onPlayQueue\(/);
-  assert.match(app, /releaseActionLabel/);
-  assert.match(app, /onTogglePlayback\(\)/);
-  assert.match(app, /❚❚ Pause/);
-  assert.match(app, /▶ Resume/);
+  assert.match(app, /className="hiplingo-home-shuffle__button"/);
+  assert.match(app, />\s*Start listening\s*<\/span>/);
+  assert.match(
+    app,
+    /function requestShuffleListen\(\)[\s\S]*?shuffleLibrary\(\)[\s\S]*?navigateTo\("\/listen"\)/,
+  );
+  assert.doesNotMatch(app, /function FeaturedRelease/);
+  assert.doesNotMatch(app, /Latest release|Loading the latest release/);
+  assert.doesNotMatch(app, /catalog\?\.releases\[0\]/);
 });
 
 test("uses public contact aliases without exposing a personal Gmail address", async () => {

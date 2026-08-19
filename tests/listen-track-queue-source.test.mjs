@@ -59,14 +59,24 @@ test("desktop Listen makes the current title dominant without floating discovery
   assert.doesNotMatch(queueSource, /listen-track-queue__shuffle/);
 });
 
-test("desktop Listen derives fixed carousel neighbors from canonical library order", async () => {
+test("desktop Listen derives carousel neighbors from the active playback queue", async () => {
   const queueSource = await readFile(
     path.join(projectRoot, "src/components/ListenTrackQueue.tsx"),
     "utf8",
   );
 
-  assert.match(queueSource, /const queueSourceTracks = playableTracks;/);
-  assert.doesNotMatch(queueSource, /filteredQueueTracks|sortedQueueTracks|shuffledQueueTracks|sortQueueTracks/);
+  assert.match(
+    queueSource,
+    /queueTrackKeys\?: readonly string\[\]/,
+  );
+  assert.match(
+    queueSource,
+    /const queueSourceTracks = useMemo<QueueTrack\[\]>\([\s\S]*?queueTrackKeys\.flatMap\([\s\S]*?return orderedQueue\.length > 0[\s\S]*?\? orderedQueue[\s\S]*?: playableTracks;/,
+  );
+  assert.doesNotMatch(
+    queueSource,
+    /filteredQueueTracks|sortedQueueTracks|shuffledQueueTracks|sortQueueTracks/,
+  );
   assert.match(queueSource, /function getQueueTrackAtOffset\(offset: number\): QueueTrack \| null/);
   assert.match(queueSource, /const nextQueueTrack = getQueueTrackAtOffset\(1\)/);
   assert.match(queueSource, /const nextNextQueueTrack\s*=\s*queueSourceTracks\.length >= 5/);

@@ -34,16 +34,31 @@ test("Artist detail simplifies track count and About copy", async () => {
   );
 });
 
-test("landing call to action says Start Listening", async () => {
-  const app = await source("src/App.tsx");
+test("landing uses Start listening as the primary listening CTA without a duplicate hero Listen button", async () => {
+  const [app, css] = await Promise.all([
+    source("src/App.tsx"),
+    source("src/index.css"),
+  ]);
 
   assert.match(
     app,
-    /route="\/listen"[\s\S]*?>\s*Start Listening\s*<\/SiteLink>/,
+    /<nav className="hiplingo-site-nav"[\s\S]*?route="\/listen"[\s\S]*?>\s*Listen\s*<\/SiteLink>/,
   );
   assert.doesNotMatch(
     app,
-    />\s*Open full player\s*<\/SiteLink>/,
+    /route="\/listen"[\s\S]*?className="hiplingo-button hiplingo-button--primary"[\s\S]*?>\s*Listen\s*<\/SiteLink>/,
+  );
+  assert.match(
+    app,
+    /className="hiplingo-home-shuffle__button"[\s\S]*?>[\s\S]*?<span>Start listening<\/span>/,
+  );
+  assert.match(
+    css,
+    /\.hiplingo-home-shuffle__button\s*\{[\s\S]*?width:\s*min\(100%, 620px\);[\s\S]*?min-height:\s*clamp\(72px, 12vw, 92px\);[\s\S]*?margin-inline:\s*auto;/,
+  );
+  assert.doesNotMatch(
+    app,
+    />\s*Start Listening\s*<\/SiteLink>/,
   );
 });
 

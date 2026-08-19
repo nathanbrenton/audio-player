@@ -13,6 +13,8 @@ import {
 import { createPortal } from "react-dom";
 import type Hls from "hls.js";
 
+import { hiplingoLogoUrl } from "@hiplingo/brand";
+
 import {
   CompactNowPlayingBar,
   PersistentMediaElement,
@@ -141,6 +143,7 @@ export type PlaybackStateSnapshot = {
 
 export type AudioPlayerHandle = {
   playQueue: (request: PlaybackQueueRequest) => void;
+  shuffleLibrary: () => void;
   togglePlayback: () => void;
   toggleSettings: () => void;
 };
@@ -151,7 +154,6 @@ type AudioPlayerProps = {
   catalog?: MediaCatalog | null;
   catalogError?: string | null;
   initialTrackKey?: string | null;
-  fallbackTrackKey?: string | null;
   displayMode?: AudioPlayerDisplayMode;
   onOpenFullPlayer?: () => void;
   onOpenRelease?: (releaseId: string) => void;
@@ -167,7 +169,6 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       catalog: suppliedCatalog,
       catalogError = null,
       initialTrackKey = null,
-      fallbackTrackKey = null,
       displayMode = "full",
       onOpenFullPlayer,
       onOpenRelease,
@@ -635,61 +636,28 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     };
   }, [suppliedCatalog]);
 
-  // Apply a release-page track request once, then preserve in-player navigation.
+  // Apply an explicit URL track request once, then preserve in-player navigation.
   useEffect(() => {
-    if (playableTracks.length === 0) {
-      return;
-    }
-
-    const firstTrackKey = playableTracks[0].key;
-    const fallbackTrack =
-      fallbackTrackKey
-        ? playableTracks.find((entry) => entry.key === fallbackTrackKey) ?? null
-        : null;
-    const selectionFallbackTrackKey = fallbackTrack?.key ?? firstTrackKey;
-    const requestedTrackKey =
-      initialTrackKey &&
-      playableTracks.some(
+    if (
+      playableTracks.length === 0 ||
+      !initialTrackKey ||
+      appliedInitialTrackKeyRef.current === initialTrackKey ||
+      !playableTracks.some(
         (entry) => entry.key === initialTrackKey,
       )
-        ? initialTrackKey
-        : null;
-
-    if (
-      requestedTrackKey &&
-      appliedInitialTrackKeyRef.current !== initialTrackKey
     ) {
-      appliedInitialTrackKeyRef.current = initialTrackKey;
-      setQueueTrackKeys(
-        playableTracks.map((entry) => entry.key),
-      );
-      setSelectedTrackKey(requestedTrackKey);
       return;
     }
 
-    if (
-      !playableTracks.some(
-        (entry) => entry.key === selectedTrackKey,
-      )
-    ) {
-      if (fallbackTrack) {
-        setQueueTrackKeys(
-          playableTracks
-            .filter((entry) => entry.release.id === fallbackTrack.release.id)
-            .map((entry) => entry.key),
-        );
-      }
-
-      setSelectedTrackKey(selectionFallbackTrackKey);
-    }
-
+    appliedInitialTrackKeyRef.current = initialTrackKey;
+    setQueueTrackKeys(
+      playableTracks.map((entry) => entry.key),
+    );
+    setSelectedTrackKey(initialTrackKey);
   }, [
-    fallbackTrackKey,
     initialTrackKey,
     playableTracks,
-    selectedTrackKey,
   ]);
-
 
   /*
    * Load the selected track's waveform whenever the player changes
@@ -1038,11 +1006,12 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
 
   useImperativeHandle(ref, () => ({
     playQueue,
+    shuffleLibrary: shuffleActiveQueue,
     togglePlayback: () => {
       void togglePlayback();
     },
     toggleSettings: () => {
-        setIsAppMenuOpen((isOpen) => !isOpen);
+      setIsAppMenuOpen((isOpen) => !isOpen);
     },
   }));
 
@@ -1680,12 +1649,52 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
   function shuffleActiveQueue() {
     /*
      * Listen Shuffle is library-wide, regardless of which release/queue
-     * supplied the current track. Install the complete randomized public
-     * library as the active queue so Next continues through that shuffle.
+     * supplied the current track.
+     *
+     * If music is already playing, Shuffle is a queue operation rather than
+     * a track-selection operation: preserve the current playback position and
+     * queue history, then randomize only the tracks that are still upcoming.
+     * This keeps the media element, playhead, and audible track untouched.
      */
-    const shuffledTrackKeys = shufflePlaybackTrackKeys(
-      playableTracks.map((entry) => entry.key),
-    );
+    const allTrackKeys = playableTracks.map((entry) => entry.key);
+    const audio = audioRef.current;
+    const currentTrackIsPlaying =
+      hasPlaybackSelection &&
+      Boolean(selectedTrackKey) &&
+      (
+        displayedIsPlaying ||
+        Boolean(audio && !audio.paused)
+      );
+
+    if (currentTrackIsPlaying) {
+      const selectedIndex = activeQueue.findIndex(
+        (entry) => entry.key === selectedTrackKey,
+      );
+      const queuePrefixTrackKeys =
+        selectedIndex >= 0
+          ? activeQueue
+              .slice(0, selectedIndex + 1)
+              .map((entry) => entry.key)
+          : [selectedTrackKey];
+      const queuePrefixSet = new Set(queuePrefixTrackKeys);
+      const shuffledUpcomingTrackKeys = shufflePlaybackTrackKeys(
+        allTrackKeys.filter(
+          (trackKey) => !queuePrefixSet.has(trackKey),
+        ),
+      );
+
+      setQueueTrackKeys([
+        ...queuePrefixTrackKeys,
+        ...shuffledUpcomingTrackKeys,
+      ]);
+      return;
+    }
+
+    /*
+     * With no track currently playing, Shuffle remains an explicit listening
+     * start action: randomize the full library and begin with the first result.
+     */
+    const shuffledTrackKeys = shufflePlaybackTrackKeys(allTrackKeys);
 
     if (
       shuffledTrackKeys.length > 1 &&
@@ -2215,22 +2224,40 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
               onLostPointerCapture={
                 handleArtworkLostPointerCapture
               }
-              aria-label={displayedIsPlaying ? "Pause track" : "Play track"}
+              aria-label={
+                selectedTrack
+                  ? displayedIsPlaying
+                    ? "Pause track"
+                    : "Play track"
+                  : "No track selected"
+              }
               aria-pressed={displayedIsPlaying}
               aria-disabled={!selectedTrack}
-              title={displayedIsPlaying ? "Pause" : "Play"}
+              disabled={!selectedTrack}
+              title={
+                selectedTrack
+                  ? displayedIsPlaying
+                    ? "Pause"
+                    : "Play"
+                  : "Shuffle to start listening"
+              }
             >
               {artworkSource ? (
                 <img
                   src={artworkSource}
-                  alt={`${
-                    selectedTrack?.track.title ?? "Track"
-                  } artwork`}
+                  alt={`${selectedTrack?.track.title ?? "Track"} artwork`}
                 />
-              ) : (
+              ) : selectedTrack ? (
                 <div className="artwork-placeholder">
                   No artwork
                 </div>
+              ) : (
+                <img
+                  className="artwork-stack__idle-logo"
+                  src={hiplingoLogoUrl}
+                  alt=""
+                  aria-hidden="true"
+                />
               )}
 
               <ArtworkTransportIcon
@@ -2498,7 +2525,13 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
       <div
         className="listen-waveform-anchor"
         data-waveform-state={
-          waveform ? "ready" : displayLoadError ? "error" : "loading"
+          !selectedTrack
+            ? "idle"
+            : waveform
+              ? "ready"
+              : displayLoadError
+                ? "error"
+                : "loading"
         }
       >
         {waveform ? (
@@ -2538,13 +2571,19 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         ) : (
           <div
             className="waveform-panel waveform-panel--loading"
-            aria-busy={displayLoadError ? undefined : true}
+            aria-busy={
+              !selectedTrack || displayLoadError
+                ? undefined
+                : true
+            }
           >
-            <span className="sr-only" aria-live="polite">
-              {displayLoadError
-                ? "Waveform unavailable"
-                : "Loading waveform…"}
-            </span>
+            {selectedTrack ? (
+              <span className="sr-only" aria-live="polite">
+                {displayLoadError
+                  ? "Waveform unavailable"
+                  : "Loading waveform…"}
+              </span>
+            ) : null}
 
             <div
               className="waveform-panel__zoom-controls"
@@ -2586,6 +2625,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         <ListenTrackQueue
           catalog={catalog}
           selectedTrackKey={selectedTrackKey}
+          queueTrackKeys={queueTrackKeys}
           playingTrackKey={
             displayedIsPlaying ? selectedTrackKey : null
           }
@@ -2606,24 +2646,34 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
         />
       ) : null}
 
-      {selectedTrack ? (
-        <CompactNowPlayingBar
-          artworkUrl={artworkSource}
-          onArtworkClick={
-            onOpenRelease
+      <CompactNowPlayingBar
+        artworkUrl={
+          selectedTrack
+            ? artworkSource
+            : hiplingoLogoUrl
+        }
+        onArtworkClick={
+          selectedTrack
+            ? onOpenRelease
               ? () => onOpenRelease(selectedTrack.release.id)
               : displayMode === "compact"
                 ? onOpenFullPlayer
                 : undefined
-          }
-          artworkActionLabel={
-            onOpenRelease
+            : displayMode === "compact"
+              ? onOpenFullPlayer
+              : undefined
+        }
+        artworkActionLabel={
+          selectedTrack
+            ? onOpenRelease
               ? `Open ${selectedTrack.release.title} release`
               : `Open full player for ${selectedTrack.title}`
-          }
-          artworkFallback={<span aria-hidden="true">♪</span>}
-          title={selectedTrack.title}
-          context={
+            : "Open Listen"
+        }
+        artworkFallback={<span aria-hidden="true">♪</span>}
+        title={selectedTrack?.title ?? ""}
+        context={
+          selectedTrack ? (
             <span className="hiplingo-now-playing-dock__context-links">
               {onOpenArtist && selectedTrack.artist ? (
                 <button
@@ -2659,95 +2709,101 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
                 <span>{selectedTrack.release.title}</span>
               )}
             </span>
-          }
-          detail={
-            getReleaseDate(selectedTrack.release)
-              ?.match(/^\d{4}/)?.[0] ?? ""
-          }
-          controller={{
-            transport: {
-              currentTime,
-              duration: waveform?.durationSeconds ?? 0,
-              isPlaying: displayedIsPlaying,
-              canToggle: Boolean(audioSource && waveform),
-              canPrevious: Boolean(previousTrack),
-              canNext: Boolean(nextTrack),
-              previous: selectPreviousTrack,
-              toggle: toggleCompactPlayback,
-              next: selectNextTrack,
-              seek:
-                waveform && waveform.durationSeconds > 0
-                  ? (seconds) =>
-                      seekCompactWaveform(
-                        seconds / waveform.durationSeconds,
-                      )
-                  : undefined,
-            },
-            volume: {
-              volumePercent,
-              setVolumePercent,
-            },
-          }}
-          waveformPeaks={waveform?.peaks ?? []}
-          waveformColorMode={colorMode}
-          endControls={
-            <>
-              {displayMode === "full" ? (
-                <button
-                  type="button"
-                  className="hiplingo-now-playing-dock__shuffle-button"
-                  aria-label="Shuffle playback queue"
-                  title="Shuffle"
-                  disabled={activeQueue.length < 2}
-                  onClick={shuffleActiveQueue}
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7h3.4c2.2 0 3.3 1.1 4.6 3.2l.4.7" />
-                    <path d="M16 5l4 2-4 2" />
-                    <path d="M4 17h3.4c2.2 0 3.3-1.1 4.6-3.2l.4-.7" />
-                    <path d="M15.4 17H20" />
-                    <path d="M16 15l4 2-4 2" />
-                  </svg>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="hiplingo-now-playing-dock__listen-button"
-                  aria-label="Open Listen"
-                  title="Listen"
-                  disabled={!onOpenFullPlayer}
-                  onClick={() => {
-                    onOpenFullPlayer?.();
-                  }}
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M2.5 12h2l1.25-4 2.1 8 2.1-11 2.1 14 2.1-10 2.1 7 1.25-4h3.5" />
-                  </svg>
-                </button>
-              )}
-
+          ) : undefined
+        }
+        detail={
+          selectedTrack
+            ? getReleaseDate(selectedTrack.release)
+                ?.match(/^\d{4}/)?.[0] ?? ""
+            : ""
+        }
+        controller={{
+          transport: {
+            currentTime,
+            duration: waveform?.durationSeconds ?? 0,
+            isPlaying: displayedIsPlaying,
+            canToggle: Boolean(selectedTrack && audioSource && waveform),
+            canPrevious: Boolean(previousTrack),
+            canNext: Boolean(nextTrack),
+            previous: selectPreviousTrack,
+            toggle: toggleCompactPlayback,
+            next: selectNextTrack,
+            seek:
+              waveform && waveform.durationSeconds > 0
+                ? (seconds) =>
+                    seekCompactWaveform(
+                      seconds / waveform.durationSeconds,
+                    )
+                : undefined,
+          },
+          volume: {
+            volumePercent,
+            setVolumePercent,
+          },
+        }}
+        waveformPeaks={
+          selectedTrack ? waveform?.peaks ?? [] : []
+        }
+        waveformColorMode={colorMode}
+        endControls={
+          <>
+            {displayMode === "full" ? (
               <button
-                ref={metadataButtonRef}
                 type="button"
-                className="hiplingo-now-playing-dock__metadata-button"
-                aria-label="View selected track metadata"
-                title="Track information"
-                disabled={!selectedTrack}
+                className="hiplingo-now-playing-dock__shuffle-button"
+                aria-label="Shuffle playback queue"
+                title="Shuffle"
+                disabled={playableTracks.length < 2}
+                onClick={shuffleActiveQueue}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h3.4c2.2 0 3.3 1.1 4.6 3.2l.4.7" />
+                  <path d="M16 5l4 2-4 2" />
+                  <path d="M4 17h3.4c2.2 0 3.3-1.1 4.6-3.2l.4-.7" />
+                  <path d="M15.4 17H20" />
+                  <path d="M16 15l4 2-4 2" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="hiplingo-now-playing-dock__listen-button"
+                aria-label="Open Listen"
+                title="Listen"
+                disabled={!onOpenFullPlayer}
                 onClick={() => {
-                  setIsMetadataViewerOpen(true);
+                  onOpenFullPlayer?.();
                 }}
               >
-                <span aria-hidden="true">i</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M2.5 12h2l1.25-4 2.1 8 2.1-11 2.1 14 2.1-10 2.1 7 1.25-4h3.5" />
+                </svg>
               </button>
-            </>
-          }
-          ariaLabel="Current track"
-          classNames={{
-            root: "hiplingo-now-playing-dock",
-            endControls: "hiplingo-now-playing-dock__end-controls",
-          }}
-        />
-      ) : null}
+            )}
+
+            <button
+              ref={metadataButtonRef}
+              type="button"
+              className="hiplingo-now-playing-dock__metadata-button"
+              aria-label="View selected track metadata"
+              title="Track information"
+              disabled={!selectedTrack}
+              onClick={() => {
+                setIsMetadataViewerOpen(true);
+              }}
+            >
+              <span aria-hidden="true">i</span>
+            </button>
+          </>
+        }
+        ariaLabel={
+          selectedTrack ? "Current track" : "Idle player"
+        }
+        classNames={{
+          root: "hiplingo-now-playing-dock",
+          endControls: "hiplingo-now-playing-dock__end-controls",
+        }}
+      />
 
       <footer className="audio-player__footer">
         <span>
