@@ -31,7 +31,11 @@ test("oscilloscope falls back to compact waveform data when analyser samples are
 
   assert.match(
     oscilloscopeSource,
-    /function fillWaveformCompatibilityFrame\([\s\S]*?currentTime \* peaksPerSecond[\s\S]*?peak\[0\][\s\S]*?peak\[1\][\s\S]*?peak\[2\][\s\S]*?peak\[3\][\s\S]*?peak\[4\]/,
+    /function fillWaveformCompatibilityFrame\([\s\S]*?currentTime \* peaksPerSecond[\s\S]*?lowerCenter[\s\S]*?upperCenter[\s\S]*?lowerEnvelope[\s\S]*?upperEnvelope[\s\S]*?Math\.sin\(phase\)[\s\S]*?Math\.sin\(phase \* 2\.03 \+ 0\.7\)[\s\S]*?peak\[2\][\s\S]*?peak\[3\][\s\S]*?peak\[4\]/,
+  );
+  assert.doesNotMatch(
+    oscilloscopeSource,
+    /index % 2 === 0[\s\S]*?peak\[0\][\s\S]*?: peak\[1\]/,
   );
 
   assert.match(
