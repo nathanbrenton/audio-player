@@ -119,7 +119,7 @@ test("shared visualization surface unlocks the analyser inside the oscilloscope-
   );
   assert.match(
     surfaceSource,
-    /onClick=\{handleIncreaseWaveformZoom\}/,
+    /onClick=\{\(event\) => \{[\s\S]*?event\.stopPropagation\(\);[\s\S]*?handleIncreaseWaveformZoom\(\);[\s\S]*?\}\}/,
   );
   assert.match(
     sharedAnalyser,

@@ -2274,33 +2274,45 @@ canvas {
    Waveform overlay zoom controls
    --------------------------------------------------------- */
 
+/*
+ * Reserve a dedicated control rail over the waveform. The rail itself owns
+ * pointer input, so taps beside the zoom buttons cannot fall through into
+ * waveform scrubbing or a host playback toggle.
+ */
 .waveform-panel__zoom-controls {
   position: absolute;
-  inset: 0;
+  inset: 0 0 0 auto;
   z-index: 4;
-  pointer-events: none;
+  width: 68px;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 
 .waveform-panel__zoom-button {
   position: absolute;
   right: 8px;
   display: grid;
-  width: 38px;
-  min-width: 38px;
-  height: 38px;
-  min-height: 38px;
+  width: 52px;
+  min-width: 52px;
+  height: 52px;
+  min-height: 52px;
   padding: 0;
   place-items: center;
   border: 1px solid rgb(255 255 255 / 20%);
-  border-radius: 7px;
+  border-radius: 9px;
   background: rgb(0 0 0 / 72%);
   color: #ffffff;
   box-shadow: 0 4px 14px rgb(0 0 0 / 30%);
-  font-size: 1.35rem;
-  font-weight: 600;
   line-height: 1;
   cursor: pointer;
   pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
   backdrop-filter: blur(5px);
 }
 
@@ -2327,42 +2339,49 @@ canvas {
 }
 
 @media (max-width: 639px) {
+  .waveform-panel__zoom-controls {
+    width: 76px;
+  }
+
   .waveform-panel__zoom-button {
-    right: 6px;
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
-    min-height: 36px;
+    right: 8px;
+    width: 56px;
+    min-width: 56px;
+    height: 56px;
+    min-height: 56px;
   }
 
   .waveform-panel__zoom-button--increase {
-    top: 6px;
+    top: 8px;
   }
 
   .waveform-panel__zoom-button--decrease {
-    bottom: 6px;
+    bottom: 8px;
   }
 }
 
-/* Keep the controls compact on short landscape screens. */
+/* Keep a generous control rail even on short landscape phones. */
 @media (
   orientation: landscape
 ) and (max-height: 520px) and (max-width: 950px) {
+  .waveform-panel__zoom-controls {
+    width: 70px;
+  }
+
   .waveform-panel__zoom-button {
-    right: 5px;
-    width: 34px;
-    min-width: 34px;
-    height: 34px;
-    min-height: 34px;
-    font-size: 1.2rem;
+    right: 7px;
+    width: 50px;
+    min-width: 50px;
+    height: 50px;
+    min-height: 50px;
   }
 
   .waveform-panel__zoom-button--increase {
-    top: 5px;
+    top: 7px;
   }
 
   .waveform-panel__zoom-button--decrease {
-    bottom: 5px;
+    bottom: 7px;
   }
 }
 
